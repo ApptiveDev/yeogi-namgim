@@ -1,0 +1,29 @@
+# OS files
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+
+# Local IDE and editor files
+.idea/
+*.iml
+*.ipr
+*.iws
+**/.vscode/*
+!**/.vscode/settings.json
+!**/.vscode/extensions.json
+!**/.vscode/tasks.json
+!**/.vscode/launch.json
+!**/.vscode/*.code-snippets
+.history/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Local environment files (keep examples)
+.env
+.env.*
+!.env.example
