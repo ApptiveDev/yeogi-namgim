@@ -1,29 +1,51 @@
-# OS files
-.DS_Store
-._*
-Thumbs.db
-Desktop.ini
+# Java / Spring Boot / Gradle
+.gradle/
+build/
+out/
+*.class
+*.jar
+*.war
+!**/gradle/wrapper/gradle-wrapper.jar
+*.hprof
+hs_err_pid*
+replay_pid*
 
-# Local IDE and editor files
+# React Native / Expo / TypeScript
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+*.tsbuildinfo
+.metro-health-check*
+/frontend/my-app/ios/
+/frontend/my-app/android/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p8
+*.p12
+*.pem
+*.key
+*.mobileprovision
+
+# Logs
+*.log
+npm-debug.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
 .idea/
 *.iml
 *.ipr
 *.iws
-**/.vscode/*
-!**/.vscode/settings.json
-!**/.vscode/extensions.json
-!**/.vscode/tasks.json
-!**/.vscode/launch.json
-!**/.vscode/*.code-snippets
-.history/
+.vscode/
 *.swp
 *.swo
-*~
-
-# Logs
-*.log
-
-# Local environment files (keep examples)
-.env
-.env.*
-!.env.example
