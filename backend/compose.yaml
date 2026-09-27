@@ -1,0 +1,23 @@
+name: yeogi-namgim-local
+
+services:
+  db:
+    image: postgis/postgis:18-3.6@sha256:60f6ad1d21ea86a67d47780b9a0d1e1d200500f62b19293fa834d0dea80b8677
+    platform: linux/amd64
+    environment:
+      POSTGRES_DB: ${DB_NAME:-yeoginamgim}
+      POSTGRES_USER: ${DB_USERNAME:-yeoginamgim}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in backend/.env}
+    ports:
+      - "127.0.0.1:${DB_PORT:-15432}:5432"
+    volumes:
+      - postgresql-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgresql-data:

@@ -12,12 +12,57 @@ Spring Initializr로 생성한 백엔드 기본 프로젝트입니다.
 | 빌드 스크립트 | Groovy DSL (`build.gradle`) |
 | 패키지 | `com.yeoginamgim` |
 | 패키징 | Jar |
+| PostgreSQL | 18.6, 아래 고정 이미지 사용 |
+| PostGIS | 3.6.4 |
+| 데이터 접근 | Spring Data JPA, Boot 관리 버전 |
+| DB 변경 관리 | Flyway, Boot 관리 버전 |
 
-Spring Web MVC, Validation, Lombok을 포함합니다. 내장 Tomcat을 사용하며, 별도 Tomcat 설치는 필요하지 않습니다. 의존성 버전은 Spring Boot의 의존성 관리에 따릅니다.
+Spring Web MVC, Validation, Lombok, JPA, PostgreSQL 드라이버 및 Flyway를 포함합니다. 내장 Tomcat을 사용하며, 별도 Tomcat 설치는 필요하지 않습니다. 의존성 버전은 Spring Boot의 의존성 관리에 따릅니다.
+
+## 로컬 DB 준비
+
+Docker Engine과 Docker Compose를 준비합니다. 저장소 루트에서 다음 명령을 실행합니다.
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+`.env`의 `DB_PASSWORD`를 로컬 개발용 비밀번호로 변경한 뒤 DB를 실행합니다.
+
+```bash
+docker compose up -d --wait
+```
+
+`.env`는 Git에 포함되지 않습니다. Compose와 Spring이 같은 파일을 읽으며, 운영 환경에서는 환경변수로 접속 정보를 전달합니다. Spring이 `.env`를 읽으려면 작업 디렉터리를 `backend/`로 설정해야 합니다. 파일에는 따옴표나 `export` 없이 `KEY=value` 형식을 사용합니다.
+
+| 변수 | 기본값·설명 |
+| --- | --- |
+| `DB_HOST` | `127.0.0.1`, Spring에서 접속할 DB 호스트 |
+| `DB_PORT` | `15432`, 로컬 DB 포트 (컨테이너 내부는 `5432`) |
+| `DB_NAME` | `yeoginamgim` |
+| `DB_USERNAME` | `yeoginamgim` |
+| `DB_PASSWORD` | 필수, `.env` 또는 환경변수로 설정 |
+
+로컬 DB 포트는 `127.0.0.1`에만 공개됩니다. 포트가 이미 사용 중이면 `.env`의 `DB_PORT`를 변경합니다. DB 데이터는 Docker volume에 보존됩니다. 초기 생성 후 비밀번호 값을 바꾸는 것만으로 기존 DB 비밀번호가 변경되지는 않습니다.
+
+이미지는 `postgis/postgis:18-3.6`을 digest로 고정합니다. 최초 서버 실행으로 Flyway가 PostGIS 활성화를 완료한 뒤, 아래 명령으로 DB와 확장 버전을 확인할 수 있습니다. PostgreSQL 18 기준으로 volume은 `/var/lib/postgresql`에 연결합니다.
+
+이 이미지는 `amd64` 전용이므로 Compose에 `platform: linux/amd64`를 지정했습니다. Apple Silicon에서는 Docker의 x86 실행 지원이 필요합니다.
+
+```bash
+docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT version(), public.postgis_lib_version();"'
+```
+
+앱을 종료한 뒤 DB를 중지할 때는 다음 명령을 사용합니다. 데이터 volume은 유지됩니다.
+
+```bash
+docker compose down
+```
 
 ## 실행 방법
 
-JDK 21을 설치하고 IntelliJ의 Project SDK와 Gradle JVM을 JDK 21로 설정합니다. 저장소의 `backend/` 폴더를 Gradle 프로젝트로 열 수 있습니다.
+JDK 21을 설치하고 IntelliJ의 Project SDK와 Gradle JVM을 JDK 21로 설정합니다. 저장소의 `backend/` 폴더를 Gradle 프로젝트로 열고 실행 설정의 작업 디렉터리를 `backend/`로 지정합니다. 위 절차로 DB를 먼저 실행합니다.
 
 저장소 루트에서 다음 명령을 실행합니다.
 
@@ -32,6 +77,8 @@ Windows에서는 `gradlew.bat bootRun`을 사용합니다. 첫 실행에는 Grad
 
 ## 빌드 및 테스트
 
+로컬 DB를 실행하고 `.env`를 준비한 상태에서 실행합니다.
+
 ```bash
 ./gradlew build
 ```
@@ -42,8 +89,19 @@ Windows에서는 `gradlew.bat bootRun`을 사용합니다. 첫 실행에는 Grad
 java -jar build/libs/yeogi-namgim-0.0.1-SNAPSHOT.jar
 ```
 
+기본 테스트에서 애플리케이션 연결, Flyway 이력 및 PostGIS의 미터 단위 반경 쿼리를 확인합니다. 테스트 실행 시에도 Flyway가 적용되므로 로컬 개발 DB를 사용합니다.
+
+## DB 변경 관리
+
+- 서버 시작 시 Flyway가 `src/main/resources/db/migration/`의 SQL을 순서대로 실행합니다.
+- `V1__enable_postgis.sql`은 `public` 스키마의 PostGIS 확장을 활성화합니다. 이미지에서 이미 활성화했다면 그대로 유지합니다.
+- 애플리케이션 테이블과 Flyway 이력은 `app` 스키마에 관리합니다. 접속 시 `app,public` 순서로 스키마를 검색합니다.
+- JPA는 `ddl-auto=validate`를 사용하며 테이블을 자동 생성하거나 수정하지 않습니다.
+- 후속 변경은 새 `V2__...sql` 마이그레이션으로 추가하고, 이미 적용한 파일은 수정하지 않습니다.
+- 이번 작업에는 쪽지 등의 서비스 테이블을 추가하지 않습니다.
+
 ## 초기 설정 범위
 
-이번 설정은 프로젝트 골격과 Web MVC, Validation, Lombok 의존성까지 포함합니다. DB 연결, JPA, PostGIS, Flyway, FCM 및 서비스 API는 후속 작업에서 추가합니다.
+이번 설정은 프로젝트 골격, 로컬 PostgreSQL·PostGIS 실행, JPA 연결 및 Flyway 초기화까지 포함합니다. 서비스 테이블, FCM 및 서비스 API는 후속 작업에서 추가합니다.
 
 협업 규칙은 [협업 가이드](../docs/CONTRIBUTING.md)를 따릅니다.

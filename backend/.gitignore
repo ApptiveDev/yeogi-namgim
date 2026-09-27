@@ -196,3 +196,8 @@ bin/
 # Local IDE project files
 .idea/
 .vscode/
+
+# Local database credentials
+.env
+.env.*
+!.env.example
