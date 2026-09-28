@@ -4,13 +4,12 @@ import { Pressable, Text, View } from 'react-native';
 import {
   Camera,
   Map,
-  type StyleSpecification,
   UserLocation,
 } from '@maplibre/maplibre-react-native';
 
 import { styles } from '../styles/home.styles';
 
-import mapStyle from '@/assets/maps/custom-style.json';
+import { localizedMapStyle } from '@/styles/map-style';
 
 export default function HomeScreen() {
   const [isFollowingUser, setIsFollowingUser] =
@@ -70,7 +69,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Map
         style={styles.map}
-        mapStyle={mapStyle as StyleSpecification}
+        mapStyle={localizedMapStyle}
         logo={false}
         attribution={false}
         onRegionWillChange={handleRegionWillChange}
