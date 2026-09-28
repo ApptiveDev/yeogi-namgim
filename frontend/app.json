@@ -41,7 +41,8 @@
           "locationWhenInUsePermission": "여기,남김이 현재 위치를 사용합니다."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,
