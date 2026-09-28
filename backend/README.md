@@ -73,7 +73,7 @@ cd backend
 
 Windows에서는 `gradlew.bat bootRun`을 사용합니다. 첫 실행에는 Gradle과 의존성 다운로드를 위한 인터넷 연결이 필요합니다.
 
-기본 포트는 `8080`입니다. 아직 API를 추가하지 않았으므로 `/` 요청은 `404`를 반환합니다. 서버 종료는 `Ctrl+C`를 사용합니다.
+기본 포트는 `8080`입니다. `/api/v1/guest-sessions`에서 비회원 세션을 발급할 수 있으며, 별도 루트 API가 없으므로 `/` 요청은 `404`를 반환합니다. 서버 종료는 `Ctrl+C`를 사용합니다.
 
 ## 빌드 및 테스트
 
@@ -95,13 +95,13 @@ java -jar build/libs/yeogi-namgim-0.0.1-SNAPSHOT.jar
 
 - 서버 시작 시 Flyway가 `src/main/resources/db/migration/`의 SQL을 순서대로 실행합니다.
 - `V1__enable_postgis.sql`은 `public` 스키마의 PostGIS 확장을 활성화합니다. 이미지에서 이미 활성화했다면 그대로 유지합니다.
+- `V2__create_guest_sessions.sql`은 비회원 ID와 토큰 해시를 저장할 `guest_sessions` 테이블을 생성합니다.
 - 애플리케이션 테이블과 Flyway 이력은 `app` 스키마에 관리합니다. 접속 시 `app,public` 순서로 스키마를 검색합니다.
 - JPA는 `ddl-auto=validate`를 사용하며 테이블을 자동 생성하거나 수정하지 않습니다.
-- 후속 변경은 새 `V2__...sql` 마이그레이션으로 추가하고, 이미 적용한 파일은 수정하지 않습니다.
-- 이번 작업에는 쪽지 등의 서비스 테이블을 추가하지 않습니다.
+- 후속 변경은 `V3__...sql`부터 적용 순서에 맞는 새 마이그레이션 파일로 추가하고, 이미 적용한 파일은 수정하지 않습니다.
 
 ## 초기 설정 범위
 
-이번 설정은 프로젝트 골격, 로컬 PostgreSQL·PostGIS 실행, JPA 연결 및 Flyway 초기화까지 포함합니다. 서비스 테이블, FCM 및 서비스 API는 후속 작업에서 추가합니다.
+현재 프로젝트는 기본 실행 환경과 비회원 세션 발급 API를 포함합니다. 쪽지, FCM 및 나머지 서비스 API는 후속 작업에서 추가합니다.
 
 협업 규칙은 [협업 가이드](../docs/CONTRIBUTING.md)를 따릅니다.
