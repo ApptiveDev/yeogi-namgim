@@ -4,13 +4,13 @@ import { Pressable, Text, View } from 'react-native';
 import {
   Camera,
   Map,
+  type StyleSpecification,
   UserLocation,
 } from '@maplibre/maplibre-react-native';
 
 import { styles } from '../styles/home.styles';
 
-const MAP_STYLE =
-  'https://tiles.openfreemap.org/styles/liberty';
+import mapStyle from '@/assets/maps/custom-style.json';
 
 export default function HomeScreen() {
   const [isFollowingUser, setIsFollowingUser] =
@@ -70,7 +70,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Map
         style={styles.map}
-        mapStyle={MAP_STYLE}
+        mapStyle={mapStyle as StyleSpecification}
         logo={false}
         attribution={false}
         onRegionWillChange={handleRegionWillChange}
