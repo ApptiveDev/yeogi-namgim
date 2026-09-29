@@ -8,9 +8,22 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.yeoginamgim.guest.service.InvalidGuestTokenException;
+import com.yeoginamgim.push.service.PushTokenConflictException;
+import com.yeoginamgim.push.service.PushTokenNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+	@ExceptionHandler(PushTokenConflictException.class)
+	public ResponseEntity<ApiErrorResponse> handlePushTokenConflict() {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+			.body(ApiErrorResponse.of("CONFLICT", "기기 토큰이 다른 사용자에게 등록되어 있습니다."));
+	}
+
+	@ExceptionHandler(PushTokenNotFoundException.class)
+	public ResponseEntity<ApiErrorResponse> handlePushTokenNotFound() {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+			.body(ApiErrorResponse.of("RESOURCE_NOT_FOUND", "기기 토큰을 찾을 수 없습니다."));
+	}
 	@ExceptionHandler(InvalidGuestTokenException.class)
 	public ResponseEntity<ApiErrorResponse> handleInvalidGuestToken() {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
