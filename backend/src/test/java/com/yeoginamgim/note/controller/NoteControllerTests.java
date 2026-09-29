@@ -5,11 +5,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +24,8 @@ import com.yeoginamgim.common.api.GlobalExceptionHandler;
 import com.yeoginamgim.common.auth.BearerTokenExtractor;
 import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
+import com.yeoginamgim.note.dto.NoteMarkerResponse;
+import com.yeoginamgim.note.dto.NoteMarkersResponse;
 import com.yeoginamgim.note.service.NoteService;
 
 class NoteControllerTests {
@@ -80,6 +84,43 @@ class NoteControllerTests {
 				.content("""
 					{"content":"   ","latitude":91.0,"longitude":181.0}
 					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+		verifyNoInteractions(noteService);
+	}
+
+	@Test
+	void returnsMarkersInsideMapBoundsWithoutContent() throws Exception {
+		UUID noteId = UUID.randomUUID();
+		when(noteService.findMarkers(eq("guest-token"), any()))
+			.thenReturn(new NoteMarkersResponse(List.of(
+				new NoteMarkerResponse(noteId, 35.1796, 129.0756, true)
+			)));
+
+		mockMvc.perform(get("/api/v1/notes")
+				.header("Authorization", "Bearer guest-token")
+				.param("minLatitude", "35.17")
+				.param("minLongitude", "129.06")
+				.param("maxLatitude", "35.19")
+				.param("maxLongitude", "129.09"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.notes[0].noteId").value(noteId.toString()))
+			.andExpect(jsonPath("$.data.notes[0].latitude").value(35.1796))
+			.andExpect(jsonPath("$.data.notes[0].longitude").value(129.0756))
+			.andExpect(jsonPath("$.data.notes[0].isMine").value(true))
+			.andExpect(jsonPath("$.data.notes[0].content").doesNotExist());
+	}
+
+	@Test
+	void rejectsInvalidMapBounds() throws Exception {
+		mockMvc.perform(get("/api/v1/notes")
+				.header("Authorization", "Bearer guest-token")
+				.param("minLatitude", "35.19")
+				.param("minLongitude", "129.09")
+				.param("maxLatitude", "35.17")
+				.param("maxLongitude", "129.06"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));

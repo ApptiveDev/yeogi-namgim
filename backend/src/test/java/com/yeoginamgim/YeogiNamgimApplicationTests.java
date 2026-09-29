@@ -2,15 +2,32 @@ package com.yeoginamgim;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.yeoginamgim.guest.domain.GuestSession;
+import com.yeoginamgim.guest.repository.GuestSessionRepository;
+import com.yeoginamgim.note.domain.Note;
+import com.yeoginamgim.note.repository.NoteMarkerProjection;
+import com.yeoginamgim.note.repository.NoteRepository;
 
 @SpringBootTest
 class YeogiNamgimApplicationTests {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
+
+	@Autowired
+	private GuestSessionRepository guestSessionRepository;
+
+	@Autowired
+	private NoteRepository noteRepository;
 
 	@Test
 	void contextLoads() {
@@ -46,6 +63,30 @@ class YeogiNamgimApplicationTests {
 		assertThat(jdbcTemplate.queryForObject(
 			"SELECT to_regclass('app.idx_notes_location') IS NOT NULL", Boolean.class
 		)).isTrue();
+	}
+
+	@Test
+	@Transactional
+	void markerQueryReturnsOnlyNotesInsideBounds() {
+		UUID guestId = UUID.randomUUID();
+		guestSessionRepository.save(GuestSession.create(
+			guestId,
+			"a".repeat(64),
+			Instant.now()
+		));
+		Note inside = noteRepository.save(Note.create(
+			UUID.randomUUID(), guestId, "범위 안", 35.1796, 129.0756, Instant.now()
+		));
+		Note outside = noteRepository.save(Note.create(
+			UUID.randomUUID(), guestId, "범위 밖", 35.25, 129.2, Instant.now()
+		));
+		noteRepository.flush();
+
+		List<UUID> noteIds = noteRepository.findMarkersWithinBounds(
+			35.17, 129.06, 35.19, 129.09
+		).stream().map(NoteMarkerProjection::getNoteId).toList();
+
+		assertThat(noteIds).contains(inside.getId()).doesNotContain(outside.getId());
 	}
 
 	@Test
