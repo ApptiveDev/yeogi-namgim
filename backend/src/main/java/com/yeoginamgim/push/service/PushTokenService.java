@@ -8,6 +8,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.yeoginamgim.guest.service.GuestSessionService;
+import com.yeoginamgim.common.rate.FixedWindowRateLimiter;
 import com.yeoginamgim.push.domain.PushToken;
 import com.yeoginamgim.push.dto.PushTokenRegisterRequest;
 import com.yeoginamgim.push.dto.PushTokenRegisterResponse;
@@ -17,15 +18,19 @@ import com.yeoginamgim.push.repository.PushTokenRepository;
 public class PushTokenService {
 	private final GuestSessionService guestSessionService;
 	private final PushTokenRepository pushTokenRepository;
+	private final FixedWindowRateLimiter rateLimiter;
 
-	public PushTokenService(GuestSessionService guestSessionService, PushTokenRepository pushTokenRepository) {
+	public PushTokenService(GuestSessionService guestSessionService, PushTokenRepository pushTokenRepository,
+		FixedWindowRateLimiter rateLimiter) {
 		this.guestSessionService = guestSessionService;
 		this.pushTokenRepository = pushTokenRepository;
+		this.rateLimiter = rateLimiter;
 	}
 
 	@Transactional
 	public PushTokenRegisterResponse register(String guestToken, PushTokenRegisterRequest request) {
 		UUID guestId = guestSessionService.identify(guestToken);
+		rateLimiter.check("push-token-registration", guestId, 10);
 		PushToken token = pushTokenRepository.findByPushToken(request.pushToken())
 			.map(existing -> {
 				if (!existing.getGuestId().equals(guestId)) {

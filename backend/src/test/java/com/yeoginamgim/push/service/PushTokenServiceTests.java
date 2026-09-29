@@ -14,6 +14,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import com.yeoginamgim.guest.service.GuestSessionService;
+import com.yeoginamgim.common.rate.FixedWindowRateLimiter;
 import com.yeoginamgim.push.domain.PushPlatform;
 import com.yeoginamgim.push.domain.PushToken;
 import com.yeoginamgim.push.dto.PushTokenRegisterRequest;
@@ -22,7 +23,8 @@ import com.yeoginamgim.push.repository.PushTokenRepository;
 class PushTokenServiceTests {
 	private final GuestSessionService guestSessionService = mock(GuestSessionService.class);
 	private final PushTokenRepository repository = mock(PushTokenRepository.class);
-	private final PushTokenService service = new PushTokenService(guestSessionService, repository);
+	private final PushTokenService service = new PushTokenService(guestSessionService, repository,
+		new FixedWindowRateLimiter());
 
 	@Test
 	void registersAndReenablesOwnToken() {

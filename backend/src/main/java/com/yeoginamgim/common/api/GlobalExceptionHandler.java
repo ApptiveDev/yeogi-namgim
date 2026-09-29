@@ -8,11 +8,17 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.yeoginamgim.guest.service.InvalidGuestTokenException;
+import com.yeoginamgim.common.rate.RateLimitExceededException;
 import com.yeoginamgim.push.service.PushTokenConflictException;
 import com.yeoginamgim.push.service.PushTokenNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+	@ExceptionHandler(RateLimitExceededException.class)
+	public ResponseEntity<ApiErrorResponse> handleRateLimit() {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+			.body(ApiErrorResponse.of("TOO_MANY_REQUESTS", "요청 횟수 제한을 초과했습니다."));
+	}
 	@ExceptionHandler(PushTokenConflictException.class)
 	public ResponseEntity<ApiErrorResponse> handlePushTokenConflict() {
 		return ResponseEntity.status(HttpStatus.CONFLICT)
