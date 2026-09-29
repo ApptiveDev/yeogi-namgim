@@ -17,6 +17,12 @@ import com.yeoginamgim.guest.repository.GuestSessionRepository;
 import com.yeoginamgim.note.domain.Note;
 import com.yeoginamgim.note.repository.NoteMarkerProjection;
 import com.yeoginamgim.note.repository.NoteRepository;
+import com.yeoginamgim.location.domain.GuestLocation;
+import com.yeoginamgim.location.repository.GuestLocationRepository;
+import com.yeoginamgim.push.domain.PushPlatform;
+import com.yeoginamgim.push.domain.PushToken;
+import com.yeoginamgim.push.repository.PushDeliveryRepository;
+import com.yeoginamgim.push.repository.PushTokenRepository;
 
 @SpringBootTest
 class YeogiNamgimApplicationTests {
@@ -28,6 +34,15 @@ class YeogiNamgimApplicationTests {
 
 	@Autowired
 	private NoteRepository noteRepository;
+
+	@Autowired
+	private GuestLocationRepository guestLocationRepository;
+
+	@Autowired
+	private PushTokenRepository pushTokenRepository;
+
+	@Autowired
+	private PushDeliveryRepository pushDeliveryRepository;
 
 	@Test
 	void contextLoads() {
@@ -70,6 +85,37 @@ class YeogiNamgimApplicationTests {
 		assertThat(jdbcTemplate.queryForObject(
 			"SELECT to_regclass('app.push_tokens') IS NOT NULL", Boolean.class
 		)).isTrue();
+	}
+
+	@Test
+	@Transactional
+	void nearbyPushCandidatesAndHourlyClaimUseSpatialDistance() {
+		UUID guestId = UUID.randomUUID();
+		guestSessionRepository.save(GuestSession.create(guestId, UUID.randomUUID().toString().replace("-", "").repeat(2), Instant.now()));
+		GuestLocation location = guestLocationRepository.save(new GuestLocation(guestId, 35.1796, 129.0756, Instant.now()));
+		PushToken token = pushTokenRepository.save(PushToken.create(UUID.randomUUID(), guestId,
+			PushPlatform.ANDROID, "integration-device-" + UUID.randomUUID(), Instant.now()));
+		noteRepository.save(Note.create(UUID.randomUUID(), guestId, "근처", 35.1806, 129.0756, Instant.now()));
+		noteRepository.flush();
+		guestLocationRepository.flush();
+		pushTokenRepository.flush();
+
+		var candidates = pushDeliveryRepository.findCandidates(Instant.now().minusSeconds(60), new UUID(0L, 0L));
+		var candidate = candidates.stream().filter(item -> item.tokenId().equals(token.getId())).findFirst().orElseThrow();
+		Instant hour = Instant.parse("2026-09-29T13:00:00Z");
+		assertThat(pushDeliveryRepository.claim(token.getId(), candidate.regionKey(), hour)).isTrue();
+		assertThat(pushDeliveryRepository.claim(token.getId(), candidate.regionKey(), hour)).isFalse();
+
+		location.update(35.25, 129.2, Instant.now());
+		guestLocationRepository.flush();
+		assertThat(pushDeliveryRepository.findCandidates(Instant.now().minusSeconds(60), new UUID(0L, 0L)))
+			.noneMatch(item -> item.tokenId().equals(token.getId()));
+		location.update(35.1796, 129.0756, Instant.now());
+		token.setEnabled(false);
+		guestLocationRepository.flush();
+		pushTokenRepository.flush();
+		assertThat(pushDeliveryRepository.findCandidates(Instant.now().minusSeconds(60), new UUID(0L, 0L)))
+			.noneMatch(item -> item.tokenId().equals(token.getId()));
 	}
 
 	@Test
