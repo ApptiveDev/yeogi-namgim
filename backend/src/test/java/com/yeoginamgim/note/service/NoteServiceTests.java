@@ -1,29 +1,57 @@
 package com.yeoginamgim.note.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.yeoginamgim.guest.service.GuestSessionService;
+import com.yeoginamgim.common.rate.FixedWindowRateLimiter;
 import com.yeoginamgim.note.domain.Note;
 import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
 import com.yeoginamgim.note.dto.NoteMapBoundsRequest;
 import com.yeoginamgim.note.dto.NoteMarkersResponse;
+import com.yeoginamgim.note.dto.NoteOpenRequest;
 import com.yeoginamgim.note.repository.NoteMarkerProjection;
 import com.yeoginamgim.note.repository.NoteRepository;
 
 class NoteServiceTests {
+	@Test
+	void opensNearbyNoteIncludingOwnNote() {
+		UUID guestId = UUID.randomUUID();
+		Note note = Note.create(UUID.randomUUID(), guestId, "내용", 35.0, 129.0, java.time.Instant.now());
+		when(guestSessionService.identify("guest-token")).thenReturn(guestId);
+		when(noteRepository.findOpenableById(note.getId(), 35.0, 129.0)).thenReturn(Optional.of(note));
+		var response = noteService.open("guest-token", note.getId(), new NoteOpenRequest(35.0, 129.0));
+		assertThat(response.content()).isEqualTo("내용");
+		assertThat(response.isMine()).isTrue();
+	}
+
+	@Test
+	void distinguishesLockedFromMissingWithoutReturningContent() {
+		UUID noteId = UUID.randomUUID();
+		when(guestSessionService.identify("guest-token")).thenReturn(UUID.randomUUID());
+		when(noteRepository.findOpenableById(noteId, 35.0, 129.0)).thenReturn(Optional.empty());
+		when(noteRepository.existsById(noteId)).thenReturn(true);
+		assertThatThrownBy(() -> noteService.open("guest-token", noteId, new NoteOpenRequest(35.0, 129.0)))
+			.isInstanceOf(NoteLockedException.class);
+		when(noteRepository.existsById(noteId)).thenReturn(false);
+		assertThatThrownBy(() -> noteService.open("guest-token", noteId, new NoteOpenRequest(35.0, 129.0)))
+			.isInstanceOf(NoteNotFoundException.class);
+	}
 	private final NoteRepository noteRepository = mock(NoteRepository.class);
 	private final GuestSessionService guestSessionService = mock(GuestSessionService.class);
-	private final NoteService noteService = new NoteService(noteRepository, guestSessionService);
+	private final NoteService noteService = new NoteService(noteRepository, guestSessionService,
+		new FixedWindowRateLimiter());
 
 	@Test
 	void createsNoteForIdentifiedGuestWithServerTime() {

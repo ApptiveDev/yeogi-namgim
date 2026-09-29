@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,7 +19,10 @@ import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
 import com.yeoginamgim.note.dto.NoteMapBoundsRequest;
 import com.yeoginamgim.note.dto.NoteMarkersResponse;
+import com.yeoginamgim.note.dto.NoteOpenRequest;
+import com.yeoginamgim.note.dto.NoteOpenResponse;
 import com.yeoginamgim.note.service.NoteService;
+import java.util.UUID;
 
 import jakarta.validation.Valid;
 
@@ -51,5 +55,15 @@ public class NoteController {
 		String guestToken = bearerTokenExtractor.extract(authorizationHeader);
 		NoteMarkersResponse response = noteService.findMarkers(guestToken, bounds);
 		return ResponseEntity.ok(ApiResponse.success(response));
+	}
+
+	@PostMapping("/{noteId}/open")
+	public ResponseEntity<ApiResponse<NoteOpenResponse>> open(
+		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
+		@PathVariable UUID noteId,
+		@Valid @RequestBody NoteOpenRequest request
+	) {
+		String guestToken = bearerTokenExtractor.extract(authorizationHeader);
+		return ResponseEntity.ok(ApiResponse.success(noteService.open(guestToken, noteId, request)));
 	}
 }
