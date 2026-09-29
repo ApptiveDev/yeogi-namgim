@@ -14,6 +14,8 @@ import com.yeoginamgim.note.dto.NoteCreateResponse;
 import com.yeoginamgim.note.dto.NoteMapBoundsRequest;
 import com.yeoginamgim.note.dto.NoteMarkerResponse;
 import com.yeoginamgim.note.dto.NoteMarkersResponse;
+import com.yeoginamgim.note.dto.NoteOpenRequest;
+import com.yeoginamgim.note.dto.NoteOpenResponse;
 import com.yeoginamgim.note.repository.NoteMarkerProjection;
 import com.yeoginamgim.note.repository.NoteRepository;
 
@@ -65,5 +67,15 @@ public class NoteService {
 			note.getLongitude(),
 			guestId.equals(note.getGuestAuthorId())
 		);
+	}
+
+	@Transactional(readOnly = true)
+	public NoteOpenResponse open(String guestToken, UUID noteId, NoteOpenRequest request) {
+		UUID guestId = guestSessionService.identify(guestToken);
+		Note note = noteRepository.findOpenableById(noteId, request.latitude(), request.longitude())
+			.orElseThrow(() -> noteRepository.existsById(noteId)
+				? new NoteLockedException() : new NoteNotFoundException());
+		return new NoteOpenResponse(note.getId(), note.getContent(),
+			guestId.equals(note.getGuestAuthorId()), note.getCreatedAt());
 	}
 }
