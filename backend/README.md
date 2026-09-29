@@ -75,6 +75,20 @@ Windows에서는 `gradlew.bat bootRun`을 사용합니다. 첫 실행에는 Grad
 
 기본 포트는 `8080`입니다. `/api/v1/guest-sessions`에서 비회원 세션을 발급하고, 발급받은 Bearer 토큰으로 `POST /api/v1/notes`에서 현재 위치에 쪽지를 작성할 수 있습니다. `GET /api/v1/notes`에 최소·최대 위도와 경도를 전달하면 해당 지도 범위의 마커 데이터를 조회할 수 있습니다. 별도 루트 API가 없으므로 `/` 요청은 `404`를 반환합니다. 서버 종료는 `Ctrl+C`를 사용합니다.
 
+### 앱 내 주변 쪽지 알림 조회
+
+앱은 현재 좌표와 비회원 Bearer 토큰으로 `GET /api/v1/notifications/nearby?latitude=35.1797&longitude=129.0755`를 호출할 수 있습니다. 서버는 PostGIS로 500m 안의 쪽지 존재 여부만 판정합니다.
+
+```json
+{
+  "success": true,
+  "data": { "hasNearbyNotes": true },
+  "meta": { "requestId": "req_...", "timestamp": "2026-09-29T05:30:00Z" }
+}
+```
+
+응답에는 쪽지 ID·좌표·내용이 없습니다. 앱은 `hasNearbyNotes`를 이용해 화면 내 안내 표시 여부와 반복 표시 간격을 결정합니다. 좌표 누락·범위 오류는 `400 INVALID_REQUEST`, 비회원 토큰 오류는 `401 UNAUTHORIZED`로 반환합니다.
+
 ## 빌드 및 테스트
 
 로컬 DB를 실행하고 `.env`를 준비한 상태에서 실행합니다.
