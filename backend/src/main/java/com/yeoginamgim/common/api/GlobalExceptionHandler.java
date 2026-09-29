@@ -10,6 +10,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 import com.yeoginamgim.guest.service.InvalidGuestTokenException;
 import com.yeoginamgim.common.rate.RateLimitExceededException;
+import com.yeoginamgim.push.service.PushTokenConflictException;
+import com.yeoginamgim.push.service.PushTokenNotFoundException;
 import com.yeoginamgim.note.service.NoteLockedException;
 import com.yeoginamgim.note.service.NoteNotFoundException;
 
@@ -19,6 +21,17 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ApiErrorResponse> handleRateLimit() {
 		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
 			.body(ApiErrorResponse.of("TOO_MANY_REQUESTS", "요청 횟수 제한을 초과했습니다."));
+	}
+	@ExceptionHandler(PushTokenConflictException.class)
+	public ResponseEntity<ApiErrorResponse> handlePushTokenConflict() {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+			.body(ApiErrorResponse.of("CONFLICT", "기기 토큰이 다른 사용자에게 등록되어 있습니다."));
+	}
+
+	@ExceptionHandler(PushTokenNotFoundException.class)
+	public ResponseEntity<ApiErrorResponse> handlePushTokenNotFound() {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+			.body(ApiErrorResponse.of("RESOURCE_NOT_FOUND", "기기 토큰을 찾을 수 없습니다."));
 	}
 
 	@ExceptionHandler(NoteLockedException.class)

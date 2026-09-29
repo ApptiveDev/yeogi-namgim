@@ -66,6 +66,13 @@ class YeogiNamgimApplicationTests {
 	}
 
 	@Test
+	void pushTokensMigrationIsApplied() {
+		assertThat(jdbcTemplate.queryForObject(
+			"SELECT to_regclass('app.push_tokens') IS NOT NULL", Boolean.class
+		)).isTrue();
+	}
+
+	@Test
 	@Transactional
 	void markerQueryReturnsOnlyNotesInsideBounds() {
 		UUID guestId = UUID.randomUUID();
