@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.yeoginamgim.guest.service.GuestSessionService;
+import com.yeoginamgim.common.rate.FixedWindowRateLimiter;
 import com.yeoginamgim.note.domain.Note;
 import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
@@ -49,7 +50,8 @@ class NoteServiceTests {
 	}
 	private final NoteRepository noteRepository = mock(NoteRepository.class);
 	private final GuestSessionService guestSessionService = mock(GuestSessionService.class);
-	private final NoteService noteService = new NoteService(noteRepository, guestSessionService);
+	private final NoteService noteService = new NoteService(noteRepository, guestSessionService,
+		new FixedWindowRateLimiter());
 
 	@Test
 	void createsNoteForIdentifiedGuestWithServerTime() {

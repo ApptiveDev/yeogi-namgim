@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.yeoginamgim.guest.service.GuestSessionService;
+import com.yeoginamgim.common.rate.FixedWindowRateLimiter;
 import com.yeoginamgim.note.domain.Note;
 import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
@@ -23,10 +24,13 @@ import com.yeoginamgim.note.repository.NoteRepository;
 public class NoteService {
 	private final NoteRepository noteRepository;
 	private final GuestSessionService guestSessionService;
+	private final FixedWindowRateLimiter rateLimiter;
 
-	public NoteService(NoteRepository noteRepository, GuestSessionService guestSessionService) {
+	public NoteService(NoteRepository noteRepository, GuestSessionService guestSessionService,
+		FixedWindowRateLimiter rateLimiter) {
 		this.noteRepository = noteRepository;
 		this.guestSessionService = guestSessionService;
+		this.rateLimiter = rateLimiter;
 	}
 
 	@Transactional
@@ -72,6 +76,7 @@ public class NoteService {
 	@Transactional(readOnly = true)
 	public NoteOpenResponse open(String guestToken, UUID noteId, NoteOpenRequest request) {
 		UUID guestId = guestSessionService.identify(guestToken);
+		rateLimiter.check("note-open", guestId, 60);
 		Note note = noteRepository.findOpenableById(noteId, request.latitude(), request.longitude())
 			.orElseThrow(() -> noteRepository.existsById(noteId)
 				? new NoteLockedException() : new NoteNotFoundException());

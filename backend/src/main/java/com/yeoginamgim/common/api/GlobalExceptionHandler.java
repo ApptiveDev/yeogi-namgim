@@ -9,11 +9,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.yeoginamgim.guest.service.InvalidGuestTokenException;
+import com.yeoginamgim.common.rate.RateLimitExceededException;
 import com.yeoginamgim.note.service.NoteLockedException;
 import com.yeoginamgim.note.service.NoteNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+	@ExceptionHandler(RateLimitExceededException.class)
+	public ResponseEntity<ApiErrorResponse> handleRateLimit() {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+			.body(ApiErrorResponse.of("TOO_MANY_REQUESTS", "요청 횟수 제한을 초과했습니다."));
+	}
+
 	@ExceptionHandler(NoteLockedException.class)
 	public ResponseEntity<ApiErrorResponse> handleNoteLocked() {
 		return ResponseEntity.status(HttpStatus.FORBIDDEN)
