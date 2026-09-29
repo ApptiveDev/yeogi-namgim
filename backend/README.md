@@ -75,6 +75,21 @@ Windows에서는 `gradlew.bat bootRun`을 사용합니다. 첫 실행에는 Grad
 
 기본 포트는 `8080`입니다. `/api/v1/guest-sessions`에서 비회원 세션을 발급하고, 발급받은 Bearer 토큰으로 `POST /api/v1/notes`에서 현재 위치에 쪽지를 작성할 수 있습니다. `GET /api/v1/notes`에 최소·최대 위도와 경도를 전달하면 해당 지도 범위의 마커 데이터를 조회할 수 있습니다. 별도 루트 API가 없으므로 `/` 요청은 `404`를 반환합니다. 서버 종료는 `Ctrl+C`를 사용합니다.
 
+## 쪽지·푸시 API
+
+아래 요청은 모두 비회원 세션 API에서 발급받은 `Authorization: Bearer <token>` 헤더가 필요합니다.
+
+| 메서드·경로 | 설명 |
+| --- | --- |
+| `POST /api/v1/notes/{noteId}/open` | `{ "latitude": 35.1797, "longitude": 129.0755 }`로 요청한 위치가 쪽지에서 200m 이내일 때만 본문 반환 |
+| `POST /api/v1/push-tokens` | `{ "platform": "ANDROID", "pushToken": "..." }`로 기기 토큰 등록. iOS APNs 토큰 또는 Firebase 등록 토큰 사용 가능 |
+| `PATCH /api/v1/push-tokens/{tokenId}` | `{ "enabled": false }`로 알림 비활성화. OS 권한이 꺼지면 앱에서 호출 |
+| `PATCH /api/v1/locations/current` | `{ "latitude": 35.1797, "longitude": 129.0755 }`로 최신 위치 갱신 |
+
+앱은 홈 지도 진입 또는 위치가 바뀔 때 최신 위치를 전송해야 합니다. 서버는 최근 24시간 안에 갱신된 위치와 500m 안의 쪽지를 매 정각(UTC) 확인합니다. 같은 기기·지역(6자리 geohash)·시간에는 한 번만 발송합니다. 푸시에는 “주변에 확인할 수 있는 쪽지가 있어요.”와 `screen=home`만 포함하며, 앱은 알림 클릭 시 홈 지도 화면을 열어야 합니다.
+
+푸시 작업은 기본적으로 꺼져 있습니다. 운영 환경에서 `.env.example`의 `PUSH_ENABLED=true`와 발송 자격 증명을 설정합니다. Android와 iOS Firebase 등록 토큰은 [FCM HTTP v1](https://firebase.google.com/docs/cloud-messaging/send/v1-api)을 사용하며 `FCM_PROJECT_ID`, 서비스 계정의 `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY`가 필요합니다. iOS APNs 기기 토큰은 [APNs 토큰 인증](https://developer.apple.com/documentation/usernotifications/establishing-a-token-based-connection-to-apns)을 사용하며 `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_BUNDLE_ID`, `APNS_PRIVATE_KEY`(`.p8`)가 필요합니다. 개발 APNs 토큰에는 `APNS_SANDBOX=true`를 설정합니다. 키는 줄바꿈을 `\n`으로 변환해 환경변수에 넣을 수 있습니다. 실제 발송은 공급자 자격 증명과 앱의 알림 권한이 있어야 확인할 수 있습니다.
+
 ## 빌드 및 테스트
 
 로컬 DB를 실행하고 `.env`를 준비한 상태에서 실행합니다.
