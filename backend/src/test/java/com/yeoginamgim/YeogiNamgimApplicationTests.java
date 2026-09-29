@@ -36,6 +36,19 @@ class YeogiNamgimApplicationTests {
 	}
 
 	@Test
+	void notesMigrationIsAppliedWithSpatialIndex() {
+		assertThat(jdbcTemplate.queryForObject(
+			"SELECT success FROM app.flyway_schema_history WHERE version = '3'", Boolean.class
+		)).isTrue();
+		assertThat(jdbcTemplate.queryForObject(
+			"SELECT to_regclass('app.notes') IS NOT NULL", Boolean.class
+		)).isTrue();
+		assertThat(jdbcTemplate.queryForObject(
+			"SELECT to_regclass('app.idx_notes_location') IS NOT NULL", Boolean.class
+		)).isTrue();
+	}
+
+	@Test
 	void geographyRadiusQueryUsesMeters() {
 		String query = """
 			SELECT public.ST_DWithin(
