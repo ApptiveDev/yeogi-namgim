@@ -8,12 +8,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.yeoginamgim.guest.service.GuestSessionService;
+import com.yeoginamgim.common.rate.FixedWindowRateLimiter;
 import com.yeoginamgim.note.domain.Note;
 import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
 import com.yeoginamgim.note.dto.NoteMapBoundsRequest;
 import com.yeoginamgim.note.dto.NoteMarkerResponse;
 import com.yeoginamgim.note.dto.NoteMarkersResponse;
+import com.yeoginamgim.note.dto.NoteOpenRequest;
+import com.yeoginamgim.note.dto.NoteOpenResponse;
 import com.yeoginamgim.note.repository.NoteMarkerProjection;
 import com.yeoginamgim.note.repository.NoteRepository;
 
@@ -21,10 +24,13 @@ import com.yeoginamgim.note.repository.NoteRepository;
 public class NoteService {
 	private final NoteRepository noteRepository;
 	private final GuestSessionService guestSessionService;
+	private final FixedWindowRateLimiter rateLimiter;
 
-	public NoteService(NoteRepository noteRepository, GuestSessionService guestSessionService) {
+	public NoteService(NoteRepository noteRepository, GuestSessionService guestSessionService,
+		FixedWindowRateLimiter rateLimiter) {
 		this.noteRepository = noteRepository;
 		this.guestSessionService = guestSessionService;
+		this.rateLimiter = rateLimiter;
 	}
 
 	@Transactional
@@ -65,5 +71,16 @@ public class NoteService {
 			note.getLongitude(),
 			guestId.equals(note.getGuestAuthorId())
 		);
+	}
+
+	@Transactional(readOnly = true)
+	public NoteOpenResponse open(String guestToken, UUID noteId, NoteOpenRequest request) {
+		UUID guestId = guestSessionService.identify(guestToken);
+		rateLimiter.check("note-open", guestId, 60);
+		Note note = noteRepository.findOpenableById(noteId, request.latitude(), request.longitude())
+			.orElseThrow(() -> noteRepository.existsById(noteId)
+				? new NoteLockedException() : new NoteNotFoundException());
+		return new NoteOpenResponse(note.getId(), note.getContent(),
+			guestId.equals(note.getGuestAuthorId()), note.getCreatedAt());
 	}
 }

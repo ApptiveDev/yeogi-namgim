@@ -26,9 +26,38 @@ import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
 import com.yeoginamgim.note.dto.NoteMarkerResponse;
 import com.yeoginamgim.note.dto.NoteMarkersResponse;
+import com.yeoginamgim.note.dto.NoteOpenResponse;
 import com.yeoginamgim.note.service.NoteService;
 
 class NoteControllerTests {
+	@Test
+	void opensNoteWithValidCoordinates() throws Exception {
+		UUID noteId = UUID.randomUUID();
+		when(noteService.open(eq("guest-token"), eq(noteId), any()))
+			.thenReturn(new NoteOpenResponse(noteId, "내용", false, Instant.parse("2026-09-29T01:30:00Z")));
+		mockMvc.perform(post("/api/v1/notes/{noteId}/open", noteId)
+				.header("Authorization", "Bearer guest-token")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"latitude\":35.1797,\"longitude\":129.0755}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.content").value("내용"));
+	}
+
+	@Test
+	void rejectsMalformedNoteIdAndCoordinates() throws Exception {
+		mockMvc.perform(post("/api/v1/notes/not-a-uuid/open")
+				.header("Authorization", "Bearer guest-token")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"latitude\":35.0,\"longitude\":129.0}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+		mockMvc.perform(post("/api/v1/notes/{noteId}/open", UUID.randomUUID())
+				.header("Authorization", "Bearer guest-token")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"latitude\":91.0,\"longitude\":129.0}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+	}
 	private final NoteService noteService = mock(NoteService.class);
 	private MockMvc mockMvc;
 

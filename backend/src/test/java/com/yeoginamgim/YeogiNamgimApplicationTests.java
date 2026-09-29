@@ -155,4 +155,17 @@ class YeogiNamgimApplicationTests {
 		assertThat(jdbcTemplate.queryForObject(query, Boolean.class, 50)).isFalse();
 	}
 
+	@Test
+	@Transactional
+	void noteOpenQueryReturnsOnlyWithinTwoHundredMeters() {
+		UUID guestId = UUID.randomUUID();
+		guestSessionRepository.save(GuestSession.create(guestId, "b".repeat(64), Instant.now()));
+		Note note = noteRepository.save(Note.create(
+			UUID.randomUUID(), guestId, "거리 제한", 35.1796, 129.0756, Instant.now()
+		));
+		noteRepository.flush();
+		assertThat(noteRepository.findOpenableById(note.getId(), 35.1806, 129.0756)).isPresent();
+		assertThat(noteRepository.findOpenableById(note.getId(), 35.1826, 129.0756)).isEmpty();
+	}
+
 }
