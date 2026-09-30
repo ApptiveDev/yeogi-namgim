@@ -2,7 +2,7 @@ import * as Location from 'expo-location';
 import { Image } from 'expo-image';
 import { useFonts } from 'expo-font';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Platform, Pressable, Text, View, useWindowDimensions, type NativeSyntheticEvent } from 'react-native';
+import { Alert, Animated, Easing, Keyboard, Platform, Pressable, Text, View, useWindowDimensions, type NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Camera,
@@ -19,6 +19,8 @@ import {
 import { styles } from '../styles/home.styles';
 import { localizedMapStyle } from '@/styles/map-style';
 import type { MapBounds } from '@/api/types';
+import { createNote } from '@/api/notes';
+import { getGuestToken } from '@/auth/guest-token';
 import { useNoteMarkers } from '@/hooks/use-note-markers';
 import { createLocationCircle } from '@/utils/location-circle';
 import { INITIAL_NOTE_DRAFT, NoteComposeSheet, type NoteDraft } from '@/components/notes/NoteComposeSheet';
@@ -27,6 +29,7 @@ import { ComposeMapDimmer } from '@/components/notes/ComposeMapDimmer';
 import { COMPOSE_DIM_DURATION, COMPOSE_DIM_OPACITY } from '@/components/notes/compose-transitions';
 import type { FeatureCollection } from 'geojson';
 import { NoteMapLayer, type NoteMapItem } from '@/components/notes/NoteMapLayer';
+import { NoteCreatedDialog } from '@/components/notes/NoteCreatedDialog';
 
 const USER_RADIUS_METERS = 100;
 const MAP_OPTIONS = ['공개지도', '개인지도'] as const;
@@ -38,7 +41,8 @@ const BASE_MAP_TOP_LAYER = localizedMapStyle.layers.at(-1)?.id;
 export default function HomeScreen() {
   const mapRef = useRef<MapRef>(null);
   const [bounds, setBounds] = useState<MapBounds | null>(null);
-  const { notes } = useNoteMarkers(bounds);
+  const [notesRefreshKey, setNotesRefreshKey] = useState(0);
+  const { notes } = useNoteMarkers(bounds, notesRefreshKey);
   const mapNotes: NoteMapItem[] = notes.map((note) => ({
     id: note.noteId,
     latitude: note.latitude,
@@ -50,6 +54,9 @@ export default function HomeScreen() {
   const cameraRef = useRef<CameraRef>(null);
   const resumeFollowingAfterClose = useRef(false);
   const composeRequest = useRef(0);
+  const submitting = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreatedDialogVisible, setIsCreatedDialogVisible] = useState(false);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const selectorShadeOpacity = useRef(new Animated.Value(0)).current;
   const [draft, setDraft] = useState<NoteDraft>(INITIAL_NOTE_DRAFT);
@@ -89,6 +96,7 @@ export default function HomeScreen() {
   }, [isComposeOpen, selectorShadeOpacity]);
 
   const closeCompose = useCallback(() => {
+    if (submitting.current) return;
     composeRequest.current += 1;
     setIsComposeOpen(false);
     setComposeCoordinates(null);
@@ -112,6 +120,41 @@ export default function HomeScreen() {
       });
     }
   }, [userCoordinates, composeCoordinates]);
+
+  const submitNote = async (submittedDraft: NoteDraft) => {
+    const content = submittedDraft.content.trim();
+    if (submitting.current || !content || !composeCoordinates) return;
+    submitting.current = true;
+    setIsSubmitting(true);
+    Keyboard.dismiss();
+    try {
+      const permission = await Location.getForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        throw new Error('현재 위치에 쪽지를 남기려면 위치 권한을 허용해 주세요.');
+      }
+      let coords: Location.LocationObjectCoords;
+      try {
+        const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        coords = location.coords;
+      } catch {
+        throw new Error('현재 위치를 확인할 수 없어요. 위치 서비스를 확인해 주세요.');
+      }
+      const token = await getGuestToken();
+      // Visibility is not part of the current backend contract.
+      await createNote({ content, latitude: coords.latitude, longitude: coords.longitude }, token);
+      setUserCoordinates(coords);
+      setDraft(INITIAL_NOTE_DRAFT);
+      submitting.current = false;
+      closeCompose();
+      setNotesRefreshKey((key) => key + 1);
+      setIsCreatedDialogVisible(true);
+    } catch (error) {
+      Alert.alert('쪽지 남기기 실패', error instanceof Error ? error.message : '다시 시도해 주세요.');
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
+    }
+  };
 
   const openCompose = async () => {
     resumeFollowingAfterClose.current = false;
@@ -434,8 +477,14 @@ export default function HomeScreen() {
           locationLabel={composeLocationLabel}
           locationReady={Boolean(composeCoordinates)}
           onClose={closeCompose}
+          onSubmit={submitNote}
+          isSubmitting={isSubmitting}
         />
       )}
+      <NoteCreatedDialog
+        visible={isCreatedDialogVisible}
+        onConfirm={() => setIsCreatedDialogVisible(false)}
+      />
     </View>
   );
 }

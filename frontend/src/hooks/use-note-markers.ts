@@ -3,7 +3,7 @@ import { getNoteMarkers } from '@/api/notes';
 import type { MapBounds, NoteMarker } from '@/api/types';
 import { readSavedGuestToken } from '@/auth/guest-token';
 
-export function useNoteMarkers(bounds: MapBounds | null) {
+export function useNoteMarkers(bounds: MapBounds | null, refreshKey = 0) {
   const [notes, setNotes] = useState<NoteMarker[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +41,7 @@ export function useNoteMarkers(bounds: MapBounds | null) {
     return () => {
       active = false;
     };
-  }, [bounds]);
+  }, [bounds, refreshKey]);
 
   return { notes, error };
 }

@@ -34,3 +34,14 @@ export type NoteMarker = {
 export type NoteMarkersResponse = {
   notes: NoteMarker[];
 };
+
+export type NoteCreateRequest = {
+  content: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type NoteCreateResponse = {
+  noteId: string;
+  createdAt: string;
+};
