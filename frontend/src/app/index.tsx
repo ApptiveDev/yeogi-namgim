@@ -30,8 +30,9 @@ import { COMPOSE_DIM_DURATION, COMPOSE_DIM_OPACITY } from '@/components/notes/co
 import type { FeatureCollection } from 'geojson';
 import { NoteMapLayer, type NoteMapItem } from '@/components/notes/NoteMapLayer';
 import { NoteCreatedDialog } from '@/components/notes/NoteCreatedDialog';
+import { getDistanceMeters } from '@/utils/distance';
 
-const USER_RADIUS_METERS = 100;
+const USER_RADIUS_METERS = 200;
 const MAP_OPTIONS = ['공개지도', '개인지도'] as const;
 const DEFAULT_MAP_VIEW = { zoom: 16 };
 const CAMERA_RETURN_DURATION = 600;
@@ -43,12 +44,6 @@ export default function HomeScreen() {
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
   const { notes } = useNoteMarkers(bounds, notesRefreshKey);
-  const mapNotes: NoteMapItem[] = notes.map((note) => ({
-    id: note.noteId,
-    latitude: note.latitude,
-    longitude: note.longitude,
-    state: note.isMine ? 'owned' : 'locked',
-  }));
   const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
   const cameraRef = useRef<CameraRef>(null);
@@ -73,6 +68,24 @@ export default function HomeScreen() {
     useState(true);
   const [userCoordinates, setUserCoordinates] =
     useState<Location.LocationObjectCoords | null>(null);
+  const mapNotes: NoteMapItem[] = notes.map((note) => {  // 거리별 마커 설정
+    const distanceMeters = userCoordinates ? getDistanceMeters(userCoordinates, note):null;
+    const isInsideRadius = distanceMeters !== null && distanceMeters <= USER_RADIUS_METERS;
+    let state: NoteMapItem['state'];
+    if (note.isMine) {
+      state = 'owned';
+    } else if (isInsideRadius) {
+      state = 'available';
+    } else {
+      state = 'locked';
+    }
+    return {
+      id: note.noteId,
+      latitude: note.latitude,
+      longitude: note.longitude,
+      state,
+    };
+  });
   const userCircle = useMemo(
     () => userCoordinates
       ? createLocationCircle(
