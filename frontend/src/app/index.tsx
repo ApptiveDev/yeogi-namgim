@@ -25,11 +25,14 @@ import { INITIAL_NOTE_DRAFT, NoteComposeSheet, type NoteDraft } from '@/componen
 import { NotePlacementPreview, NotePlacementPreviewImages } from '@/components/notes/NotePlacementPreview';
 import { ComposeMapDimmer } from '@/components/notes/ComposeMapDimmer';
 import { COMPOSE_DIM_DURATION, COMPOSE_DIM_OPACITY } from '@/components/notes/compose-transitions';
+import type { FeatureCollection } from 'geojson';
 
 const USER_RADIUS_METERS = 100;
 const MAP_OPTIONS = ['공개지도', '개인지도'] as const;
 const DEFAULT_MAP_VIEW = { zoom: 16 };
 const CAMERA_RETURN_DURATION = 600;
+const EMPTY_RADIUS: FeatureCollection = { type: 'FeatureCollection', features: []};
+const BASE_MAP_TOP_LAYER = localizedMapStyle.layers.at(-1)?.id;
 
 export default function HomeScreen() {
   const mapRef = useRef<MapRef>(null);
@@ -273,10 +276,11 @@ export default function HomeScreen() {
 
         {/* 유저 주변 원 */}
         {userCircle && (
-          <GeoJSONSource id="user-radius" data={userCircle}>
+          <GeoJSONSource id="user-radius" data={userCircle ?? EMPTY_RADIUS}>
             <Layer
               id="user-radius-fill"
               type="fill"
+              afterId={BASE_MAP_TOP_LAYER}
               paint={{
                 'fill-color': '#EDB84A',
                 'fill-opacity': 0.18,
@@ -286,6 +290,7 @@ export default function HomeScreen() {
             <Layer
               id="user-radius-outline"
               type="line"
+              afterId="user-radius-fill"
               paint={{
                 'line-color': '#D2643E',
                 'line-opacity': 0.7,
@@ -305,7 +310,7 @@ export default function HomeScreen() {
           <Layer
             id="user-location-marker"
             type="circle"
-            afterId={userCircle ? 'user-radius-outline' : undefined}
+            beforeId="compose-map-dim"
             paint={{
               'circle-radius': 6,
               'circle-color': '#3B2A20',
