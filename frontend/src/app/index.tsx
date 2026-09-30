@@ -26,6 +26,7 @@ import { NotePlacementPreview, NotePlacementPreviewImages } from '@/components/n
 import { ComposeMapDimmer } from '@/components/notes/ComposeMapDimmer';
 import { COMPOSE_DIM_DURATION, COMPOSE_DIM_OPACITY } from '@/components/notes/compose-transitions';
 import type { FeatureCollection } from 'geojson';
+import { NoteMapLayer, type NoteMapItem } from '@/components/notes/NoteMapLayer';
 
 const USER_RADIUS_METERS = 100;
 const MAP_OPTIONS = ['공개지도', '개인지도'] as const;
@@ -38,6 +39,12 @@ export default function HomeScreen() {
   const mapRef = useRef<MapRef>(null);
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const { notes } = useNoteMarkers(bounds);
+  const mapNotes: NoteMapItem[] = notes.map((note) => ({
+    id: note.noteId,
+    latitude: note.latitude,
+    longitude: note.longitude,
+    state: note.isMine ? 'owned' : 'locked',
+  }));
   const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
   const cameraRef = useRef<CameraRef>(null);
@@ -321,24 +328,7 @@ export default function HomeScreen() {
           />
           {isComposeOpen && <NotePlacementPreview />}
         </UserLocation>
-        {notes.map((note) => (
-          <Marker
-            key={note.noteId}
-            id={note.noteId}
-            lngLat={[note.longitude, note.latitude]}
-          >
-            <View
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 12,
-                backgroundColor: note.isMine ? '#208AEF' : '#F97316',
-                borderWidth: 2,
-                borderColor: 'white',
-              }}
-            />
-          </Marker>
-        ))}
+        <NoteMapLayer notes={mapNotes} />
       </Map>
 
       {isMapMenuOpen && (
