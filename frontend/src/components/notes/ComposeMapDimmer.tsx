@@ -12,16 +12,15 @@ const WORLD: MultiPolygon = {
 };
 
 /** Insert above map content, below the placement preview. Keep mounted for fading. */
-export function ComposeMapDimmer({ visible, hasUserLocation }: {
+export function ComposeMapDimmer({ visible }: {
   visible: boolean;
-  hasUserLocation: boolean;
 }) {
   return (
     <GeoJSONSource id="compose-map-dimmer" data={WORLD}>
       <Layer
         id="compose-map-dim"
         type="fill"
-        afterId={hasUserLocation ? 'user-location-marker' : undefined}
+        afterId="user-radius-outline"
         paint={{
           'fill-color': '#000000',
           'fill-opacity': visible ? COMPOSE_DIM_OPACITY : 0,

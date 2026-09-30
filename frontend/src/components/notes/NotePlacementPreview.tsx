@@ -1,8 +1,8 @@
 import { Images, Layer } from '@maplibre/maplibre-react-native';
-import { NOTE_MARKER_BOTTOM_PADDING } from './note-marker-assets';
+import { NOTE_MARKER_ASSETS, NOTE_MARKER_BOTTOM_PADDING } from './note-marker-assets';
 
 const PLACEMENT_IMAGES = {
-  'note-placement-preview': require('../../../assets/images/note-markers/placement.png'),
+  'note-placement-preview': NOTE_MARKER_ASSETS.owned,
 };
 
 /** Register once as a child of Map. */
@@ -12,7 +12,6 @@ export function NotePlacementPreviewImages() {
 
 /** Use inside UserLocation; GeoJSONSource injects the same location source. */
 export function NotePlacementPreview({ source }: { source?: string }) {
-
   return (
     <Layer
       id="note-placement-preview"
