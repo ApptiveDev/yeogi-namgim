@@ -16,3 +16,21 @@ export type ApiFailure = {
     message: string;
   };
 };
+
+export type MapBounds = {
+  minLatitude: number;
+  minLongitude: number;
+  maxLatitude: number;
+  maxLongitude: number;
+};
+
+export type NoteMarker = {
+  noteId: string;
+  latitude: number;
+  longitude: number;
+  isMine: boolean;
+};
+
+export type NoteMarkersResponse = {
+  notes: NoteMarker[];
+};

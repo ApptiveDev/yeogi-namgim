@@ -16,3 +16,11 @@ export async function getGuestToken(): Promise<string> {
 
   return session.guestToken;
 }
+
+export async function readSavedGuestToken(): Promise<string> {
+  const token = await SecureStore.getItemAsync(TOKEN_KEY);
+  if (!token) {
+    throw new Error('저장된 인증 토큰이 없습니다.');
+  }
+  return token;
+}
