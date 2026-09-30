@@ -30,17 +30,18 @@ export interface NoteComposeSheetProps {
   onChange: (draft: NoteDraft) => void;
   onClose: () => void;
   onSubmit?: (draft: NoteDraft) => void;
+  isSubmitting?: boolean;
 }
 
 export function NoteComposeSheet({
-  height, draft, locationLabel, locationReady, onChange, onClose, onSubmit,
+  height, draft, locationLabel, locationReady, onChange, onClose, onSubmit, isSubmitting = false,
 }: NoteComposeSheetProps) {
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(height)).current;
   const closing = useRef(false);
   const [keyboardTop, setKeyboardTop] = useState<number | null>(null);
   const selectedVisibility = VISIBILITY_OPTIONS.find((option) => option.value === draft.visibility)!;
-  const canSubmit = Boolean(onSubmit && locationReady && draft.content.trim());
+  const canSubmit = Boolean(onSubmit && locationReady && draft.content.trim() && !isSubmitting);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', (event) => setKeyboardTop(event.endCoordinates.screenY));
@@ -57,13 +58,13 @@ export function NoteComposeSheet({
   }, [translateY]);
 
   const close = useCallback(() => {
-    if (closing.current) return;
+    if (closing.current || isSubmitting) return;
     closing.current = true;
     Keyboard.dismiss();
     Animated.timing(translateY, {
       toValue: height, duration: 220, useNativeDriver: Platform.OS !== 'web',
     }).start(({ finished }) => { if (finished) onClose(); });
-  }, [height, onClose, translateY]);
+  }, [height, onClose, translateY, isSubmitting]);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -86,7 +87,7 @@ export function NoteComposeSheet({
         <View style={s.handle} />
         <View style={s.header}>
           <Text style={s.title}>쪽지 작성</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="작성 화면 닫기" onPress={close} style={s.closeButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel="작성 화면 닫기" disabled={isSubmitting} accessibilityState={{ disabled: isSubmitting }} onPress={close} style={s.closeButton}>
             <ComposeIcon name="close" />
           </Pressable>
         </View>
@@ -107,6 +108,7 @@ export function NoteComposeSheet({
                       accessibilityRole="button"
                       accessibilityLabel={`${option.label} 범위 선택`}
                       accessibilityState={{ selected }}
+                      disabled={isSubmitting}
                       aria-selected={selected}
                       onPress={() => onChange({ ...draft, visibility: option.value })}
                       style={[s.visibilityButton, selected && s.visibilityButtonSelected]}
@@ -136,6 +138,7 @@ export function NoteComposeSheet({
               placeholder={'이 장소에 남길 이야기를 적어주세요.\n지나가는 누군가가 발견하게 돼요.'}
               placeholderTextColor="#B0B0B0"
               value={draft.content}
+              editable={!isSubmitting}
               onChangeText={(content) => onChange({ ...draft, content })}
               multiline
               maxLength={500}
@@ -151,11 +154,11 @@ export function NoteComposeSheet({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="쪽지 남기기"
-            accessibilityState={{ disabled: !canSubmit }}
+            accessibilityState={{ disabled: !canSubmit, busy: isSubmitting }}
             disabled={!canSubmit}
             onPress={() => onSubmit?.(draft)}
-            style={({ pressed }) => [s.submitButton, pressed && s.dimmed]}
-          ><Text style={s.submitText}>쪽지 남기기</Text></Pressable>
+            style={({ pressed }) => [s.submitButton, (pressed || !canSubmit) && s.dimmed]}
+          ><Text style={s.submitText}>{isSubmitting ? '쪽지를 남기는 중…' : '쪽지 남기기'}</Text></Pressable>
         </View>
       </Animated.View>
     </KeyboardAvoidingView>
