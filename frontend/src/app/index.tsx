@@ -9,20 +9,24 @@ import {
   GeoJSONSource,
   Layer,
   Map,
+  Marker,
   type CameraRef,
   type ViewStateChangeEvent,
   UserLocation,
+  type MapRef,
 } from '@maplibre/maplibre-react-native';
 
 import { styles } from '../styles/home.styles';
-
 import { localizedMapStyle } from '@/styles/map-style';
+import type { MapBounds } from '@/api/types';
+import { useNoteMarkers } from '@/hooks/use-note-markers';
 import { createLocationCircle } from '@/utils/location-circle';
 import { INITIAL_NOTE_DRAFT, NoteComposeSheet, type NoteDraft } from '@/components/notes/NoteComposeSheet';
 import { NotePlacementPreview, NotePlacementPreviewImages } from '@/components/notes/NotePlacementPreview';
 import { ComposeMapDimmer } from '@/components/notes/ComposeMapDimmer';
 import { COMPOSE_DIM_DURATION, COMPOSE_DIM_OPACITY } from '@/components/notes/compose-transitions';
 import type { FeatureCollection } from 'geojson';
+import { NoteMapLayer, type NoteMapItem } from '@/components/notes/NoteMapLayer';
 
 const USER_RADIUS_METERS = 100;
 const MAP_OPTIONS = ['공개지도', '개인지도'] as const;
@@ -32,6 +36,15 @@ const EMPTY_RADIUS: FeatureCollection = { type: 'FeatureCollection', features: [
 const BASE_MAP_TOP_LAYER = localizedMapStyle.layers.at(-1)?.id;
 
 export default function HomeScreen() {
+  const mapRef = useRef<MapRef>(null);
+  const [bounds, setBounds] = useState<MapBounds | null>(null);
+  const { notes } = useNoteMarkers(bounds);
+  const mapNotes: NoteMapItem[] = notes.map((note) => ({
+    id: note.noteId,
+    latitude: note.latitude,
+    longitude: note.longitude,
+    state: note.isMine ? 'owned' : 'locked',
+  }));
   const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
   const cameraRef = useRef<CameraRef>(null);
@@ -226,15 +239,37 @@ export default function HomeScreen() {
     setIsFollowingUser(true);
   };
 
+  // 마커 갱신
+  const updateMapBounds = async () => {
+    try {
+      const value = await mapRef.current?.getBounds();
+      if (!value) return;
+      const [west, south, east, north] = value;
+      setBounds({
+        minLatitude: south,
+        minLongitude: west,
+        maxLatitude: north,
+        maxLongitude: east,
+      });
+    } catch (error) {
+      Alert.alert('지도 범위 확인 실패', error instanceof Error ? error.message : '다시 시도해 주세요. ');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Map
+        ref={mapRef}
         style={styles.map}
         mapStyle={localizedMapStyle}
         logo={false}
         attribution={false}
         onRegionWillChange={handleRegionWillChange}
-        onRegionDidChange={handleRegionDidChange}
+        onDidFinishLoadingMap={updateMapBounds}
+        onRegionDidChange={(event) => {
+          handleRegionDidChange(event);
+          void updateMapBounds();
+        }}
       >
         <Camera
           ref={cameraRef}
@@ -246,7 +281,6 @@ export default function HomeScreen() {
           }
         />
 
-        
         {/* 유저 주변 원 */}
         {userCircle && (
           <GeoJSONSource id="user-radius" data={userCircle ?? EMPTY_RADIUS}>
@@ -294,6 +328,7 @@ export default function HomeScreen() {
           />
           {isComposeOpen && <NotePlacementPreview />}
         </UserLocation>
+        <NoteMapLayer notes={mapNotes} />
       </Map>
 
       {isMapMenuOpen && (
