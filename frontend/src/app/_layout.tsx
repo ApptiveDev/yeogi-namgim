@@ -1,15 +1,14 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { Alert, Text, View, useColorScheme } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
 import { getGuestToken } from '@/auth/guest-token';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
+export default function RootLayout() {
   // 비회원 key 발급
   const started = useRef(false);
   const [authStatus, setAuthStatus] = useState<'loading'|'ready'|'error'>('loading');
@@ -33,7 +32,7 @@ export default function TabLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
       {authStatus === 'ready' ? (
-        <AppTabs />
+        <Stack screenOptions={{ headerShown: false }} />
       ) : (
         <View
           style={{
