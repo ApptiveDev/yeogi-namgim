@@ -1,46 +1,100 @@
-# Welcome to your Expo app 👋
+# 여기남김 Frontend
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+React Native, Expo를 기반으로 개발합니다.
 
-## Get started
+## 기술 스택
 
-1. Install dependencies
 
-   ```bash
-   npm install
-   ```
+| 기술 | 버전 | 사용 목적 |
+| --- | --- | --- |
+| React Native | 0.86.3 | Android·iOS 모바일 화면 구현 |
+| Expo | ~57.0.25 | 개발 환경 구성 및 앱 빌드 |
+| Expo Router | ~57.0.23 | 파일 기반 화면 라우팅 |
+| TypeScript | ~6.0.3 | 타입 정의 및 정적 타입 검사 |
+| MapLibre React Native | ^11.4.0 | 지도 렌더링 및 쪽지 마커 표시 |
 
-2. Start the app
 
-   ```bash
-   npx expo start
-   ```
+## 실행 방법
 
-In the output, you'll find options to open the app in a
+### 1. 준비
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Node.js 및 npm
+- Android: Android Studio, Android SDK, JDK, 에뮬레이터 또는 실제 기기
+- iOS 로컬 빌드: macOS 및 Xcode
+- 실행 중인 백엔드 서버
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-## Other setup steps
+### 2. 의존성 설치
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+루트 디렉토리에서 아래 명령을 통해 의존성을 설치합니다.
 
-## Learn more
+```bash
+cd frontend
+npm ci
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+### 3. 백엔드 및 환경변수 설정
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+[백엔드 README](../backend/README.md)에 따라 DB와 API 서버를 실행합니다.
 
-## Join the community
+`frontend` 디렉토리에서 아래 명령을 통해 `.env.local` 파일을 생성합니다.
 
-Join our community of developers creating universal apps.
+```bash
+cp .env.local.example .env.local
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+예시 파일의 API 서버 주소는 Android Studio 에뮬레이터 환경 기준으로 작성되었습니다.
+
+실제 기기에서는 개발 PC와 같은 네트워크에 연결하고, `.env.local`의 서버 주소를 개발 PC의 LAN IP로 변경합니다.
+
+
+
+### 4. 앱 빌드 및 실행
+
+`frontend` 디렉토리에서 사용할 플랫폼의 명령을 실행합니다.
+
+Android:
+
+```bash
+npm run android
+```
+
+iOS — macOS에서 실행:
+
+```bash
+npm run ios
+```
+
+
+## 디렉토리 구조
+
+```text
+frontend/
+├── assets/
+│   ├── fonts/          # Pretendard 폰트
+│   ├── images/         # 아이콘, 쪽지 마커, 스플래시 이미지
+│   └── maps/           # 지도 스타일 JSON
+├── scripts/            # 마커 및 아이콘 이미지 생성 스크립트
+├── src/
+│   ├── app/
+│   │   ├── _layout.tsx # 루트 레이아웃 및 비회원 인증 초기화
+│   │   └── index.tsx   # 지도 홈 화면
+│   ├── api/            # 공통 API 클라이언트, 요청 함수, 타입
+│   ├── auth/           # 비회원 인증 토큰 저장 및 조회
+│   ├── components/
+│   │   ├── navigation/ # 내비게이션 컴포넌트
+│   │   ├── notes/      # 쪽지 작성·열람·마커 컴포넌트
+│   │   └── ui/         # 공통 UI 컴포넌트
+│   ├── constants/      # 테마 등 공통 상수
+│   ├── hooks/          # 쪽지 조회 및 테마 관련 훅
+│   ├── styles/         # 화면 스타일 및 지도 스타일 처리
+│   └── utils/          # 거리 계산 및 위치 반경 도형 생성
+├── .env.local.example  # API 서버 환경변수 예시
+├── app.json            # Expo 앱 설정 및 네이티브 플러그인
+├── eas.json            # EAS 빌드 프로필
+├── package.json        # 의존성 및 실행 명령
+├── package-lock.json   # 의존성 버전 고정
+└── tsconfig.json       # TypeScript 설정
+```
+
+협업 규칙은 [협업 가이드](../docs/CONTRIBUTING.md)를 참고합니다.

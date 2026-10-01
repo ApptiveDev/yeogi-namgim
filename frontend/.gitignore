@@ -310,6 +310,7 @@ yarn-error.*
 
 # local env files
 .env*.local
+!.env.local.example
 
 # typescript
 *.tsbuildinfo
@@ -319,3 +320,4 @@ example
 # generated native folders
 /ios
 /android
+
