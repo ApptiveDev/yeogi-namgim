@@ -10,7 +10,7 @@ export function NotePlacementPreviewImages() {
   return <Images images={PLACEMENT_IMAGES} />;
 }
 
-/** Use inside UserLocation; GeoJSONSource injects the same location source. */
+/** Use inside the compose coordinate source; GeoJSONSource injects its source ID. */
 export function NotePlacementPreview({ source }: { source?: string }) {
   return (
     <Layer

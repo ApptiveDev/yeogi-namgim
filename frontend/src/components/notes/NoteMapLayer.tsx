@@ -22,6 +22,7 @@ export interface NoteMapLayerProps {
   id?: string;
   /** When false, colliding pins are hidden to keep a crowded map readable. */
   allowOverlap?: boolean;
+  afterId?: string;
 }
 
 const PRIORITY: Record<NoteMarkerState, number> = {
@@ -37,6 +38,7 @@ export const NoteMapLayer = memo(function NoteMapLayer({
   onNotePress,
   id = 'notes',
   allowOverlap = false,
+  afterId,
 }: NoteMapLayerProps) {
   const imagePrefix = `${id}-marker`;
   const images = useMemo(() => ({
@@ -80,6 +82,7 @@ export const NoteMapLayer = memo(function NoteMapLayer({
         <Layer
           id={`${id}-symbols`}
           type="symbol"
+          afterId={afterId}
           layout={{
             'icon-image': ['get', 'icon'],
             'icon-anchor': 'bottom',

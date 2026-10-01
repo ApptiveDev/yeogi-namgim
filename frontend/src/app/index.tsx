@@ -12,7 +12,6 @@ import {
   Marker,
   type CameraRef,
   type ViewStateChangeEvent,
-  UserLocation,
   type MapRef,
 } from '@maplibre/maplibre-react-native';
 
@@ -42,6 +41,7 @@ const BASE_MAP_TOP_LAYER = localizedMapStyle.layers.at(-1)?.id;
 
 export default function HomeScreen() {
   const mapRef = useRef<MapRef>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
   const { notes } = useNoteMarkers(bounds, notesRefreshKey);
@@ -71,6 +71,25 @@ export default function HomeScreen() {
     useState(true);
   const [userCoordinates, setUserCoordinates] =
     useState<Location.LocationObjectCoords | null>(null);
+  const userPoint = useMemo<GeoJSON.Point | null>(() => userCoordinates ? {
+    type: 'Point',
+    coordinates: [userCoordinates.longitude, userCoordinates.latitude],
+  } : null, [userCoordinates]);
+  const composePoint = useMemo<GeoJSON.Point | null>(() => composeCoordinates ? {
+    type: 'Point',
+    coordinates: [composeCoordinates.longitude, composeCoordinates.latitude],
+  } : null, [composeCoordinates]);
+
+  useEffect(() => {
+    if (!isMapReady || !isFollowingUser || isComposeOpen || !userPoint) return;
+    cameraRef.current?.easeTo({
+      center: userPoint.coordinates as [number, number],
+      zoom: DEFAULT_MAP_VIEW.zoom,
+      padding: { top: 0, bottom: 0, left: 0, right: 0 },
+      duration: CAMERA_RETURN_DURATION,
+      easing: 'ease',
+    });
+  }, [isMapReady, isFollowingUser, isComposeOpen, userPoint]);
   const mapNotes: NoteMapItem[] = notes.map((note) => {  // 거리별 마커 설정
     const distanceMeters = userCoordinates ? getDistanceMeters(userCoordinates, note):null;
     const isInsideRadius = distanceMeters !== null && distanceMeters <= USER_RADIUS_METERS;
@@ -212,7 +231,7 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    if (!isComposeOpen || !composeCoordinates) return;
+    if (!isMapReady || !isComposeOpen || !composeCoordinates) return;
     const topPadding = insets.top + 100;
     const visibleSize = Math.max(60, Math.min(width - 48, height - sheetHeight - topPadding) * 0.85);
     const zoom = Math.max(12, Math.min(16,
@@ -226,7 +245,7 @@ export default function HomeScreen() {
       padding: { top: topPadding, bottom: sheetHeight, left: 24, right: 24 },
       duration: 500,
     });
-  }, [isComposeOpen, composeCoordinates, sheetHeight, height, width, insets.top]);
+  }, [isMapReady, isComposeOpen, composeCoordinates, sheetHeight, height, width, insets.top]);
 
   useEffect(() => {
     let cancelled = false;
@@ -358,7 +377,10 @@ export default function HomeScreen() {
         logo={false}
         attribution={false}
         onRegionWillChange={handleRegionWillChange}
-        onDidFinishLoadingMap={updateMapBounds}
+        onDidFinishLoadingMap={() => {
+          setIsMapReady(true);
+          void updateMapBounds();
+        }}
         onRegionDidChange={(event) => {
           handleRegionDidChange(event);
           void updateMapBounds();
@@ -367,11 +389,6 @@ export default function HomeScreen() {
         <Camera
           ref={cameraRef}
           initialViewState={DEFAULT_MAP_VIEW}
-          trackUserLocation={
-            isFollowingUser
-              ? 'default'
-              : undefined
-          }
         />
 
         {/* 유저 주변 원 */}
@@ -402,11 +419,18 @@ export default function HomeScreen() {
           </GeoJSONSource>
         )}
 
-        <ComposeMapDimmer visible={isComposeOpen} hasUserLocation={Boolean(userCoordinates)} />
+        <NoteMapLayer
+          notes={mapNotes}
+          afterId={BASE_MAP_TOP_LAYER}
+          onNotePress={(note) => {
+            void handleOpenNote(note);
+          }}
+        />
+        <ComposeMapDimmer visible={isComposeOpen} />
         <NotePlacementPreviewImages />
 
         {/* 유저 위치 표기 마커 */}
-        <UserLocation animated>
+        {userPoint && <GeoJSONSource id="user-location" data={userPoint}>
           <Layer
             id="user-location-marker"
             type="circle"
@@ -419,14 +443,12 @@ export default function HomeScreen() {
               'circle-pitch-alignment': 'map',
             }}
           />
-          {isComposeOpen && <NotePlacementPreview />}
-        </UserLocation>
-        <NoteMapLayer
-          notes={mapNotes}
-          onNotePress={(note) => {
-            void handleOpenNote(note);
-          }}
-        />
+        </GeoJSONSource>}
+        {isComposeOpen && composePoint && (
+          <GeoJSONSource id="note-placement" data={composePoint}>
+            <NotePlacementPreview />
+          </GeoJSONSource>
+        )}
       </Map>
 
       {isMapMenuOpen && (
