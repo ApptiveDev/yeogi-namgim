@@ -19,8 +19,8 @@ import {
 import { styles } from '../styles/home.styles';
 import { localizedMapStyle } from '@/styles/map-style';
 import type { MapBounds } from '@/api/types';
-import { createNote } from '@/api/notes';
-import { getGuestToken } from '@/auth/guest-token';
+import { createNote, openNote } from '@/api/notes';
+import { getGuestToken, readSavedGuestToken } from '@/auth/guest-token';
 import { useNoteMarkers } from '@/hooks/use-note-markers';
 import { createLocationCircle } from '@/utils/location-circle';
 import { INITIAL_NOTE_DRAFT, NoteComposeSheet, type NoteDraft } from '@/components/notes/NoteComposeSheet';
@@ -30,8 +30,10 @@ import { COMPOSE_DIM_DURATION, COMPOSE_DIM_OPACITY } from '@/components/notes/co
 import type { FeatureCollection } from 'geojson';
 import { NoteMapLayer, type NoteMapItem } from '@/components/notes/NoteMapLayer';
 import { NoteCreatedDialog } from '@/components/notes/NoteCreatedDialog';
+import { NoteReadDialog, type ReadableNote } from '@/components/notes/NoteReadDialog';
+import { getDistanceMeters } from '@/utils/distance';
 
-const USER_RADIUS_METERS = 100;
+const USER_RADIUS_METERS = 200;
 const MAP_OPTIONS = ['공개지도', '개인지도'] as const;
 const DEFAULT_MAP_VIEW = { zoom: 16 };
 const CAMERA_RETURN_DURATION = 600;
@@ -43,18 +45,14 @@ export default function HomeScreen() {
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
   const { notes } = useNoteMarkers(bounds, notesRefreshKey);
-  const mapNotes: NoteMapItem[] = notes.map((note) => ({
-    id: note.noteId,
-    latitude: note.latitude,
-    longitude: note.longitude,
-    state: note.isMine ? 'owned' : 'locked',
-  }));
   const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
   const cameraRef = useRef<CameraRef>(null);
   const resumeFollowingAfterClose = useRef(false);
   const composeRequest = useRef(0);
   const submitting = useRef(false);
+  const openingNote = useRef(false);
+  const [selectedNote, setSelectedNote] = useState<ReadableNote | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatedDialogVisible, setIsCreatedDialogVisible] = useState(false);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -73,6 +71,24 @@ export default function HomeScreen() {
     useState(true);
   const [userCoordinates, setUserCoordinates] =
     useState<Location.LocationObjectCoords | null>(null);
+  const mapNotes: NoteMapItem[] = notes.map((note) => {  // 거리별 마커 설정
+    const distanceMeters = userCoordinates ? getDistanceMeters(userCoordinates, note):null;
+    const isInsideRadius = distanceMeters !== null && distanceMeters <= USER_RADIUS_METERS;
+    let state: NoteMapItem['state'];
+    if (note.isMine) {
+      state = 'owned';
+    } else if (isInsideRadius) {
+      state = 'available';
+    } else {
+      state = 'locked';
+    }
+    return {
+      id: note.noteId,
+      latitude: note.latitude,
+      longitude: note.longitude,
+      state,
+    };
+  });
   const userCircle = useMemo(
     () => userCoordinates
       ? createLocationCircle(
@@ -299,6 +315,40 @@ export default function HomeScreen() {
     }
   };
 
+  const handleOpenNote = async (note: NoteMapItem) => {
+    if (isComposeOpen || openingNote.current) return;
+
+    openingNote.current = true;
+
+    try {
+      const token = await readSavedGuestToken();
+      const { coords } = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      setUserCoordinates(coords);
+      const openedNote = await openNote(
+        note.id,
+        {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        },
+        token,
+      );
+      setSelectedNote({
+        ...openedNote,
+        latitude: note.latitude,
+        longitude: note.longitude,
+      });
+    } catch (error) {
+      Alert.alert(
+        '쪽지를 열 수 없어요',
+        error instanceof Error ? error.message : '다시 시도해 주세요.',
+      );
+    } finally {
+      openingNote.current = false;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Map
@@ -371,7 +421,12 @@ export default function HomeScreen() {
           />
           {isComposeOpen && <NotePlacementPreview />}
         </UserLocation>
-        <NoteMapLayer notes={mapNotes} />
+        <NoteMapLayer
+          notes={mapNotes}
+          onNotePress={(note) => {
+            void handleOpenNote(note);
+          }}
+        />
       </Map>
 
       {isMapMenuOpen && (
@@ -484,6 +539,10 @@ export default function HomeScreen() {
       <NoteCreatedDialog
         visible={isCreatedDialogVisible}
         onConfirm={() => setIsCreatedDialogVisible(false)}
+      />
+      <NoteReadDialog
+        note={selectedNote}
+        onClose={() => setSelectedNote(null)}
       />
     </View>
   );
