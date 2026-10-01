@@ -19,8 +19,8 @@ import {
 import { styles } from '../styles/home.styles';
 import { localizedMapStyle } from '@/styles/map-style';
 import type { MapBounds } from '@/api/types';
-import { createNote } from '@/api/notes';
-import { getGuestToken } from '@/auth/guest-token';
+import { createNote, openNote } from '@/api/notes';
+import { getGuestToken, readSavedGuestToken } from '@/auth/guest-token';
 import { useNoteMarkers } from '@/hooks/use-note-markers';
 import { createLocationCircle } from '@/utils/location-circle';
 import { INITIAL_NOTE_DRAFT, NoteComposeSheet, type NoteDraft } from '@/components/notes/NoteComposeSheet';
@@ -50,6 +50,7 @@ export default function HomeScreen() {
   const resumeFollowingAfterClose = useRef(false);
   const composeRequest = useRef(0);
   const submitting = useRef(false);
+  const openingNote = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatedDialogVisible, setIsCreatedDialogVisible] = useState(false);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -312,6 +313,39 @@ export default function HomeScreen() {
     }
   };
 
+  const handleOpenNote = async (note: NoteMapItem) => {
+    if (isComposeOpen || openingNote.current) return;
+
+    openingNote.current = true;
+
+    try {
+      const token = await readSavedGuestToken();
+      const { coords } = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      setUserCoordinates(coords);
+      const openedNote = await openNote(
+        note.id,
+        {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        },
+        token,
+      );
+      Alert.alert(
+        openedNote.isMine ? '내가 남긴 쪽지' : '발견한 쪽지',
+        openedNote.content,
+      );
+    } catch (error) {
+      Alert.alert(
+        '쪽지를 열 수 없어요',
+        error instanceof Error ? error.message : '다시 시도해 주세요.',
+      );
+    } finally {
+      openingNote.current = false;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Map
@@ -384,7 +418,12 @@ export default function HomeScreen() {
           />
           {isComposeOpen && <NotePlacementPreview />}
         </UserLocation>
-        <NoteMapLayer notes={mapNotes} />
+        <NoteMapLayer
+          notes={mapNotes}
+          onNotePress={(note) => {
+            void handleOpenNote(note);
+          }}
+        />
       </Map>
 
       {isMapMenuOpen && (

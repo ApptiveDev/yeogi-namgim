@@ -5,6 +5,8 @@ import type {
   NoteMarkersResponse,
   NoteCreateRequest,
   NoteCreateResponse,
+  NoteOpenRequest,
+  NoteOpenResponse,
 } from './types';
 
 export async function createNote(request: NoteCreateRequest, token: string): Promise<NoteCreateResponse> {
@@ -20,6 +22,30 @@ export async function createNote(request: NoteCreateRequest, token: string): Pro
   if (!result?.noteId || !result?.createdAt) {
     throw new Error('저장 결과를 확인하지 못했어요. 지도에서 쪽지를 확인해 주세요.');
   }
+  return result;
+}
+
+export async function openNote(
+  noteId: string,
+  request: NoteOpenRequest,
+  token: string,
+): Promise<NoteOpenResponse> {
+  const result = await apiRequest<NoteOpenResponse>(
+    `/api/v1/notes/${noteId}/open`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    },
+  );
+
+  if (!result?.noteId || typeof result.content !== 'string') {
+    throw new Error('쪽지 본문을 확인할 수 없습니다.');
+  }
+
   return result;
 }
 

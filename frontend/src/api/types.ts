@@ -45,3 +45,15 @@ export type NoteCreateResponse = {
   noteId: string;
   createdAt: string;
 };
+
+export type NoteOpenRequest = {
+  latitude: number;
+  longitude: number;
+};
+
+export type NoteOpenResponse = {
+  noteId: string;
+  content: string;
+  isMine: boolean;
+  createdAt: string;
+};
