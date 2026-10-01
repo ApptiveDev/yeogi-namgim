@@ -17,8 +17,8 @@ export default function RootLayout() {
     started.current = true;
     async function initializeGuest() {
       try {
-         await getGuestToken();
-         setAuthStatus('ready');
+        await getGuestToken();
+        setAuthStatus('ready');
       } catch (error) {
         setAuthStatus('error');
         Alert.alert(error instanceof Error ? error.message : '비회원 토큰 발급 실패');
