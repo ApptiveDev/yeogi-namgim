@@ -30,6 +30,7 @@ import { COMPOSE_DIM_DURATION, COMPOSE_DIM_OPACITY } from '@/components/notes/co
 import type { FeatureCollection } from 'geojson';
 import { NoteMapLayer, type NoteMapItem } from '@/components/notes/NoteMapLayer';
 import { NoteCreatedDialog } from '@/components/notes/NoteCreatedDialog';
+import { NoteReadDialog, type ReadableNote } from '@/components/notes/NoteReadDialog';
 import { getDistanceMeters } from '@/utils/distance';
 
 const USER_RADIUS_METERS = 200;
@@ -51,6 +52,7 @@ export default function HomeScreen() {
   const composeRequest = useRef(0);
   const submitting = useRef(false);
   const openingNote = useRef(false);
+  const [selectedNote, setSelectedNote] = useState<ReadableNote | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatedDialogVisible, setIsCreatedDialogVisible] = useState(false);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -332,10 +334,11 @@ export default function HomeScreen() {
         },
         token,
       );
-      Alert.alert(
-        openedNote.isMine ? '내가 남긴 쪽지' : '발견한 쪽지',
-        openedNote.content,
-      );
+      setSelectedNote({
+        ...openedNote,
+        latitude: note.latitude,
+        longitude: note.longitude,
+      });
     } catch (error) {
       Alert.alert(
         '쪽지를 열 수 없어요',
@@ -536,6 +539,10 @@ export default function HomeScreen() {
       <NoteCreatedDialog
         visible={isCreatedDialogVisible}
         onConfirm={() => setIsCreatedDialogVisible(false)}
+      />
+      <NoteReadDialog
+        note={selectedNote}
+        onClose={() => setSelectedNote(null)}
       />
     </View>
   );
