@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 import com.yeoginamgim.common.auth.BearerTokenExtractor;
 import com.yeoginamgim.common.auth.CurrentUserProvider;
 import com.yeoginamgim.guest.service.InvalidGuestTokenException;
-import com.yeoginamgim.user.repository.MemberRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -17,23 +16,19 @@ import jakarta.servlet.http.HttpServletRequest;
 public class RequestCurrentUserProvider implements CurrentUserProvider {
 	private final HttpServletRequest request;
 	private final BearerTokenExtractor extractor;
-	private final AccessTokenCodec tokens;
-	private final MemberRepository members;
+	private final MemberSessionService sessions;
 
 	public RequestCurrentUserProvider(HttpServletRequest request, BearerTokenExtractor extractor,
-		AccessTokenCodec tokens, MemberRepository members) {
+		MemberSessionService sessions) {
 		this.request = request;
 		this.extractor = extractor;
-		this.tokens = tokens;
-		this.members = members;
+		this.sessions = sessions;
 	}
 
 	@Override
 	public UUID requireUserId() {
 		try {
-			UUID userId = tokens.identify(extractor.extract(request.getHeader("Authorization")));
-			if (!members.existsById(userId)) throw AuthException.unauthorized();
-			return userId;
+			return sessions.authenticate(extractor.extract(request.getHeader("Authorization")));
 		} catch (InvalidGuestTokenException exception) {
 			throw AuthException.unauthorized();
 		}

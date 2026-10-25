@@ -43,6 +43,7 @@
 
 - 회원 `userId`와 쪽지 `noteId`는 UUID이며, JSON에서는 UUID 문자열로 주고받는다.
 - 회원 API는 `Authorization: Bearer <accessToken>`을 사용한다. JWT의 `sub`는 회원 UUID로 한다.
+- JWT의 `sid`는 로그인 세션 UUID로 한다. 토큰 서명·클레임과 DB의 회원·세션 연결 및 만료·폐기 상태를 함께 확인한다. 재발급·로그아웃 규칙은 [토큰 세션 API](TOKEN_SESSION_API.md)를 따른다.
 - 인증 담당은 인증 컨텍스트에서 회원 ID를 가져오는 `CurrentUserProvider.requireUserId(): UUID`를 제공한다. 각 기능은 토큰을 직접 해석하거나 요청 본문의 사용자 ID를 신뢰하지 않는다.
 - 회원 access token, refresh token, 기존 비회원 토큰은 검증 경로를 구분한다. 검증에 실패한 회원 토큰을 비회원 토큰으로 재시도하지 않고, refresh token은 일반 API 인증에 사용할 수 없게 한다.
 - 잘못된 인증·만료된 인증은 기존 응답 형식의 `401 UNAUTHORIZED`로 통일한다. 만료 시간·로그아웃 무효화 방식은 인증 구현에서 문서화한다.
@@ -185,7 +186,7 @@ interface NoteAccessService {
 아래 구현 완료 여부는 실제 코드·검증 결과로 갱신하며, 문서 작성만으로 체크하지 않는다.
 
 - [x] 인증: 이메일 가입·로그인, 회원 식별 및 비회원 호환 구현, access token 발급·검증 동작 설명
-- [ ] 인증: refresh token 및 로그아웃 구현
+- [x] 인증: refresh token 및 로그아웃 구현
 - [ ] 쪽지 작성: 쪽지 엔티티·마이그레이션 및 작성·내 쪽지 조회 구현
 - [ ] 쪽지 공통: `NoteOpenService` 분리, 열람 담당이 수정할 클래스와 패키지 경계 인계
 - [ ] 친구: 친구 조회 인터페이스와 아직 구현되지 않은 부분 인계

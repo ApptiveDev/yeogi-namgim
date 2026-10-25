@@ -28,26 +28,28 @@ class AccessTokenCodecTests {
 	private static final SecretKey KEY = new SecretKeySpec("unit-test-key-32-bytes-long-value!".getBytes(), "HmacSHA256");
 	private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 	private final UUID userId = UUID.randomUUID();
+	private final UUID sessionId = UUID.randomUUID();
 	private final AccessTokenCodec codec = new AccessTokenCodec(KEY, "yeogi-namgim", Duration.ofMinutes(15), clock);
 
 	@Test
 	void issuesMemberTokenWithFifteenMinuteExpiry() {
-		var response = codec.issue(userId);
+		var response = codec.issue(userId, sessionId);
 		assertThat(response.tokenType()).isEqualTo("Bearer");
 		assertThat(response.expiresIn()).isEqualTo(900);
 		assertThat(codec.identify(response.accessToken())).isEqualTo(userId);
+		assertThat(codec.decode(response.accessToken()).sessionId()).isEqualTo(sessionId);
 		assertThat(response.toString()).doesNotContain(response.accessToken());
 	}
 
 	@Test
 	void rejectsExpirationAtExactBoundaryAndWrongSigningKey() {
-		String token = codec.issue(userId).accessToken();
+		String token = codec.issue(userId, sessionId).accessToken();
 		AccessTokenCodec later = new AccessTokenCodec(KEY, "yeogi-namgim", Duration.ofMinutes(15),
 			Clock.fixed(NOW.plusSeconds(900), ZoneOffset.UTC));
 		assertThatThrownBy(() -> later.identify(token)).isInstanceOf(AuthException.class);
 		SecretKey otherKey = new SecretKeySpec("different-test-key-32-bytes-long!".getBytes(), "HmacSHA256");
 		String forged = new AccessTokenCodec(otherKey, "yeogi-namgim", Duration.ofMinutes(15), clock)
-			.issue(userId).accessToken();
+			.issue(userId, sessionId).accessToken();
 		assertThatThrownBy(() -> codec.identify(forged)).isInstanceOf(AuthException.class);
 	}
 
@@ -65,18 +67,34 @@ class AccessTokenCodecTests {
 		assertRejected(claims().issuer("another-issuer"));
 		assertRejected(claims().issuedAt(NOW.plusSeconds(1)));
 		assertRejected(claims().subject("not-a-user-uuid"));
+		assertRejected(claims().claim("sid", "not-a-session-uuid"));
+		assertRejected(JwtClaimsSet.builder().issuer("yeogi-namgim").subject(userId.toString())
+			.audience(List.of("yeogi-namgim-member-api")).issuedAt(NOW).expiresAt(NOW.plusSeconds(900))
+			.claim("token_use", "access"));
 		assertRejected(JwtClaimsSet.builder().issuer("yeogi-namgim").issuedAt(NOW).expiresAt(NOW.plusSeconds(900))
-			.audience(List.of("yeogi-namgim-member-api")).claim("token_use", "access"));
+			.audience(List.of("yeogi-namgim-member-api")).claim("token_use", "access").claim("sid", sessionId.toString()));
 		assertRejected(JwtClaimsSet.builder().issuer("yeogi-namgim").subject(userId.toString())
-			.issuedAt(NOW).expiresAt(NOW.plusSeconds(900)).claim("token_use", "access"));
+			.issuedAt(NOW).expiresAt(NOW.plusSeconds(900)).claim("token_use", "access").claim("sid", sessionId.toString()));
 		assertRejected(JwtClaimsSet.builder().issuer("yeogi-namgim").subject(userId.toString())
-			.audience(List.of("yeogi-namgim-member-api")).issuedAt(NOW).claim("token_use", "access"));
+			.audience(List.of("yeogi-namgim-member-api")).issuedAt(NOW).claim("token_use", "access").claim("sid", sessionId.toString()));
+		assertRejected(JwtClaimsSet.builder().issuer("yeogi-namgim").subject(userId.toString())
+			.audience(List.of("yeogi-namgim-member-api")).expiresAt(NOW.plusSeconds(900))
+			.claim("token_use", "access").claim("sid", sessionId.toString()));
 	}
 
 	private JwtClaimsSet.Builder claims() {
 		return JwtClaimsSet.builder().issuer("yeogi-namgim").subject(userId.toString())
 			.audience(List.of("yeogi-namgim-member-api")).issuedAt(NOW).expiresAt(NOW.plusSeconds(900))
-			.claim("token_use", "access");
+			.claim("token_use", "access").claim("sid", sessionId.toString());
+	}
+
+	@Test
+	void accessTokenCannotOutliveItsSession() {
+		var response = codec.issue(userId, sessionId, NOW.plusSeconds(60));
+		assertThat(response.expiresIn()).isEqualTo(60);
+		AccessTokenCodec later = new AccessTokenCodec(KEY, "yeogi-namgim", Duration.ofMinutes(15),
+			Clock.fixed(NOW.plusSeconds(60), ZoneOffset.UTC));
+		assertThatThrownBy(() -> later.identify(response.accessToken())).isInstanceOf(AuthException.class);
 	}
 
 	private void assertRejected(JwtClaimsSet.Builder claims) {

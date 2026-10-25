@@ -15,6 +15,11 @@ public final class AuthResponses {
 	public record AccessToken(String accessToken, String tokenType, long expiresIn) {
 		@Override public String toString() { return "AccessToken[REDACTED]"; }
 	}
+	public record TokenPair(String accessToken, String tokenType, long expiresIn,
+		String refreshToken, long refreshExpiresIn) {
+		@Override public String toString() { return "TokenPair[REDACTED]"; }
+	}
+	public record LogoutResult(boolean loggedOut) { }
 	public record Profile(UUID userId, String email, String nickname, Instant createdAt) {
 		public static Profile from(Member member) {
 			return new Profile(member.getId(), member.getEmail(), member.getNickname(), member.getCreatedAt());

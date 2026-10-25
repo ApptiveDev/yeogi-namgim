@@ -16,12 +16,15 @@ import com.yeoginamgim.auth.dto.AuthRequests.ConfirmRequest;
 import com.yeoginamgim.auth.dto.AuthRequests.EmailRequest;
 import com.yeoginamgim.auth.dto.AuthRequests.LoginRequest;
 import com.yeoginamgim.auth.dto.AuthRequests.SignupRequest;
-import com.yeoginamgim.auth.dto.AuthResponses.AccessToken;
+import com.yeoginamgim.auth.dto.AuthResponses.TokenPair;
+import com.yeoginamgim.auth.dto.AuthResponses.LogoutResult;
+import com.yeoginamgim.auth.dto.AuthRequests.RefreshRequest;
 import com.yeoginamgim.auth.dto.AuthResponses.EmailConfirmed;
 import com.yeoginamgim.auth.dto.AuthResponses.Profile;
 import com.yeoginamgim.auth.dto.AuthResponses.VerificationRequested;
 import com.yeoginamgim.auth.service.EmailVerificationService;
 import com.yeoginamgim.auth.service.MemberAuthService;
+import com.yeoginamgim.auth.service.MemberSessionService;
 import com.yeoginamgim.common.api.ApiResponse;
 import com.yeoginamgim.common.rate.FixedWindowRateLimiter;
 
@@ -35,12 +38,14 @@ public class MemberAuthController {
 	private final MemberAuthService auth;
 	private final EmailVerificationService verification;
 	private final FixedWindowRateLimiter limiter;
+	private final MemberSessionService sessions;
 
 	public MemberAuthController(MemberAuthService auth, EmailVerificationService verification,
-		FixedWindowRateLimiter limiter) {
+		FixedWindowRateLimiter limiter, MemberSessionService sessions) {
 		this.auth = auth;
 		this.verification = verification;
 		this.limiter = limiter;
+		this.sessions = sessions;
 	}
 
 	@PostMapping("/email-verifications")
@@ -65,10 +70,23 @@ public class MemberAuthController {
 	}
 
 	@PostMapping("/login")
-	public ResponseEntity<ApiResponse<AccessToken>> login(@Valid @RequestBody LoginRequest body, HttpServletRequest request) {
+	public ResponseEntity<ApiResponse<TokenPair>> login(@Valid @RequestBody LoginRequest body, HttpServletRequest request) {
 		limit("login-ip", request.getRemoteAddr(), 20);
 		limit("login-email", body.email(), 10);
 		return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(auth.login(body)));
+	}
+
+	@PostMapping("/refresh")
+	public ResponseEntity<ApiResponse<TokenPair>> refresh(@Valid @RequestBody RefreshRequest body, HttpServletRequest request) {
+		limit("refresh-ip", request.getRemoteAddr(), 30);
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(sessions.refresh(body.refreshToken())));
+	}
+
+	@PostMapping("/logout")
+	public ResponseEntity<ApiResponse<LogoutResult>> logout(@Valid @RequestBody RefreshRequest body, HttpServletRequest request) {
+		limit("logout-ip", request.getRemoteAddr(), 30);
+		sessions.logout(body.refreshToken());
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(new LogoutResult(true)));
 	}
 
 	private void limit(String scope, String identity, int max) {

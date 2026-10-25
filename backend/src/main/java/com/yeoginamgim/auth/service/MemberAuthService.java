@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.yeoginamgim.auth.dto.AuthRequests.LoginRequest;
 import com.yeoginamgim.auth.dto.AuthRequests.SignupRequest;
-import com.yeoginamgim.auth.dto.AuthResponses.AccessToken;
+import com.yeoginamgim.auth.dto.AuthResponses.TokenPair;
 import com.yeoginamgim.auth.dto.AuthResponses.Profile;
 import com.yeoginamgim.auth.repository.EmailVerificationRepository;
 import com.yeoginamgim.user.domain.Member;
@@ -24,17 +24,17 @@ public class MemberAuthService {
 	private final EmailVerificationRepository verifications;
 	private final VerificationCodec verificationCodec;
 	private final PasswordEncoder passwords;
-	private final AccessTokenCodec tokens;
+	private final MemberSessionService sessions;
 	private final Clock clock;
 	private final String dummyHash;
 
 	public MemberAuthService(MemberRepository members, EmailVerificationRepository verifications,
-		VerificationCodec verificationCodec, PasswordEncoder passwords, AccessTokenCodec tokens, Clock clock) {
+		VerificationCodec verificationCodec, PasswordEncoder passwords, MemberSessionService sessions, Clock clock) {
 		this.members = members;
 		this.verifications = verifications;
 		this.verificationCodec = verificationCodec;
 		this.passwords = passwords;
-		this.tokens = tokens;
+		this.sessions = sessions;
 		this.clock = clock;
 		this.dummyHash = passwords.encode(UUID.randomUUID().toString());
 	}
@@ -59,12 +59,12 @@ public class MemberAuthService {
 		return Profile.from(member);
 	}
 
-	@Transactional(readOnly = true)
-	public AccessToken login(LoginRequest request) {
+	@Transactional
+	public TokenPair login(LoginRequest request) {
 		var member = members.findByEmail(request.email());
 		boolean matches = passwords.matches(request.password(), member.map(Member::getPasswordHash).orElse(dummyHash));
 		if (member.isEmpty() || !matches) throw AuthException.unauthorized();
-		return tokens.issue(member.orElseThrow().getId());
+		return sessions.open(member.orElseThrow().getId());
 	}
 
 	@Transactional(readOnly = true)
