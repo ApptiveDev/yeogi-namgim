@@ -33,7 +33,7 @@ import jakarta.mail.internet.MimeMessage;
 
 class SmtpVerificationMailSenderTests {
 	private final AuthProperties properties = new AuthProperties("", "", "yeogi-namgim",
-		Duration.ofMinutes(15), "noreply@example.test");
+		Duration.ofMinutes(15), Duration.ofDays(14), "noreply@example.test");
 
 	@Test
 	void deliversUtf8VerificationEmailToLocalSmtpServer() throws Exception {

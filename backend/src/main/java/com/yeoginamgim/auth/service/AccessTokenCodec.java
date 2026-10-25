@@ -40,16 +40,28 @@ public class AccessTokenCodec {
 		decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(timestamps, new JwtIssuerValidator(issuer)));
 	}
 
-	public AccessToken issue(UUID userId) {
+	public record Identity(UUID userId, UUID sessionId) { }
+
+	public AccessToken issue(UUID userId, UUID sessionId) {
+		return issue(userId, sessionId, null);
+	}
+
+	public AccessToken issue(UUID userId, UUID sessionId, Instant sessionExpiresAt) {
 		Instant now = clock.instant();
+		Instant expiresAt = now.plus(ttl);
+		if (sessionExpiresAt != null && sessionExpiresAt.isBefore(expiresAt)) expiresAt = sessionExpiresAt;
 		JwtClaimsSet claims = JwtClaimsSet.builder().issuer(issuer).subject(userId.toString())
-			.audience(List.of(AUDIENCE)).issuedAt(now).expiresAt(now.plus(ttl))
-			.id(UUID.randomUUID().toString()).claim("token_use", "access").build();
+			.audience(List.of(AUDIENCE)).issuedAt(now).expiresAt(expiresAt)
+			.id(UUID.randomUUID().toString()).claim("token_use", "access").claim("sid", sessionId.toString()).build();
 		return new AccessToken(encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue(),
-			"Bearer", ttl.toSeconds());
+			"Bearer", expiresAt.getEpochSecond() - now.getEpochSecond());
 	}
 
 	public UUID identify(String token) {
+		return decode(token).userId();
+	}
+
+	public Identity decode(String token) {
 		try {
 			Jwt jwt = decoder.decode(token);
 			if (!"access".equals(jwt.getClaimAsString("token_use")) || jwt.getSubject() == null
@@ -58,7 +70,9 @@ public class AccessTokenCodec {
 				|| jwt.getIssuedAt() == null || jwt.getIssuedAt().isAfter(clock.instant())) {
 				throw AuthException.unauthorized();
 			}
-			return UUID.fromString(jwt.getSubject());
+			String sessionId = jwt.getClaimAsString("sid");
+			if (sessionId == null) throw AuthException.unauthorized();
+			return new Identity(UUID.fromString(jwt.getSubject()), UUID.fromString(sessionId));
 		} catch (JwtException | IllegalArgumentException exception) {
 			throw AuthException.unauthorized();
 		}

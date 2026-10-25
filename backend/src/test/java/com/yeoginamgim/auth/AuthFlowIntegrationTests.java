@@ -190,7 +190,7 @@ class AuthFlowIntegrationTests {
 			.andReturn().getResponse().getContentAsString();
 		String guestToken = json.readTree(response).at("/data/guestToken").asText();
 		mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + guestToken)).andExpect(status().isUnauthorized());
-		String memberToken = tokens.issue(UUID.randomUUID()).accessToken();
+		String memberToken = tokens.issue(UUID.randomUUID(), UUID.randomUUID()).accessToken();
 		mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + memberToken)).andExpect(status().isUnauthorized());
 		mvc.perform(get("/api/v1/notes").header("Authorization", "Bearer " + memberToken)
 			.param("minLatitude", "35.17").param("maxLatitude", "35.19")

@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.yeoginamgim.auth.service.AccessTokenCodec;
 import com.yeoginamgim.auth.service.VerificationCodec;
+import com.yeoginamgim.auth.service.RefreshTokenCodec;
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(name = "auth.enabled", havingValue = "true")
@@ -46,6 +47,9 @@ public class AuthConfiguration {
 	VerificationCodec verificationCodec(AuthProperties properties) {
 		return new VerificationCodec(secret(properties.verificationSecret(), "AUTH_VERIFICATION_SECRET"));
 	}
+
+	@Bean
+	RefreshTokenCodec refreshTokenCodec() { return new RefreshTokenCodec(); }
 
 	private SecretKey secret(String encoded, String name) {
 		try {

@@ -20,9 +20,17 @@ public final class AuthRequests {
 		"^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[^A-Za-z0-9])[\\x21-\\x7E]{8,64}$";
 	public static final String PASSWORD_MESSAGE =
 		"비밀번호는 공백 없이 영문, 숫자, 특수문자를 각각 포함한 8~64자여야 합니다.";
+	public static final String REFRESH_TOKEN_PATTERN =
+		"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\.[A-Za-z0-9_-]{43}";
 
 	private static String normalizeEmail(String email) {
 		return email == null ? null : email.strip().toLowerCase(Locale.ROOT);
+	}
+
+	public record RefreshRequest(
+		@NotNull @Pattern(regexp = REFRESH_TOKEN_PATTERN, message = "Refresh Token 형식이 올바르지 않습니다.") String refreshToken
+	) {
+		@Override public String toString() { return "RefreshRequest[REDACTED]"; }
 	}
 
 	public record EmailRequest(@NotBlank @Email @Size(max = 254) String email) {
