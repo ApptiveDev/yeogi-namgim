@@ -6,6 +6,8 @@ Spring Initializr로 생성한 백엔드 기본 프로젝트입니다.
 
 회원 전환 및 백엔드 병렬 개발의 후속 구현 기준은 [백엔드 공통 API 계약](../docs/BACKEND_API_CONTRACT.md)을 확인합니다. 현재 구현과 신규 계약, 담당 경계 및 기획 미정 사항을 구분해 정리한 문서이며, 실제 기능 구현 완료를 의미하지 않습니다.
 
+이메일 인증·회원가입·로그인·내 프로필 조회를 추가했습니다. [이메일 인증 API 사용법](../docs/EMAIL_AUTH_API.md)에서 비밀번호 규칙, 요청 예시와 SMTP·비밀키 설정을 확인합니다. 회원 API는 `AUTH_ENABLED=true`와 필수 설정을 준비한 뒤 사용할 수 있으며, 기존 비회원 API도 유지합니다.
+
 ## 개발 환경
 
 | 항목 | 버전·설정 |
@@ -115,9 +117,10 @@ java -jar build/libs/yeogi-namgim-0.0.1-SNAPSHOT.jar
 - `V1__enable_postgis.sql`은 `public` 스키마의 PostGIS 확장을 활성화합니다. 이미지에서 이미 활성화했다면 그대로 유지합니다.
 - `V2__create_guest_sessions.sql`은 비회원 ID와 토큰 해시를 저장할 `guest_sessions` 테이블을 생성합니다.
 - `V3__create_notes.sql`은 비회원 쪽지와 PostGIS 위치 및 공간 인덱스를 저장할 `notes` 테이블을 생성합니다.
+- `V6__create_members_and_email_verifications.sql`은 회원 정보와 이메일 인증 코드·가입용 토큰의 해시 및 만료·실패 횟수를 저장합니다.
 - 애플리케이션 테이블과 Flyway 이력은 `app` 스키마에 관리합니다. 접속 시 `app,public` 순서로 스키마를 검색합니다.
 - JPA는 `ddl-auto=validate`를 사용하며 테이블을 자동 생성하거나 수정하지 않습니다.
-- 후속 변경은 `V4__...sql`부터 적용 순서에 맞는 새 마이그레이션 파일로 추가하고, 이미 적용한 파일은 수정하지 않습니다.
+- 후속 변경은 마지막 적용 버전 다음의 새 마이그레이션 파일로 추가하고, 이미 적용한 파일은 수정하지 않습니다.
 
 ## 초기 설정 범위
 
