@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.yeoginamgim.guest.service.InvalidGuestTokenException;
+import com.yeoginamgim.auth.service.AuthException;
 import com.yeoginamgim.common.rate.RateLimitExceededException;
 import com.yeoginamgim.push.service.PushTokenConflictException;
 import com.yeoginamgim.push.service.PushTokenNotFoundException;
@@ -17,6 +18,12 @@ import com.yeoginamgim.note.service.NoteNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+	@ExceptionHandler(AuthException.class)
+	public ResponseEntity<ApiErrorResponse> handleAuth(AuthException exception) {
+		return ResponseEntity.status(exception.getStatus())
+			.body(ApiErrorResponse.of(exception.getCode(), exception.getMessage()));
+	}
+
 	@ExceptionHandler(RateLimitExceededException.class)
 	public ResponseEntity<ApiErrorResponse> handleRateLimit() {
 		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
