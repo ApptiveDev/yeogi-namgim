@@ -22,7 +22,8 @@ public class PushDeliveryRepository {
 		  AND t.id > ?
 		  AND EXISTS (
 		    SELECT 1 FROM app.notes n
-		    WHERE public.ST_DWithin(n.location, l.location, 500.0)
+		    WHERE n.guest_author_id IS NOT NULL
+		      AND public.ST_DWithin(n.location, l.location, 500.0)
 		  )
 		ORDER BY t.id
 		LIMIT 200

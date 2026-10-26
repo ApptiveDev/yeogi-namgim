@@ -156,6 +156,6 @@ Access Token의 기본 유효 시간은 15분이다. JWT는 HS256 서명과 issu
 - 로컬 SMTP 서버로 UTF-8 메일 전송과 발송 실패 처리를 검증한다. 실제 외부 메일 서비스의 인증·수신함 도착은 검증하지 않았다.
 - 기존 비회원 쪽지·지도·열람·위치·푸시·알림 회귀 테스트도 함께 실행한다.
 
-카카오 인증, 비회원 기록 이전, 회원 기반 쪽지 API는 후속 작업이다. 토큰 재발급·로그아웃은 [토큰 세션 API](TOKEN_SESSION_API.md)에서 구현 상태와 사용법을 확인한다. 현재 쪽지 API에는 기존 비회원 토큰을 사용한다. 다른 회원 API에서 사용자를 식별할 때는 [CurrentUserProvider](../backend/src/main/java/com/yeoginamgim/common/auth/CurrentUserProvider.java)를 사용한다.
+카카오 인증과 비회원 기록 이전은 후속 작업이다. 회원 쪽지 작성·조회·본인 열람은 [회원 쪽지 API](MEMBER_NOTE_API.md)를 따른다. 토큰 재발급·로그아웃은 [토큰 세션 API](TOKEN_SESSION_API.md)에서 구현 상태와 사용법을 확인한다. 쪽지 작성·본인 열람은 회원 access token도 지원하며, 기존 지도·비회원 열람에는 비회원 토큰을 사용한다. 다른 회원 API에서 사용자를 식별할 때는 [CurrentUserProvider](../backend/src/main/java/com/yeoginamgim/common/auth/CurrentUserProvider.java)를 사용한다.
 
 구현에 참고한 공식 문서: [Spring Security 비밀번호 저장](https://docs.spring.io/spring-security/reference/features/authentication/password-storage.html), [JWT 검증](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html), [Spring Boot 메일 발송](https://docs.spring.io/spring-boot/reference/io/email.html).

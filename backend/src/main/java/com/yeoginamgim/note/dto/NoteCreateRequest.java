@@ -5,6 +5,8 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
+import com.yeoginamgim.note.domain.NoteVisibility;
 
 public record NoteCreateRequest(
 	@NotBlank
@@ -19,6 +21,15 @@ public record NoteCreateRequest(
 	@NotNull
 	@DecimalMin("-180.0")
 	@DecimalMax("180.0")
-	Double longitude
+	Double longitude,
+
+	NoteVisibility visibility,
+	@Pattern(regexp = "(?:#[0-9A-Fa-f]{6}|[A-Za-z][A-Za-z0-9_-]{0,31})")
+	String color,
+	@Size(max = 200) String placeName,
+	@Size(max = 100) String neighborhood
 ) {
+	public NoteCreateRequest(String content, Double latitude, Double longitude) {
+		this(content, latitude, longitude, null, null, null, null);
+	}
 }

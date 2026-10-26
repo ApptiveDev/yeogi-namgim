@@ -2,6 +2,9 @@ package com.yeoginamgim.note.controller;
 
 import static org.springframework.http.HttpStatus.CREATED;
 
+import java.util.UUID;
+
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +25,7 @@ import com.yeoginamgim.note.dto.NoteMarkersResponse;
 import com.yeoginamgim.note.dto.NoteOpenRequest;
 import com.yeoginamgim.note.dto.NoteOpenResponse;
 import com.yeoginamgim.note.service.NoteService;
-import java.util.UUID;
+import com.yeoginamgim.note.service.NoteOpenService;
 
 import jakarta.validation.Valid;
 
@@ -30,10 +33,12 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/v1/notes")
 public class NoteController {
 	private final NoteService noteService;
+	private final NoteOpenService noteOpenService;
 	private final BearerTokenExtractor bearerTokenExtractor;
 
-	public NoteController(NoteService noteService, BearerTokenExtractor bearerTokenExtractor) {
+	public NoteController(NoteService noteService, NoteOpenService noteOpenService, BearerTokenExtractor bearerTokenExtractor) {
 		this.noteService = noteService;
+		this.noteOpenService = noteOpenService;
 		this.bearerTokenExtractor = bearerTokenExtractor;
 	}
 
@@ -42,9 +47,9 @@ public class NoteController {
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
 		@Valid @RequestBody NoteCreateRequest request
 	) {
-		String guestToken = bearerTokenExtractor.extract(authorizationHeader);
-		NoteCreateResponse response = noteService.create(guestToken, request);
-		return ResponseEntity.status(CREATED).body(ApiResponse.success(response));
+		String token = bearerTokenExtractor.extract(authorizationHeader);
+		NoteCreateResponse response = noteService.create(token, request);
+		return ResponseEntity.status(CREATED).cacheControl(CacheControl.noStore()).body(ApiResponse.success(response));
 	}
 
 	@GetMapping
@@ -61,9 +66,10 @@ public class NoteController {
 	public ResponseEntity<ApiResponse<NoteOpenResponse>> open(
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
 		@PathVariable UUID noteId,
-		@Valid @RequestBody NoteOpenRequest request
+		@Valid @RequestBody(required = false) NoteOpenRequest request
 	) {
-		String guestToken = bearerTokenExtractor.extract(authorizationHeader);
-		return ResponseEntity.ok(ApiResponse.success(noteService.open(guestToken, noteId, request)));
+		String token = bearerTokenExtractor.extract(authorizationHeader);
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+			.body(ApiResponse.success(noteOpenService.open(token, noteId, request)));
 	}
 }

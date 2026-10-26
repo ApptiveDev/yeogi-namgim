@@ -15,7 +15,8 @@ public class NearbyNotificationRepository {
 		return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
 			SELECT EXISTS (
 				SELECT 1 FROM app.notes n
-				WHERE public.ST_DWithin(
+				WHERE n.guest_author_id IS NOT NULL
+				  AND public.ST_DWithin(
 					n.location,
 					public.ST_SetSRID(public.ST_MakePoint(?, ?), 4326)::public.geography,
 					500.0
