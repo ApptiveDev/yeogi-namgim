@@ -122,6 +122,7 @@ java -jar build/libs/yeogi-namgim-0.0.1-SNAPSHOT.jar
 - `V6__create_members_and_email_verifications.sql`은 회원 정보와 이메일 인증 코드·가입용 토큰의 해시 및 만료·실패 횟수를 저장합니다.
 - `V7__create_member_auth_sessions.sql`은 회원 로그인 세션과 사용한 Refresh Token 해시 이력을 저장합니다.
 - `V8__extend_notes_for_members.sql`은 회원 쪽지 작성자·공개 범위·색상·장소와 작성자 단일 참조 제약 및 내 쪽지 정렬 인덱스를 추가합니다. 사용법과 담당 경계는 [회원 쪽지 API](../docs/MEMBER_NOTE_API.md)를 따릅니다.
+- `V9__create_friendships_and_invitations.sql`은 일회용 친구 초대와 중복 없는 상호 친구 관계를 추가합니다. API·설정·공통 조회 계약은 [친구 API](../docs/FRIEND_API.md)를 따릅니다.
 - 애플리케이션 테이블과 Flyway 이력은 `app` 스키마에 관리합니다. 접속 시 `app,public` 순서로 스키마를 검색합니다.
 - JPA는 `ddl-auto=validate`를 사용하며 테이블을 자동 생성하거나 수정하지 않습니다.
 - 후속 변경은 마지막 적용 버전 다음의 새 마이그레이션 파일로 추가하고, 이미 적용한 파일은 수정하지 않습니다.

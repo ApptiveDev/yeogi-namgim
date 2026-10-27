@@ -16,9 +16,16 @@ import com.yeoginamgim.push.service.PushTokenNotFoundException;
 import com.yeoginamgim.note.service.NoteLockedException;
 import com.yeoginamgim.note.service.NoteNotFoundException;
 import com.yeoginamgim.note.service.InvalidNoteRequestException;
+import com.yeoginamgim.friend.service.FriendException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+	@ExceptionHandler(FriendException.class)
+	public ResponseEntity<ApiErrorResponse> handleFriend(FriendException exception) {
+		return ResponseEntity.status(exception.getStatus())
+			.body(ApiErrorResponse.of(exception.getCode(), exception.getMessage()));
+	}
+
 	@ExceptionHandler(InvalidNoteRequestException.class)
 	public ResponseEntity<ApiErrorResponse> handleInvalidNoteRequest(InvalidNoteRequestException exception) {
 		return ResponseEntity.badRequest().body(ApiErrorResponse.of("INVALID_REQUEST", exception.getMessage()));
