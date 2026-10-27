@@ -28,12 +28,13 @@ import com.yeoginamgim.note.dto.NoteMarkerResponse;
 import com.yeoginamgim.note.dto.NoteMarkersResponse;
 import com.yeoginamgim.note.dto.NoteOpenResponse;
 import com.yeoginamgim.note.service.NoteService;
+import com.yeoginamgim.note.service.NoteOpenService;
 
 class NoteControllerTests {
 	@Test
 	void opensNoteWithValidCoordinates() throws Exception {
 		UUID noteId = UUID.randomUUID();
-		when(noteService.open(eq("guest-token"), eq(noteId), any()))
+		when(noteOpenService.open(eq("guest-token"), eq(noteId), any()))
 			.thenReturn(new NoteOpenResponse(noteId, "내용", false, Instant.parse("2026-09-29T01:30:00Z")));
 		mockMvc.perform(post("/api/v1/notes/{noteId}/open", noteId)
 				.header("Authorization", "Bearer guest-token")
@@ -59,12 +60,13 @@ class NoteControllerTests {
 			.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
 	}
 	private final NoteService noteService = mock(NoteService.class);
+	private final NoteOpenService noteOpenService = mock(NoteOpenService.class);
 	private MockMvc mockMvc;
 
 	@BeforeEach
 	void setUp() {
 		mockMvc = MockMvcBuilders
-			.standaloneSetup(new NoteController(noteService, new BearerTokenExtractor()))
+			.standaloneSetup(new NoteController(noteService, noteOpenService, new BearerTokenExtractor()))
 			.setControllerAdvice(new GlobalExceptionHandler())
 			.build();
 	}

@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,9 +13,14 @@ import org.springframework.data.repository.query.Param;
 import com.yeoginamgim.note.domain.Note;
 
 public interface NoteRepository extends JpaRepository<Note, UUID> {
+	Slice<Note> findByAuthorUserId(UUID authorUserId, Pageable pageable);
+	Optional<Note> findByIdAndAuthorUserId(UUID id, UUID authorUserId);
+	boolean existsByIdAndGuestAuthorIdIsNotNull(UUID id);
+
 	@Query(value = """
 		SELECT n.* FROM app.notes n
 		WHERE n.id = :noteId
+		  AND n.guest_author_id IS NOT NULL
 		  AND public.ST_DWithin(
 		    n.location,
 		    public.ST_SetSRID(public.ST_MakePoint(:longitude, :latitude), 4326)::public.geography,
@@ -33,7 +40,8 @@ public interface NoteRepository extends JpaRepository<Note, UUID> {
 			n.longitude AS "longitude",
 			n.guest_author_id AS "guestAuthorId"
 		FROM app.notes n
-		WHERE n.location && public.ST_MakeEnvelope(
+		WHERE n.guest_author_id IS NOT NULL
+		  AND n.location && public.ST_MakeEnvelope(
 			:minLongitude,
 			:minLatitude,
 			:maxLongitude,
