@@ -163,6 +163,9 @@ export default function HomeScreen() {
     setIsSubmitting(true);
     Keyboard.dismiss();
     try {
+      if (submittedDraft.visibility !== 'public') {
+        throw new Error('친구·개인 쪽지는 로그인 후 남길 수 있어요.');
+      }
       const permission = await Location.getForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
         throw new Error('현재 위치에 쪽지를 남기려면 위치 권한을 허용해 주세요.');
@@ -175,7 +178,7 @@ export default function HomeScreen() {
         throw new Error('현재 위치를 확인할 수 없어요. 위치 서비스를 확인해 주세요.');
       }
       const token = await getGuestToken();
-      // Visibility is not part of the current backend contract.
+      // This screen still uses a guest token; only public drafts reach this request.
       await createNote({ content, latitude: coords.latitude, longitude: coords.longitude }, token);
       setUserCoordinates(coords);
       setDraft(INITIAL_NOTE_DRAFT);
