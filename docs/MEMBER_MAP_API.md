@@ -118,6 +118,6 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 
 프론트 인계: 회원 토큰·이 API 연결, 완전한 페이지 집합으로 물방울과 개수 조립, 화면상 200m 원의 너비가 화면 너비의 1/3인지 판정, 열람 가능 한 개/여러 개 분기, 최신 좌표로 상세 재검증, 익명·친구 이름 구분을 적용한다. 이 PR에서 최종 회원 지도 UI를 새로 구현하지 않았다.
 
-검증은 실제 PostgreSQL/PostGIS에서 공개 범위·친구 전용·익명·현재 위치 없음·200m 경계·이동 후 재잠금·친구 해제 후 재검사·화면 경계·넓은 세계 범위·페이지·저장/읽음 소스 연결을 포함한다. 비회원 작성 화면은 친구·개인 초안을 API 호출 전에 막고 기존 공개 작성은 유지한다.
+검증은 실제 PostgreSQL/PostGIS에서 공개 범위·친구 전용·익명·현재 위치 없음·200m 경계·이동 후 재잠금·친구 해제 후 재검사·화면 경계·넓은 세계 범위·페이지·저장/읽음 소스 연결을 포함한다. 기존 비회원 화면에서 친구·개인 선택값이 요청에서 빠지는 문제는 프론트 담당의 후속 수정 대상으로 인계한다. 이번 PR에는 frontend 경로의 변경을 포함하지 않는다.
 
 거리·인덱스 참고: [PostGIS ST_Distance](https://postgis.net/docs/ST_Distance.html), [ST_DWithin](https://postgis.net/docs/ST_DWithin.html).
