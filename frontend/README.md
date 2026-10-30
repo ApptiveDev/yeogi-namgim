@@ -78,15 +78,28 @@ frontend/
 ├── src/
 │   ├── app/
 │   │   ├── _layout.tsx # 루트 레이아웃 및 비회원 인증 초기화
-│   │   └── index.tsx   # 지도 홈 화면
+│   │   └── index.tsx   # 홈 화면 구성 및 훅·컴포넌트 연결
 │   ├── api/            # 공통 API 클라이언트, 요청 함수, 타입
 │   ├── auth/           # 비회원 인증 토큰 저장 및 조회
 │   ├── components/
+│   │   ├── home/
+│   │   │   ├── HomeMap.tsx     # 지도 및 위치·쪽지 레이어 표시
+│   │   │   └── MapSelector.tsx # 지도 선택 메뉴 및 음영 애니메이션
 │   │   ├── navigation/ # 내비게이션 컴포넌트
 │   │   ├── notes/      # 쪽지 작성·열람·마커 컴포넌트
 │   │   └── ui/         # 공통 UI 컴포넌트
-│   ├── constants/      # 테마 등 공통 상수
-│   ├── hooks/          # 쪽지 조회 및 테마 관련 훅
+│   ├── constants/
+│   │   ├── home-map.ts # 지도 반경, 기본 줌, 카메라 복귀 시간
+│   │   └── theme.ts    # 테마 상수
+│   ├── hooks/
+│   │   ├── use-home-map.ts         # 지도 제어, 범위 조회 및 마커 상태 계산
+│   │   ├── use-note-compose.ts     # 쪽지 작성·저장 및 작성창 열기·닫기
+│   │   ├── use-note-markers.ts     # 지도 범위에 따른 쪽지 목록 조회
+│   │   ├── use-note-reader.ts      # 쪽지 열람 요청 및 선택 상태 관리
+│   │   ├── use-user-location.ts    # 위치 권한 요청 및 실시간 위치 추적
+│   │   ├── use-color-scheme.ts     # 기기 색상 모드 조회
+│   │   ├── use-color-scheme.web.ts # 웹 색상 모드 조회
+│   │   └── use-theme.ts            # 테마 조회
 │   ├── styles/         # 화면 스타일 및 지도 스타일 처리
 │   └── utils/          # 거리 계산 및 위치 반경 도형 생성
 ├── .env.local.example  # API 서버 환경변수 예시
