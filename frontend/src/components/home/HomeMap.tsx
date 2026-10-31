@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import { useRef, type RefObject } from 'react';
 import { Camera, GeoJSONSource, Layer, Map, type CameraRef } from '@maplibre/maplibre-react-native';
 import type { FeatureCollection } from 'geojson';
 
@@ -15,16 +15,22 @@ const BASE_MAP_TOP_LAYER = localizedMapStyle.layers.at(-1)?.id;
 
 type Props = {
   map: ReturnType<typeof useHomeMap>;
+  initialCenter: [number, number];
   cameraRef: RefObject<CameraRef | null>;
   isComposeOpen: boolean;
   handleOpenNote: (note: NoteMapItem) => Promise<void>;
 };
 
-export function HomeMap({ map, cameraRef, isComposeOpen, handleOpenNote }: Props) {
+export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen, handleOpenNote }: Props) {
   const {
     mapRef, setIsMapReady, userPoint, composePoint, userCircle, mapNotes,
     handleRegionWillChange, handleRegionDidChange, updateMapBounds,
   } = map;
+  // Start at the resolved location, so an earlier default viewport cannot dismiss the cover.
+  const initialViewState = useRef({
+    ...DEFAULT_MAP_VIEW,
+    center: initialCenter,
+  }).current;
 
   return (
       <Map
@@ -38,6 +44,10 @@ export function HomeMap({ map, cameraRef, isComposeOpen, handleOpenNote }: Props
           setIsMapReady(true);
           void updateMapBounds();
         }}
+        onDidFinishRenderingFrameFully={() => {
+          if (map.isMapReady) map.setIsMapRendered(true);
+        }}
+        onDidFailLoadingMap={() => map.setMapError('지도를 불러오지 못했어요. 연결을 확인하고 다시 시도해 주세요.')}
         onRegionDidChange={(event) => {
           handleRegionDidChange(event);
           void updateMapBounds();
@@ -45,7 +55,7 @@ export function HomeMap({ map, cameraRef, isComposeOpen, handleOpenNote }: Props
       >
         <Camera
           ref={cameraRef}
-          initialViewState={DEFAULT_MAP_VIEW}
+          initialViewState={initialViewState}
         />
 
         {/* 유저 주변 원 */}
