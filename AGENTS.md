@@ -106,9 +106,9 @@ npx tsc --noEmit
 Git 작업 전 [협업 가이드](docs/CONTRIBUTING.md)의 최신 규칙을 읽고 따른다. 이 문서보다 상세한 이슈·브랜치·커밋·PR 형식은 협업 가이드를 기준으로 한다.
 
 1. 작업 목적 하나를 담은 이슈를 만들고 작업 타입·영역 라벨과 담당자를 지정한다.
-2. 최신 `develop`에서 이슈별 작업 브랜치를 만든다. 이름은 `타입/영역/#이슈번호-작업내용` 형식이다. 예: `docs/common/#63-agent-guidelines`.
-3. 변경과 검증을 마친 뒤 `타입: 작업 요약` 형식으로 커밋한다. `main`과 `develop`에 직접 커밋하거나 push하지 않는다.
-4. 원격 브랜치로 push하고 `develop` 대상 PR에서 이슈와 검증 결과를 연결한다. Codex 리뷰와 GitHub Actions 검사를 확인하고, 다른 팀원 1명 이상의 `Approve`와 해결된 리뷰 스레드를 확인한 뒤 `Squash and merge`로 병합한다.
+2. 최신 `main`에서 이슈별 작업 브랜치를 만든다. 이름은 `타입/영역/#이슈번호-작업내용` 형식이다. 예: `docs/common/#63-agent-guidelines`.
+3. 변경과 검증을 마친 뒤 `타입: 작업 요약` 형식으로 커밋한다. `main`에 직접 커밋하거나 push하지 않는다.
+4. 원격 브랜치로 push하고 `main` 대상 PR에서 이슈와 검증 결과를 연결한다. Codex 리뷰와 GitHub Actions 검사를 확인하고, 다른 팀원 1명 이상의 `Approve`와 해결된 리뷰 스레드를 확인한 뒤 `Squash and merge`로 병합한다.
 
 기존 사용자 변경 사항을 덮어쓰거나 되돌리지 않는다. 원격 push, PR 생성, 병합은 요청된 작업 범위를 확인한 뒤 진행한다.
 
