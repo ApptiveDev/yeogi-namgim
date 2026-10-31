@@ -1,10 +1,11 @@
-import { Image } from 'expo-image';
 import { useFonts } from 'expo-font';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CameraRef } from '@maplibre/maplibre-react-native';
 
+import BottomTabBar from '@/components/navigation/BottomTabBar';
+import { StartupScreen } from '@/components/StartupScreen';
 import { HomeMap } from '@/components/home/HomeMap';
 import { MapSelector } from '@/components/home/MapSelector';
 import { NoteComposeSheet } from '@/components/notes/NoteComposeSheet';
@@ -17,6 +18,13 @@ import { useUserLocation } from '@/hooks/use-user-location';
 import { styles } from '@/styles/home.styles';
 
 export default function HomeScreen() {
+  const [attempt, setAttempt] = useState(0);
+  return <HomeContent key={attempt} onRetry={() => setAttempt((value) => value + 1)} />;
+}
+
+function HomeContent({ onRetry }: { onRetry: () => void }) {
+  const [homeReady, setHomeReady] = useState(false);
+  const [startupError, setStartupError] = useState<string | null>(null);
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
   const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
@@ -31,7 +39,7 @@ export default function HomeScreen() {
   const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
   const [isFollowingUser, setIsFollowingUser] =
     useState(true);
-  const { userCoordinates, setUserCoordinates } = useUserLocation();
+  const { userCoordinates, setUserCoordinates, locationStatus } = useUserLocation();
   const {
     isComposeOpen, composeCoordinates, composeLocationLabel,
     draft, setDraft, isSubmitting, openCompose, closeCompose, submitNote,
@@ -48,14 +56,29 @@ export default function HomeScreen() {
     isComposeOpen, setUserCoordinates,
   });
 
+  useEffect(() => {
+    if (homeReady || startupError) return;
+    if (locationStatus === 'error') setStartupError('위치를 확인하지 못했어요. 위치 서비스를 확인하고 다시 시도해 주세요.');
+    else if (map.startupError) setStartupError(map.startupError);
+    else if (map.isMapReady && map.isMapRendered) setHomeReady(true);
+  }, [homeReady, startupError, locationStatus, map.startupError, map.isMapReady, map.isMapRendered]);
+
+  useEffect(() => {
+    if (homeReady || startupError || locationStatus === 'permission') return;
+    const timer = setTimeout(() => setStartupError('지도 준비 시간이 초과됐어요. 다시 시도해 주세요.'), 15000);
+    return () => clearTimeout(timer);
+  }, [homeReady, startupError, locationStatus]);
+
   return (
     <View style={styles.container}>
-      <HomeMap
+      <View style={styles.container} pointerEvents={homeReady ? 'auto' : 'none'} accessibilityElementsHidden={!homeReady} importantForAccessibility={homeReady ? 'auto' : 'no-hide-descendants'}>
+      {userCoordinates && <HomeMap
         map={map}
+        initialCenter={[userCoordinates.longitude, userCoordinates.latitude]}
         cameraRef={cameraRef}
         isComposeOpen={isComposeOpen}
         handleOpenNote={handleOpenNote}
-      />
+      />}
       <MapSelector
         isComposeOpen={isComposeOpen}
         isMapMenuOpen={isMapMenuOpen}
@@ -78,21 +101,7 @@ export default function HomeScreen() {
         </Text>
       </Pressable>}
 
-      {!isComposeOpen && <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="쪽지 작성하기"
-        onPress={openCompose}
-        style={({ pressed }) => [
-          styles.composeButton,
-          pressed && styles.composeButtonPressed,
-        ]}
-      >
-        <Image
-          source={require('../../assets/images/compose-note.svg')}
-          style={styles.composeIcon}
-          contentFit="contain"
-        />
-      </Pressable>}
+      {!isComposeOpen && <BottomTabBar onAddPress={openCompose} />}
 
       {isComposeOpen && (
         <NoteComposeSheet
@@ -114,6 +123,14 @@ export default function HomeScreen() {
         note={selectedNote}
         onClose={() => setSelectedNote(null)}
       />
+      </View>
+      {!homeReady && (
+        <StartupScreen
+          message={startupError ?? undefined}
+          actionLabel={startupError ? '다시 시도' : undefined}
+          onAction={onRetry}
+        />
+      )}
     </View>
   );
 }

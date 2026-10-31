@@ -1,9 +1,9 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { Alert, Text, View, useColorScheme } from 'react-native';
+import { Alert, useColorScheme } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { StartupScreen } from '@/components/StartupScreen';
 import { getGuestToken } from '@/auth/guest-token';
 
 SplashScreen.preventAutoHideAsync();
@@ -30,24 +30,14 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
       {authStatus === 'ready' ? (
         <Stack screenOptions={{ headerShown: false }} />
       ) : (
-        <View
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'white',
-          }}
-        >
-          <Text style={{ color: 'black' }}>
-            {authStatus === 'loading'
-              ? '앱을 준비하고 있습니다.'
-              : '서버와의 연결에 실패했습니다. 앱을 다시 실행해 주세요.'}
-          </Text>
-        </View>
+        <StartupScreen
+          message={authStatus === 'error'
+            ? '서버와의 연결에 실패했습니다. 앱을 다시 실행해 주세요.'
+            : undefined}
+        />
       )}
     </ThemeProvider>
   );

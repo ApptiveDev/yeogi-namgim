@@ -32,6 +32,8 @@ export function useHomeMap({
 }: Options) {
   const mapRef = useRef<MapRef>(null);
   const [isMapReady, setIsMapReady] = useState(false);
+  const [isMapRendered, setIsMapRendered] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const { notes } = useNoteMarkers(bounds, notesRefreshKey);
   const userPoint = useMemo<GeoJSON.Point | null>(() => userCoordinates ? {
@@ -44,7 +46,7 @@ export function useHomeMap({
   } : null, [composeCoordinates]);
 
   useEffect(() => {
-    if (!isMapReady || !isFollowingUser || isComposeOpen || !userPoint) return;
+    if (!isMapRendered || !isFollowingUser || isComposeOpen || !userPoint) return;
     cameraRef.current?.easeTo({
       center: userPoint.coordinates as [number, number],
       zoom: DEFAULT_MAP_VIEW.zoom,
@@ -52,7 +54,7 @@ export function useHomeMap({
       duration: CAMERA_RETURN_DURATION,
       easing: 'ease',
     });
-  }, [isMapReady, isFollowingUser, isComposeOpen, userPoint, cameraRef]);
+  }, [isMapRendered, isFollowingUser, isComposeOpen, userPoint, cameraRef]);
   const mapNotes: NoteMapItem[] = notes.map((note) => {  // 거리별 마커 설정
     const distanceMeters = userCoordinates ? getDistanceMeters(userCoordinates, note):null;
     const isInsideRadius = distanceMeters !== null && distanceMeters <= USER_RADIUS_METERS;
@@ -148,7 +150,8 @@ export function useHomeMap({
   };
 
   return {
-    mapRef, setIsMapReady, userPoint, composePoint, userCircle, mapNotes,
+    mapRef, setIsMapReady, isMapReady, isMapRendered, setIsMapRendered, setMapError, startupError: mapError,
+    userPoint, composePoint, userCircle, mapNotes,
     handleRegionWillChange, handleRegionDidChange, updateMapBounds, moveToCurrentLocation,
   };
 }
