@@ -5,6 +5,7 @@ import { Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CameraRef } from '@maplibre/maplibre-react-native';
 
+import BottomTabBar from '@/components/navigation/BottomTabBar';
 import { HomeMap } from '@/components/home/HomeMap';
 import { MapSelector } from '@/components/home/MapSelector';
 import { NoteComposeSheet } from '@/components/notes/NoteComposeSheet';
@@ -78,21 +79,7 @@ export default function HomeScreen() {
         </Text>
       </Pressable>}
 
-      {!isComposeOpen && <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="쪽지 작성하기"
-        onPress={openCompose}
-        style={({ pressed }) => [
-          styles.composeButton,
-          pressed && styles.composeButtonPressed,
-        ]}
-      >
-        <Image
-          source={require('../../assets/images/compose-note.svg')}
-          style={styles.composeIcon}
-          contentFit="contain"
-        />
-      </Pressable>}
+      {!isComposeOpen && <BottomTabBar onAddPress={openCompose} />}
 
       {isComposeOpen && (
         <NoteComposeSheet
