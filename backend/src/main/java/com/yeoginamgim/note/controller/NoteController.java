@@ -21,11 +21,11 @@ import com.yeoginamgim.common.auth.BearerTokenExtractor;
 import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
 import com.yeoginamgim.note.dto.NoteMapBoundsRequest;
-import com.yeoginamgim.note.dto.NoteMarkersResponse;
 import com.yeoginamgim.note.dto.NoteOpenRequest;
 import com.yeoginamgim.note.dto.NoteOpenResponse;
 import com.yeoginamgim.note.service.NoteService;
 import com.yeoginamgim.note.service.NoteOpenService;
+import com.yeoginamgim.note.service.NoteMapService;
 
 import jakarta.validation.Valid;
 
@@ -34,11 +34,14 @@ import jakarta.validation.Valid;
 public class NoteController {
 	private final NoteService noteService;
 	private final NoteOpenService noteOpenService;
+	private final NoteMapService noteMapService;
 	private final BearerTokenExtractor bearerTokenExtractor;
 
-	public NoteController(NoteService noteService, NoteOpenService noteOpenService, BearerTokenExtractor bearerTokenExtractor) {
+	public NoteController(NoteService noteService, NoteOpenService noteOpenService, NoteMapService noteMapService,
+		BearerTokenExtractor bearerTokenExtractor) {
 		this.noteService = noteService;
 		this.noteOpenService = noteOpenService;
+		this.noteMapService = noteMapService;
 		this.bearerTokenExtractor = bearerTokenExtractor;
 	}
 
@@ -53,13 +56,13 @@ public class NoteController {
 	}
 
 	@GetMapping
-	public ResponseEntity<ApiResponse<NoteMarkersResponse>> findMarkers(
+	public ResponseEntity<ApiResponse<Object>> findMarkers(
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
 		@Valid @ModelAttribute NoteMapBoundsRequest bounds
 	) {
-		String guestToken = bearerTokenExtractor.extract(authorizationHeader);
-		NoteMarkersResponse response = noteService.findMarkers(guestToken, bounds);
-		return ResponseEntity.ok(ApiResponse.success(response));
+		String token = bearerTokenExtractor.extract(authorizationHeader);
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+			.body(ApiResponse.success(noteMapService.find(token, bounds)));
 	}
 
 	@PostMapping("/{noteId}/open")
