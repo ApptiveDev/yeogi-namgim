@@ -55,7 +55,7 @@ ex) frontend/wonseok/fix-login-not-allowed   (이슈가 없으면)
   - 띄어쓰기는 하이픈(`-`)으로 구분한다.
   - 브랜치명은 전부 소문자를 사용한다.
 
-프로젝트에 CI/CD를 구성하는 등 규모가 커지면 `develop` 브랜치를 추가하거나 `git flow`로 전환할 수 있습니다. 
+이 프로젝트는 `main`과 작업 브랜치로 운영하며, PR 대상도 `main`으로 합니다. 자세한 절차는 [협업 가이드](docs/CONTRIBUTING.md)를 따릅니다.
 
  ### 🍪 Pull Request
 ```
