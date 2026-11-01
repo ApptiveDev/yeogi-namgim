@@ -159,3 +159,20 @@ Access Token의 기본 유효 시간은 15분이다. JWT는 HS256 서명과 issu
 카카오 인증과 비회원 기록 이전은 후속 작업이다. 회원 쪽지 작성·조회·본인 열람은 [회원 쪽지 API](MEMBER_NOTE_API.md)를 따른다. 토큰 재발급·로그아웃은 [토큰 세션 API](TOKEN_SESSION_API.md)에서 구현 상태와 사용법을 확인한다. 쪽지 작성·본인 열람은 회원 access token도 지원하며, 지도 조회도 회원 JWT를 지원하며 [회원 지도 API](MEMBER_MAP_API.md)를 따른다. 기존 비회원 지도·열람은 비회원 토큰으로 분리한다. 다른 회원 API에서 사용자를 식별할 때는 [CurrentUserProvider](../backend/src/main/java/com/yeoginamgim/common/auth/CurrentUserProvider.java)를 사용한다.
 
 구현에 참고한 공식 문서: [Spring Security 비밀번호 저장](https://docs.spring.io/spring-security/reference/features/authentication/password-storage.html), [JWT 검증](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html), [Spring Boot 메일 발송](https://docs.spring.io/spring-boot/reference/io/email.html).
+
+## 내 프로필 닉네임 수정
+
+`PATCH /api/v1/users/me`에 회원 Access Token과 아래 JSON을 전달한다.
+
+```json
+{"nickname":"새닉네임"}
+```
+
+- 가입과 동일하게 앞뒤 공백을 제거한 뒤 유니코드 코드 포인트 기준 2~20자, 공백만 입력 불가, 제어 문자 불가 규칙을 적용한다. 이모지도 코드 포인트로 센다.
+- 필수 nickname 누락/null/잘못된 형식은 `400 INVALID_REQUEST`이며 기존 닉네임을 변경하지 않는다.
+- 성공 시 `200 OK`, 기존 내 프로필과 같은 `ApiResponse<Profile>` 및 `Cache-Control: no-store`를 반환한다.
+- 사용자 ID는 활성 회원 세션에서만 결정한다. 비회원·Refresh Token·폐기된 세션·삭제된 회원·인증 누락은 `401 UNAUTHORIZED`다.
+- 닉네임 열만 갱신한다. 요청의 userId/email/passwordHash 등은 수정 대상이 아니며 이메일·비밀번호·가입 시각은 보존한다.
+- 같은 이름 재요청도 성공한다. 가입과 마찬가지로 닉네임은 고유 식별자가 아니며 중복 이름을 허용한다.
+- 변경된 이름은 이후 내 프로필·친구 목록·초대 조회에서 현재 회원 정보를 통해 반영된다. 기존 로그인 세션은 유지한다.
+- 프론트 프로필 편집 화면 연결, 프로필 이미지·태그·한 줄 소개 신규 필드는 후속 범위다. DB 마이그레이션은 필요 없다.
