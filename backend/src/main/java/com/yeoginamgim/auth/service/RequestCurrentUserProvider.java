@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 import com.yeoginamgim.common.auth.BearerTokenExtractor;
 import com.yeoginamgim.common.auth.CurrentUserProvider;
-import com.yeoginamgim.guest.service.InvalidGuestTokenException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -27,10 +26,6 @@ public class RequestCurrentUserProvider implements CurrentUserProvider {
 
 	@Override
 	public UUID requireUserId() {
-		try {
-			return sessions.authenticate(extractor.extract(request.getHeader("Authorization")));
-		} catch (InvalidGuestTokenException exception) {
-			throw AuthException.unauthorized();
-		}
+		return sessions.authenticate(extractor.extract(request.getHeader("Authorization")));
 	}
 }

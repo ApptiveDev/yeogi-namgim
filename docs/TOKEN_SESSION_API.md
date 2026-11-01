@@ -1,6 +1,6 @@
 # 토큰 재발급·로그아웃 API
 
-관련 이슈: [#53](https://github.com/ApptiveDev/yeogi-namgim/issues/53). 이메일 가입·인증과 공통 설정은 [이메일 인증 API](EMAIL_AUTH_API.md)를 따른다. 회원 인증 활성화 조건과 기존 비회원 API는 유지한다.
+관련 이슈: [#53](https://github.com/ApptiveDev/yeogi-namgim/issues/53). 이메일 가입·인증과 공통 설정은 [이메일 인증 API](EMAIL_AUTH_API.md)를 따른다. 회원 인증 활성화 조건은 유지한다. 비회원 API는 종료했다.
 
 ## 1. 로그인 세션과 토큰
 
@@ -96,7 +96,7 @@ Access Token이 만료되어도 이 요청을 보낼 수 있다. Authorization �
 
 기존 응답의 `success/data/meta`, `success/error/meta` 형식을 사용한다. 일반 회원 API에서도 폐기·만료된 세션, 회원과 세션이 일치하지 않는 JWT, `sid`가 없는 JWT는 401로 처리한다.
 
-**배포 전환:** 이전 구현에서 발급한 `sid` 없는 Access Token은 계속 사용할 수 없다. 해당 사용자는 새 로그인으로 세션과 토큰 쌍을 발급받는다. 비회원 토큰은 기존 비회원 API에서 그대로 사용한다. 프론트 회원 로그인 연동 시 추가된 Refresh Token 저장·교체·로그아웃 처리를 함께 적용한다.
+**배포 전환:** 이전 구현에서 발급한 `sid` 없는 Access Token은 계속 사용할 수 없다. 해당 사용자는 새 로그인으로 세션과 토큰 쌍을 발급받는다. 기존 비회원 토큰은 더 이상 사용할 수 없다. 프론트 회원 로그인 연동 시 추가된 Refresh Token 저장·교체·로그아웃 처리를 함께 적용한다.
 
 기존 코드와 마찬가지로 IP 요청 횟수는 단일 서버 메모리 기준이다. 세션과 토큰 교체·폐기 상태는 DB에서 공유한다. 상태 확인은 [CurrentUserProvider](../backend/src/main/java/com/yeoginamgim/common/auth/CurrentUserProvider.java)로 통일하고, JWT 서명 확인만으로 로그아웃한 사용자를 허용하지 않는다.
 
@@ -110,6 +110,6 @@ Access Token이 만료되어도 이 요청을 보낼 수 있다. Authorization �
 - Access Token 만료 후 유효한 Refresh Token으로 재발급
 - 동시 재발급 및 재발급·로그아웃 동시 요청
 - 회원 삭제 시 세션·이력 제거, 잘못된 세션 소유자·누락 클레임·토큰 형식 차단
-- 기존 이메일 인증·가입·비밀번호·비회원 API 회귀 테스트
+- 기존 이메일 인증·가입·비밀번호 회귀 및 비회원 토큰 거부 테스트
 
 설계 참고: [RFC 9700 §4.14.2의 Refresh Token rotation·재사용 탐지](https://www.rfc-editor.org/rfc/rfc9700.html#section-4.14.2), [RFC 7009 §2.2의 반복·유효하지 않은 토큰 폐기 응답](https://www.rfc-editor.org/rfc/rfc7009.html#section-2.2). 이 API는 프로젝트의 JSON 요청·응답 규격을 사용한다.

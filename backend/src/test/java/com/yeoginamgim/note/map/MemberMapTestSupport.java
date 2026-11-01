@@ -23,7 +23,7 @@ import org.springframework.web.context.WebApplicationContext;
 import com.yeoginamgim.auth.service.MemberSessionService;
 import com.yeoginamgim.auth.service.VerificationMailSender;
 import com.yeoginamgim.friend.repository.FriendshipRepository;
-import com.yeoginamgim.guest.service.GuestSessionService;
+import com.yeoginamgim.LegacyGuestFixtures;
 import com.yeoginamgim.note.domain.Note;
 import com.yeoginamgim.note.domain.NoteVisibility;
 import com.yeoginamgim.note.repository.NoteRepository;
@@ -46,7 +46,7 @@ abstract class MemberMapTestSupport {
 	@Autowired protected NoteRepository notes;
 	@Autowired protected MemberRepository members;
 	@Autowired protected MemberSessionService sessions;
-	@Autowired protected GuestSessionService guests;
+	@Autowired protected LegacyGuestFixtures guests;
 	@Autowired protected FriendshipRepository friendships;
 	@MockitoBean protected VerificationMailSender mail;
 	protected final JsonMapper json = JsonMapper.builder().build();

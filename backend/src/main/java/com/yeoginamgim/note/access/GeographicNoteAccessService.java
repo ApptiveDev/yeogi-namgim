@@ -53,7 +53,7 @@ public class GeographicNoteAccessService implements NoteAccessService {
 			if (userId.equals(target.authorUserId()) || saved.get(target.noteId()) != null) status = NoteAccessStatus.OPENABLE;
 			else if (location == null) status = NoteAccessStatus.LOCATION_REQUIRED;
 			else if (distance == null) status = NoteAccessStatus.HIDDEN;
-			else status = distance <= 200.0 ? NoteAccessStatus.OPENABLE : NoteAccessStatus.LOCKED;
+			else status = distance <= 150.0 ? NoteAccessStatus.OPENABLE : NoteAccessStatus.LOCKED;
 			result.put(target.noteId(), new NoteAccessResult(status, status == NoteAccessStatus.HIDDEN ? null : distance));
 		}
 		return result;

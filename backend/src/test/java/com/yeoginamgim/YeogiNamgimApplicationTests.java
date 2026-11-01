@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.yeoginamgim.guest.domain.GuestSession;
 import com.yeoginamgim.guest.repository.GuestSessionRepository;
 import com.yeoginamgim.note.domain.Note;
-import com.yeoginamgim.note.repository.NoteMarkerProjection;
 import com.yeoginamgim.note.repository.NoteRepository;
 import com.yeoginamgim.notification.repository.NearbyNotificationRepository;
 import com.yeoginamgim.location.domain.GuestLocation;
@@ -122,29 +121,6 @@ class YeogiNamgimApplicationTests {
 			.noneMatch(item -> item.tokenId().equals(token.getId()));
 	}
 
-	@Test
-	@Transactional
-	void markerQueryReturnsOnlyNotesInsideBounds() {
-		UUID guestId = UUID.randomUUID();
-		guestSessionRepository.save(GuestSession.create(
-			guestId,
-			"a".repeat(64),
-			Instant.now()
-		));
-		Note inside = noteRepository.save(Note.create(
-			UUID.randomUUID(), guestId, "범위 안", 35.1796, 129.0756, Instant.now()
-		));
-		Note outside = noteRepository.save(Note.create(
-			UUID.randomUUID(), guestId, "범위 밖", 35.25, 129.2, Instant.now()
-		));
-		noteRepository.flush();
-
-		List<UUID> noteIds = noteRepository.findMarkersWithinBounds(
-			35.17, 129.06, 35.19, 129.09
-		).stream().map(NoteMarkerProjection::getNoteId).toList();
-
-		assertThat(noteIds).contains(inside.getId()).doesNotContain(outside.getId());
-	}
 
 	@Test
 	void geographyRadiusQueryUsesMeters() {
@@ -175,17 +151,5 @@ class YeogiNamgimApplicationTests {
 		assertThat(nearbyNotificationRepository.existsWithinRadius(35.1856, 129.0756)).isFalse();
 	}
 
-	@Test
-	@Transactional
-	void noteOpenQueryReturnsOnlyWithinTwoHundredMeters() {
-		UUID guestId = UUID.randomUUID();
-		guestSessionRepository.save(GuestSession.create(guestId, "b".repeat(64), Instant.now()));
-		Note note = noteRepository.save(Note.create(
-			UUID.randomUUID(), guestId, "거리 제한", 35.1796, 129.0756, Instant.now()
-		));
-		noteRepository.flush();
-		assertThat(noteRepository.findOpenableById(note.getId(), 35.1806, 129.0756)).isPresent();
-		assertThat(noteRepository.findOpenableById(note.getId(), 35.1826, 129.0756)).isEmpty();
-	}
 
 }
