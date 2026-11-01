@@ -18,13 +18,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import com.yeoginamgim.bookmark.service.DatabaseBookmarkService;
 import com.yeoginamgim.bookmark.service.BookmarkMapQueryService.SavedNotePage;
 import com.yeoginamgim.bookmark.service.BookmarkMapQueryService.SavedNoteReference;
-import com.yeoginamgim.note.discovery.NoteDiscoveryQueryService;
+import com.yeoginamgim.note.discovery.DatabaseNoteDiscoveryService;
 import com.yeoginamgim.note.domain.NoteVisibility;
 
 /** State owners are mocked here only; production has no allow-all/empty bookmark implementation. */
 class MemberMapStateIntegrationTests extends MemberMapTestSupport {
 	@MockitoBean private DatabaseBookmarkService bookmarks;
-	@MockitoBean private NoteDiscoveryQueryService discoveries;
+	@MockitoBean private DatabaseNoteDiscoveryService discoveries;
 
 	@Test
 	void realBookmarkSourceEnablesDistanceExceptionWithoutLocation() throws Exception {

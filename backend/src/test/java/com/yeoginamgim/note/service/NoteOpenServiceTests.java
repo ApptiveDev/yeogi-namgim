@@ -16,7 +16,9 @@ class NoteOpenServiceTests {
 	private final NoteRepository noteRepository = mock(NoteRepository.class);
 	private final NoteActorProvider actors = mock(NoteActorProvider.class);
 	private final com.yeoginamgim.note.access.NoteAccessService access = mock(com.yeoginamgim.note.access.NoteAccessService.class);
-	private final NoteOpenService noteOpenService = new NoteOpenService(noteRepository, actors, new FixedWindowRateLimiter(), access);
+	private final com.yeoginamgim.note.discovery.DatabaseNoteDiscoveryService discoveries = mock(com.yeoginamgim.note.discovery.DatabaseNoteDiscoveryService.class);
+	private final NoteOpenService noteOpenService = new NoteOpenService(noteRepository, actors, new FixedWindowRateLimiter(), access, discoveries,
+		mock(com.yeoginamgim.bookmark.service.BookmarkQueryService.class));
 
 	@Test
 	void opensNearbyNoteIncludingOwnNote() {
