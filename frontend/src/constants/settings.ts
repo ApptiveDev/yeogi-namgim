@@ -1,0 +1,21 @@
+export const SettingsColors = {
+  background: '#F7F7F5',
+  surface: '#FFFFFF',
+  ink: '#0E0E0E',
+  muted: '#8E8E93',
+  section: '#8E8E93',
+  lime: '#D6F65A',
+  line: '#EEEEEB',
+  border: '#E9E9E6',
+  neutral: '#ECECE9',
+  switchOff: '#D8D8D5',
+  destructive: '#E84B3C',
+  kakao: '#FEE500',
+} as const;
+
+export const SettingsFonts = {
+  display: 'ArchivoBlack',
+  regular: 'NotoSansKR-Regular',
+  medium: 'NotoSansKR-Medium',
+  bold: 'NotoSansKR-Bold',
+} as const;

@@ -16,7 +16,7 @@ import com.yeoginamgim.note.repository.NoteRepository;
 class NoteOpenServiceTests {
 	private final NoteRepository noteRepository = mock(NoteRepository.class);
 	private final NoteActorProvider actors = mock(NoteActorProvider.class);
-	private final NoteOpenService noteOpenService = new NoteOpenService(noteRepository, actors, new FixedWindowRateLimiter());
+	private final NoteOpenService noteOpenService = new NoteOpenService(noteRepository, actors, new FixedWindowRateLimiter(), mock(com.yeoginamgim.note.access.NoteAccessService.class));
 
 	@Test
 	void opensNearbyNoteIncludingOwnNote() {

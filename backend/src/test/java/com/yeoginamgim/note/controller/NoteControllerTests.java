@@ -29,6 +29,7 @@ import com.yeoginamgim.note.dto.NoteMarkersResponse;
 import com.yeoginamgim.note.dto.NoteOpenResponse;
 import com.yeoginamgim.note.service.NoteService;
 import com.yeoginamgim.note.service.NoteOpenService;
+import com.yeoginamgim.note.service.NoteMapService;
 
 class NoteControllerTests {
 	@Test
@@ -61,12 +62,13 @@ class NoteControllerTests {
 	}
 	private final NoteService noteService = mock(NoteService.class);
 	private final NoteOpenService noteOpenService = mock(NoteOpenService.class);
+	private final NoteMapService noteMapService = mock(NoteMapService.class);
 	private MockMvc mockMvc;
 
 	@BeforeEach
 	void setUp() {
 		mockMvc = MockMvcBuilders
-			.standaloneSetup(new NoteController(noteService, noteOpenService, new BearerTokenExtractor()))
+			.standaloneSetup(new NoteController(noteService, noteOpenService, noteMapService, new BearerTokenExtractor()))
 			.setControllerAdvice(new GlobalExceptionHandler())
 			.build();
 	}
@@ -124,7 +126,7 @@ class NoteControllerTests {
 	@Test
 	void returnsMarkersInsideMapBoundsWithoutContent() throws Exception {
 		UUID noteId = UUID.randomUUID();
-		when(noteService.findMarkers(eq("guest-token"), any()))
+		when(noteMapService.find(eq("guest-token"), any()))
 			.thenReturn(new NoteMarkersResponse(List.of(
 				new NoteMarkerResponse(noteId, 35.1796, 129.0756, true)
 			)));

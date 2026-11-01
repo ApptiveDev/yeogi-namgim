@@ -17,9 +17,23 @@ import com.yeoginamgim.note.service.NoteLockedException;
 import com.yeoginamgim.note.service.NoteNotFoundException;
 import com.yeoginamgim.note.service.InvalidNoteRequestException;
 import com.yeoginamgim.friend.service.FriendException;
+import com.yeoginamgim.note.service.NoteLocationRequiredException;
+import com.yeoginamgim.note.service.MapDataUnavailableException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+	@ExceptionHandler(NoteLocationRequiredException.class)
+	public ResponseEntity<ApiErrorResponse> handleLocationRequired() {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN)
+			.body(ApiErrorResponse.of("LOCATION_REQUIRED", "위치를 확인해야 열람할 수 있습니다."));
+	}
+
+	@ExceptionHandler(MapDataUnavailableException.class)
+	public ResponseEntity<ApiErrorResponse> handleMapUnavailable() {
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+			.body(ApiErrorResponse.of("MAP_DATA_UNAVAILABLE", "지금은 이 지도 목록을 조회할 수 없습니다."));
+	}
+
 	@ExceptionHandler(FriendException.class)
 	public ResponseEntity<ApiErrorResponse> handleFriend(FriendException exception) {
 		return ResponseEntity.status(exception.getStatus())

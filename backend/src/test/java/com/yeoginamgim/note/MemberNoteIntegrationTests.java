@@ -190,15 +190,19 @@ class MemberNoteIntegrationTests {
 	}
 
 	@Test
-	void hidesAllMemberNotesFromGuestsAndOtherMembersUntilAccessPolicyIsImplemented() throws Exception {
+	void keepsGuestIsolationAndHidesPrivateAndUnrelatedFriendNotesFromMembers() throws Exception {
 		var other = sessions.open(newMember().getId());
 		for (String visibility : List.of("PUBLIC", "FRIENDS", "PRIVATE")) {
 			UUID noteId = id(create(tokens.accessToken(), request(visibility)).andExpect(status().isCreated()));
 			for (String token : List.of(guest.guestToken(), other.accessToken())) {
-				open(token, noteId, "{\"latitude\":35.1796,\"longitude\":129.0756}")
-					.andExpect(status().isNotFound())
-					.andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"))
-					.andExpect(jsonPath("$.data").doesNotExist());
+				var result = open(token, noteId, "{\"latitude\":35.1796,\"longitude\":129.0756}");
+				if (token.equals(other.accessToken()) && visibility.equals("PUBLIC")) {
+					result.andExpect(status().isOk());
+				} else {
+					result.andExpect(status().isNotFound())
+						.andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"))
+						.andExpect(jsonPath("$.data").doesNotExist());
+				}
 			}
 		}
 		mvc.perform(get("/api/v1/notes").header("Authorization", "Bearer " + guest.guestToken())
