@@ -5,6 +5,8 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import appConfig from '../../app.json';
+import { signOut } from '@/auth/member-session';
+import { authErrorMessage } from '@/api/auth';
 import { SettingsBadge, SettingsRow } from '@/components/settings/SettingsRow';
 import { SettingsProfile } from '@/components/settings/SettingsProfile';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -30,6 +32,14 @@ export default function SettingsScreen() {
   const location = useLocationPermission();
   const profile = resolveMyPageData(MY_PAGE_RESPONSE, developer.mockDataEnabled);
   const [notifications, setNotifications] = useState({ nearby: true, friends: true, marketing: false });
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  async function handleSignOut() {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try { await signOut(); }
+    catch (error) { Alert.alert('로그아웃 실패', authErrorMessage(error)); }
+    finally { setIsSigningOut(false); }
+  }
   const [fontsLoaded, fontError] = useFonts({
     ArchivoBlack: require('../../assets/fonts/ArchivoBlack-Regular.ttf'),
     'NotoSansKR-Regular': require('../../assets/fonts/NotoSansKR-Regular.otf'),
@@ -66,7 +76,8 @@ export default function SettingsScreen() {
           <SettingsSection title="계정">
             <SettingsRow label="카카오 계정" trailing={<SettingsBadge label="연결 준비" tone="kakao" />} onPress={() => showComingSoon('카카오 계정')} />
             <SettingsRow label="차단 목록" onPress={() => showComingSoon('차단 목록')} />
-            <SettingsRow label="로그아웃" onPress={() => showComingSoon('로그아웃')} />
+            <SettingsRow label={isSigningOut ? '로그아웃 중…' : '로그아웃'} disabled={isSigningOut}
+              accessibilityHint="현재 계정에서 로그아웃합니다" onPress={() => { void handleSignOut(); }} />
           </SettingsSection>
 
           <SettingsSection title="정보">
