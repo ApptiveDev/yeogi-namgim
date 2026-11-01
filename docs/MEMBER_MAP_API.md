@@ -49,8 +49,8 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
       "visibility": "PUBLIC",
       "accessStatus": "OPENABLE",
       "distanceMeters": 100.0,
-      "isSaved": null,
-      "isRead": null
+      "isSaved": false,
+      "isRead": false
     }
   ],
   "openableNotes": [
@@ -65,8 +65,8 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
       "neighborhood": "동네명",
       "createdAt": "2026-10-28T00:00:00Z",
       "savedAt": null,
-      "isSaved": null,
-      "isRead": null,
+      "isSaved": false,
+      "isRead": false,
       "authorNickname": null
     }
   ],
@@ -79,7 +79,7 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 - `notes`는 지도용이다. 현재 위치에서 열지 못하는 LOCKED/LOCATION_REQUIRED도 위치 표시용으로 포함할 수 있지만, 본문·미리보기·작성자 회원 ID·닉네임은 넣지 않는다.
 - `openableNotes`는 동일 페이지의 OPENABLE 쪽지만 포함한다. 잠긴 쪽지나 위치가 필요한 쪽지는 목록에 넣지 않는다. 미리보기는 최대 100 유니코드 코드 포인트다.
 - ALL 목록은 친구의 쪽지도 익명(`authorNickname=null`)이다. FRIENDS 목록에서만 친구 이름을 반환한다.
-- `isSaved/isRead=null`은 해당 조회 소스가 아직 연결되지 않아 상태를 알 수 없다는 뜻이다. 소스 연결 후 실제 상태에 따라 true/false와 `savedAt`을 제공한다.
+- 이슈 #90의 실제 조회 소스를 연결하면 `isSaved/isRead`는 현재 회원의 저장·읽음 상태에 따라 `true/false`이며, 저장했을 때만 `savedAt`을 제공한다. 해당 PR이 병합되기 전 `main`에서는 소스 미연결로 `null`일 수 있다.
 - `hasNext=true`이면 같은 bounds/filter/location에서 다음 페이지를 조회한다. 페이지가 덜 온 상태에서 전체 개수나 ‘열람 가능 한 개’를 확정하지 않는다. 필터·범위·위치가 바뀌면 페이지를 초기화한다. 오프셋 조회이므로 페이지 사이 새 기록·저장이 생기면 경계가 달라질 수 있다.
 - 접근 불가 PRIVATE/비친구 FRIENDS는 위치·개수에도 포함하지 않는다. 지도 조회·미리보기로 읽음이나 저장 기록을 만들지 않는다.
 
@@ -94,7 +94,7 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 
 `POST /api/v1/notes/{noteId}/open`은 요청한 현재 좌표로 매번 다시 판정한다. 잠긴 쪽지는 403 NOTE_LOCKED, 위치 필요는 403 LOCATION_REQUIRED, 존재하지 않거나 권한 없는 쪽지는 404다. 프론트는 이 오류를 예전 잠금 상세·길찾기·‘가까이 가야’ 팝업으로 확장하지 않는다. 전체 지도 상세에는 작성자 회원 ID나 닉네임을 추가하지 않는다.
 
-`GeographicNoteAccessService`는 친구·거리·저장 상태를 일괄 조회하는 실제 읽기 전용 구현이다. 저장 담당은 이 판정에 실제 조회 서비스를 연결하고, 상세 성공 시 읽음·발견 기록 쓰기를 별도로 추가한다. 읽음 조회는 열람 허가를 대신하지 않는다.
+`GeographicNoteAccessService`는 친구·거리·저장 상태를 일괄 조회하는 실제 읽기 전용 구현이다. [이슈 #90](https://github.com/ApptiveDev/yeogi-namgim/issues/90) 작업 브랜치에서 저장·읽음 조회와 상세 성공 시 읽음·발견 기록 쓰기를 연결한다. 읽음 조회는 열람 허가를 대신하지 않는다.
 
 ## 저장·읽음 담당 연결
 
@@ -110,7 +110,7 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 
 저장 필터에는 BookmarkQueryService와 BookmarkMapQueryService 둘 다 필요하다. 없으면 `503 MAP_DATA_UNAVAILABLE`다. 저장 페이지 소스는 화면 범위·공개 범위를 적용하고 `savedAt DESC, noteId DESC` 정렬 후 요청 size 이내의 `(noteId, savedAt)`와 `hasNext`를 반환한다. 서버는 받은 ID에도 범위·공개 권한을 다시 적용한다. 너무 큰 페이지·범위/공개 권한 위반 ID·저장 상태 불일치도 503으로 처리하며, 기존 비회원 쪽지는 회원 지도에 섞지 않는다. `hasNext`의 의미가 유지되도록 권한 필터는 저장 소스에서도 페이지 제한 전에 적용해야 한다.
 
-현재 main에는 실제 저장·읽음 구현이 없다. 이 연결은 테스트에서만 Mock으로 검증했으며 SAVED·저장 거리 예외·읽음 상태까지 운영 연결 완료라고 표시하지 않는다.
+이슈 #90 작업 브랜치에는 실제 저장·읽음 구현이 연결되어 `SAVED` 필터와 `isSaved/isRead=true/false`를 제공한다. 기존 Mock 검증과 별도로 [저장·발견·보관함 API](BOOKMARK_ARCHIVE_API.md)의 실제 DB 통합 테스트를 수행한다. `main` 병합 전에는 배포 완료로 표시하지 않는다.
 
 ## 인계와 검증
 

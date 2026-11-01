@@ -112,12 +112,13 @@ java -jar build/libs/yeogi-namgim-0.0.1-SNAPSHOT.jar
 - `V8__extend_notes_for_members.sql`은 회원 쪽지 작성자·공개 범위·색상·장소와 작성자 단일 참조 제약 및 내 쪽지 정렬 인덱스를 추가합니다. 사용법과 담당 경계는 [회원 쪽지 API](../docs/MEMBER_NOTE_API.md)를 따릅니다.
 - `V9__create_friendships_and_invitations.sql`은 일회용 친구 초대와 중복 없는 상호 친구 관계를 추가합니다. API·설정·공통 조회 계약은 [친구 API](../docs/FRIEND_API.md)를 따릅니다.
 - `V10__index_member_note_map_bounds.sql`은 회원 지도 화면 범위 조회를 위한 geometry 부분 공간 인덱스를 추가합니다. 최신 정책·조회·저장 담당 인계는 [회원 지도 API](../docs/MEMBER_MAP_API.md)를 따릅니다.
+- `V11__create_note_bookmarks_and_discoveries.sql`은 회원의 쪽지 저장·읽음 기록을 추가합니다. API와 권한 경계는 [저장·발견·보관함 API](../docs/BOOKMARK_ARCHIVE_API.md)를 따릅니다.
 - 애플리케이션 테이블과 Flyway 이력은 `app` 스키마에 관리합니다. 접속 시 `app,public` 순서로 스키마를 검색합니다.
 - JPA는 `ddl-auto=validate`를 사용하며 테이블을 자동 생성하거나 수정하지 않습니다.
 - 후속 변경은 마지막 적용 버전 다음의 새 마이그레이션 파일로 추가하고, 이미 적용한 파일은 수정하지 않습니다.
 
 ## 초기 설정 범위
 
-현재 프로젝트는 이메일 회원 인증·세션, 회원 쪽지 작성·조회·열람, 친구 관계와 회원 지도 필터를 제공합니다. 회원 알림·푸시, 저장·읽음 쓰기와 보관함은 후속 작업입니다.
+현재 프로젝트는 이메일 회원 인증·세션, 회원 쪽지 작성·조회·열람, 친구 관계와 회원 지도 필터를 제공합니다. 이슈 #90 작업 브랜치에서 저장·읽음·보관함을 추가합니다. 회원 알림·푸시와 탈퇴 API는 후속 작업입니다.
 
 협업 규칙은 [협업 가이드](../docs/CONTRIBUTING.md)를 따릅니다.

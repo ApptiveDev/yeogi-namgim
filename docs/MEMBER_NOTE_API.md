@@ -14,7 +14,7 @@
 
 회원 쪽지 작성, 내 쪽지 최신순 조회, 내 쪽지 거리 예외 열람을 제공한다. 성공은 `success/data/meta`, 오류는 `success/error/meta`이며, 작성·내 쪽지·상세 응답에는 `Cache-Control: no-store`를 적용한다.
 
-회원 지도 필터·공개 범위·타인 쪽지 거리 판정은 [회원 지도 API](MEMBER_MAP_API.md), 친구 관계는 [친구 API](FRIEND_API.md)에 구현했다. GET /api/v1/notes는 회원 JWT만 허용한다. 실제 저장·읽음 쓰기와 보관함은 후속 작업이다. 기존 비회원 데이터는 회원 지도·열람에서 제외한다.
+회원 지도 필터·공개 범위·타인 쪽지 거리 판정은 [회원 지도 API](MEMBER_MAP_API.md), 친구 관계는 [친구 API](FRIEND_API.md)에 구현했다. GET /api/v1/notes는 회원 JWT만 허용한다. 실제 저장·읽음 쓰기와 보관함은 [이슈 #90의 저장·발견·보관함 API](BOOKMARK_ARCHIVE_API.md) 작업 브랜치에서 구현한다. 기존 비회원 데이터는 회원 지도·열람에서 제외한다.
 
 ## 1. 쪽지 작성
 
@@ -110,8 +110,8 @@
 기존 `noteId/content/isMine/createdAt`에 `visibility/color/placeName/neighborhood`를 추가한 `data`를 반환한다. 익명 작성자 UUID는 포함하지 않는다.
 
 - 작성·조회 담당: `NoteService`, `Note`, `NoteRepository`, 작성·목록 DTO.
-- 열람 담당: 분리한 `NoteOpenService`에서 타인 권한, 친구·저장 거리 예외, 읽음 기록을 확장한다. 회원 본인 열람은 이미 제공한다.
-- 친구 조회와 공통 공개 범위·거리 판정을 연결했다. 타인 PUBLIC 및 현재 친구의 FRIENDS는 공통 판정에 따라 열람한다. PRIVATE·비친구 FRIENDS는 404다. 실제 저장 조회는 후속 담당자가 연결한다.
+- 열람 담당: 분리한 `NoteOpenService`에서 타인 권한, 친구·저장 거리 예외, 상세 성공 시 읽음 기록을 처리한다. 회원 본인 열람도 제공한다. 이슈 #90에서 상세 응답의 `isSaved/isRead`를 추가한다.
+- 친구 조회와 공통 공개 범위·거리 판정을 연결했다. 타인 PUBLIC 및 현재 친구의 FRIENDS는 공통 판정에 따라 열람한다. PRIVATE·비친구 FRIENDS는 404다. 실제 저장 조회는 이슈 #90 작업 브랜치에서 연결한다.
 - 기존 비회원 열람은 좌표 필수, 150m 초과 시 `403 NOTE_LOCKED`다. 회원 쪽지는 비회원 열람의 존재 여부 조회에서도 제외한다.
 - 열람 제한은 회원·비회원 각각 사용자당 분당 60회이며 기존 단일 서버 메모리 제한기를 사용한다.
 
