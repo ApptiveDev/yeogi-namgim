@@ -1,91 +1,77 @@
-# 회원 API 목록 및 개발 현황
+# 백엔드 A/B 회원 API 개발 체크리스트
 
-- 관련 이슈: [#85](https://github.com/ApptiveDev/yeogi-namgim/issues/85)
-- 마지막 확인: 2026-11-02, `main`의 `40b088e` 및 아래 PR 기준
-- 참고: 2차 세미나 와이어프레임·10/09 회의 기반 백엔드 작업 계획, [공통 API 계약](BACKEND_API_CONTRACT.md)
+- [실시간 진행 체크리스트: 이슈 #87](https://github.com/ApptiveDev/yeogi-namgim/issues/87)
+- 문서 작업: [이슈 #85](https://github.com/ApptiveDev/yeogi-namgim/issues/85)
+- 마지막 확인: 2026-11-02, `main`의 `40b088e`와 아래 열린 PR 기준
+- 참고: 2차 세미나 와이어프레임·10/09 회의 기반 백엔드 작업 계획
 
-이 문서는 회원 앱에서 사용할 백엔드 API의 **경로, 담당, 구현 상태**를 관리한다. 요청·응답 필드와 오류 코드는 연결된 도메인 문서와 구현 코드를 확인한다. `main` 구현은 백엔드 코드에 경로가 있다는 뜻이며 프론트 연동 완료를 뜻하지 않는다.
+이 문서는 **담당 A와 B의 API 작업 범위**를 체크리스트로 관리한다. `[x]`는 `main`에 병합된 백엔드 작업, `[ ]`는 열린 PR 또는 후속 작업이다. 프론트 연동 완료 여부는 별도로 확인한다.
 
-| 상태 | 의미 |
-| --- | --- |
-| `main` | `main`에 병합된 백엔드 경로 |
-| `PR` | 구현 PR이 열려 있으며 아직 `main`에 병합되지 않음 |
-| `계획` | 작업 계획에 있으나 구현 경로가 확인되지 않음 |
-| `제안` | 필요성과 HTTP 계약을 확정해야 함 |
+**자동 진행률은 이슈 #87에서 확인한다.** 저장소의 Markdown 파일은 PR 상태에 따라 스스로 바뀌지 않는다. 작업 PR이 `Closes #이슈번호`로 연결되고 `main`에 **병합**되면 작업 이슈가 닫히고, 이슈 #87의 해당 체크박스가 자동으로 완료된다. 병합 없이 PR만 닫힌 경우는 완료로 세지 않는다. 이 파일은 API 경로·담당·계약을 설명하며, PR 병합 후 상태를 수동으로 갱신한다.
 
-담당 A는 인증·회원·친구·쪽지 작성·지도, 담당 B는 열람·위치·저장·보관함·알림을 맡는 작업 계획상의 구분이다. 실제 담당자와 일정은 각 이슈에서 정한다.
+## 공통 API 원칙
 
-## 공통 계약
+- 앱 API 경로의 접두사는 `/api/v1`이다. 회원 API는 `Authorization: Bearer <accessToken>`으로 인증한다. 세션·재발급 규칙은 [이메일 인증 API](EMAIL_AUTH_API.md)와 [토큰 세션 API](TOKEN_SESSION_API.md)를 따른다.
+- 성공 응답은 `success/data/meta`, 오류 응답은 `success/error/meta` 형식이다.
+- 타인의 **접근 가능한 미저장 쪽지**는 **150m 이하**에서 열람한다. 본인 쪽지의 거리 예외와 지도 마커 노출·본문 열람의 구분을 유지한다. 150m 적용은 [PR #74](https://github.com/ApptiveDev/yeogi-namgim/pull/74)에 있으며 아직 `main`에 병합되지 않았다.
+- 기존 상세 열람 경로는 `POST /api/v1/notes/{noteId}/open`이다. 제공된 계획안의 다른 메서드·경로는 확정된 구현으로 취급하지 않는다.
+- 아래의 **계획** 항목은 요청·응답 및 권한 계약이 확정되기 전까지 앱에서 호출하지 않는다.
 
-- 앱 API는 `/api/v1` 접두사를 사용한다. 회원 기능은 `Authorization: Bearer <accessToken>`으로 인증하며, 인증·재발급·로그아웃의 구체적인 요청 조건은 [이메일 인증 API](EMAIL_AUTH_API.md)와 [토큰 세션 API](TOKEN_SESSION_API.md)를 따른다.
-- 성공 응답은 `success/data/meta`, 오류 응답은 `success/error/meta` 형식을 사용한다.
-- 타인의 **접근 가능한 미저장 쪽지** 열람 거리는 **150m 이하**로 한다. 본인 쪽지는 거리 제한 없이 열람한다. 이 변경은 [PR #74](https://github.com/ApptiveDev/yeogi-namgim/pull/74)에 있으며, 병합 전 `main`의 동작과 구분한다. 지도에 마커가 보이는 것과 본문을 열 수 있는 것은 별개다.
-- 저장 쪽지의 거리 예외, 공개 범위, 친구 관계는 접근 권한을 확인한 뒤 적용한다. 저장 기능 자체의 구현 상태는 아래 `계획` 표를 따른다.
-- 기존 쪽지 상세 경로는 `POST /api/v1/notes/{noteId}/open`이다. 계획안의 다른 HTTP 메서드나 경로를 구현 완료로 표시하지 않는다.
+## 백엔드 A — 인증·회원·친구·쪽지 작성·지도
 
-## `main`에 구현된 API
+### 공통 기반과 인증
 
-| 담당 | 메서드·경로 | 용도 | 상세 문서 |
-| --- | --- | --- | --- |
-| A | `POST /api/v1/auth/email-verifications` | 이메일 인증 코드 요청 | [이메일 인증](EMAIL_AUTH_API.md) |
-| A | `POST /api/v1/auth/email-verifications/confirm` | 인증 코드 확인 | [이메일 인증](EMAIL_AUTH_API.md) |
-| A | `POST /api/v1/auth/signup` | 회원가입 | [이메일 인증](EMAIL_AUTH_API.md) |
-| A | `POST /api/v1/auth/login` | 로그인 | [이메일 인증](EMAIL_AUTH_API.md) |
-| A | `POST /api/v1/auth/refresh` | 토큰 재발급 | [토큰 세션](TOKEN_SESSION_API.md) |
-| A | `POST /api/v1/auth/logout` | 로그아웃 | [토큰 세션](TOKEN_SESSION_API.md) |
-| A | `GET /api/v1/users/me` | 내 프로필 조회 | [이메일 인증](EMAIL_AUTH_API.md) |
-| A | `POST /api/v1/notes` | 회원 쪽지 작성 | [회원 쪽지](MEMBER_NOTE_API.md) |
-| A | `GET /api/v1/users/me/notes` | 내가 작성한 쪽지 조회 | [회원 쪽지](MEMBER_NOTE_API.md) |
-| A·B | `GET /api/v1/notes` | 지도 영역의 쪽지 조회 | [공통 API 계약](BACKEND_API_CONTRACT.md) |
-| B | `POST /api/v1/notes/{noteId}/open` | 쪽지 상세 열람과 권한 판정 | [회원 쪽지](MEMBER_NOTE_API.md) |
-| A | `POST /api/v1/friends/invitations` | 친구 초대 코드 생성 | [친구 API](FRIEND_API.md) |
-| A | `GET /api/v1/friends/invitations/{code}` | 초대 코드 확인 | [친구 API](FRIEND_API.md) |
-| A | `POST /api/v1/friends/invitations/{code}/accept` | 초대 수락 | [친구 API](FRIEND_API.md) |
-| A | `GET /api/v1/friends` | 친구 목록 | [친구 API](FRIEND_API.md) |
+- [x] 공통 응답·회원 ID·API 계약 정리 — [#49](https://github.com/ApptiveDev/yeogi-namgim/issues/49), [공통 API 계약](BACKEND_API_CONTRACT.md)
+- [x] 이메일 인증·회원가입·로그인: `POST /api/v1/auth/email-verifications`, `POST /api/v1/auth/email-verifications/confirm`, `POST /api/v1/auth/signup`, `POST /api/v1/auth/login` — [#51](https://github.com/ApptiveDev/yeogi-namgim/issues/51), [상세 문서](EMAIL_AUTH_API.md)
+- [x] 토큰 재발급·로그아웃: `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout` — [#53](https://github.com/ApptiveDev/yeogi-namgim/issues/53), [상세 문서](TOKEN_SESSION_API.md)
+- [x] 내 프로필 조회: `GET /api/v1/users/me` — [#51](https://github.com/ApptiveDev/yeogi-namgim/issues/51)
 
-회원 인증을 사용하는 경로는 배포 설정에서 `AUTH_ENABLED=true`가 필요하다. 이 표의 쪽지·지도·열람 경로는 회원 요청을 처리하는 기능을 기준으로 적었으며, **회원 전용 전환과 150m 적용은 아직 PR #74 단계**다.
+### 쪽지 작성·지도·친구
 
-## 열린 PR에서 구현 중인 API·정책
+- [x] 회원 쪽지 작성·내 쪽지 목록: `POST /api/v1/notes`, `GET /api/v1/users/me/notes` — [#55](https://github.com/ApptiveDev/yeogi-namgim/issues/55), [상세 문서](MEMBER_NOTE_API.md)
+- [x] 회원 지도 범위 조회·필터: `GET /api/v1/notes` — [#59](https://github.com/ApptiveDev/yeogi-namgim/issues/59), [공통 API 계약](BACKEND_API_CONTRACT.md)
+- [x] 일회용 친구 초대·확인·수락·목록: `POST /api/v1/friends/invitations`, `GET /api/v1/friends/invitations/{code}`, `POST /api/v1/friends/invitations/{code}/accept`, `GET /api/v1/friends` — [#57](https://github.com/ApptiveDev/yeogi-namgim/issues/57), [상세 문서](FRIEND_API.md)
+- [ ] 친구 쪽지 소식: `GET /api/v1/friends/activities` — [#82](https://github.com/ApptiveDev/yeogi-namgim/issues/82), [PR #84](https://github.com/ApptiveDev/yeogi-namgim/pull/84)
+- [ ] 친구 관계 해제: `DELETE /api/v1/friends/{friendId}` — **계획**, 관계 해제 후 저장본 접근 정책 확정 필요
 
-| 담당 | 메서드·경로 또는 정책 | 상태 | 확인할 점 |
-| --- | --- | --- | --- |
-| A·B | 회원 전용 쪽지·지도·열람 및 150m 판정 | [PR #74](https://github.com/ApptiveDev/yeogi-namgim/pull/74) | 프론트 회원 세션·지도 반경 표시 연동 필요 |
-| A·B | `GET /api/v1/users/me/stats` | [PR #80](https://github.com/ApptiveDev/yeogi-namgim/pull/80) | 작성·친구 수 조회. 저장 수는 조회 서비스 연결 전 `null` |
-| A | `PATCH /api/v1/users/me` | [PR #83](https://github.com/ApptiveDev/yeogi-namgim/pull/83) | 현재 범위는 닉네임 수정 |
-| A | `GET /api/v1/friends/activities` | [PR #84](https://github.com/ApptiveDev/yeogi-namgim/pull/84) | 친구 공개 쪽지의 작성 소식. 본문은 반환하지 않음 |
+### 마이 탭과 계정
 
-PR이 병합되면 해당 행을 `main` 표로 옮기고 경로·응답·상세 문서를 다시 확인한다. PR 제목이나 계획만으로 완료 처리하지 않는다.
+- [ ] 내 프로필 닉네임 수정: `PATCH /api/v1/users/me` — [#81](https://github.com/ApptiveDev/yeogi-namgim/issues/81), [PR #83](https://github.com/ApptiveDev/yeogi-namgim/pull/83)
+- [ ] 작성 쪽지·친구·저장 수: `GET /api/v1/users/me/stats` — [#79](https://github.com/ApptiveDev/yeogi-namgim/issues/79), [PR #80](https://github.com/ApptiveDev/yeogi-namgim/pull/80). 저장 수 조회 서비스가 없으면 응답값은 `null`이다.
+- [ ] 카카오 로그인: `POST /api/v1/auth/kakao` — **계획**
+- [ ] 기존 계정의 카카오 연결: `POST /api/v1/users/me/auth-accounts/kakao` — **제안**, 계정 연결 방식과 경로 확정 필요
+- [ ] 회원 탈퇴: `DELETE /api/v1/users/me` — **계획**, 작성 쪽지·연관 데이터 처리 정책 확정 필요
 
-## 후속 구현 계획
+## 백엔드 B — 열람·위치·저장·보관함·알림
 
-아래 경로는 제공된 작업 계획을 정리한 **예정안**이다. 구현 이슈에서 요청·응답과 권한을 확정하기 전에는 앱에서 호출하지 않는다.
+### 열람과 위치 판정
 
-| 담당 | 메서드·경로 | 목적·남은 계약 |
-| --- | --- | --- |
-| B | `POST /api/v1/notes/{noteId}/bookmarks` | 접근 권한 확인 후 쪽지 저장 |
-| B | `DELETE /api/v1/notes/{noteId}/bookmarks` | 저장 취소, 원본 쪽지 유지 |
-| B | `GET /api/v1/users/me/bookmarks` | 저장한 쪽지 목록 |
-| B | `GET /api/v1/users/me/discovered-notes` | 발견·읽음 기록 조회 |
-| B | `GET /api/v1/users/me/archive/calendar` | 월별 작성·저장 기록 날짜 |
-| B | `GET /api/v1/users/me/archive/notes` | 날짜·유형·공개 범위별 보관함 카드 |
-| A | `DELETE /api/v1/friends/{friendId}` | 친구 관계 해제 및 저장본 접근 정책 결정 |
-| A | `POST /api/v1/auth/kakao` | 카카오 로그인 |
-| A | `POST /api/v1/users/me/auth-accounts/kakao` | 기존 계정에 카카오 연결. 경로는 제안 단계 |
-| A·B | `DELETE /api/v1/users/me` | 회원 탈퇴와 연관 데이터 처리 정책 확정 |
+- [x] 내 쪽지의 거리 예외와 상세 열람: `POST /api/v1/notes/{noteId}/open` — [#55](https://github.com/ApptiveDev/yeogi-namgim/issues/55), [상세 문서](MEMBER_NOTE_API.md)
+- [x] 회원 지도·상세의 공개 범위와 접근 상태 연결 — [#59](https://github.com/ApptiveDev/yeogi-namgim/issues/59)
+- [ ] 회원 전용 요청과 타인 미저장 쪽지의 **150m 이하** 판정 — [#73](https://github.com/ApptiveDev/yeogi-namgim/issues/73), [PR #74](https://github.com/ApptiveDev/yeogi-namgim/pull/74)
+- [ ] 위치 정확도·측정 시각 허용 기준 — **계획**, 기준 확정 후 입력·열람 검증에 적용
 
-회원 알림·푸시, 지도 클러스터, 물방울별 목록은 필요성과 HTTP 계약이 확정되기 전까지 `제안`으로 관리한다. `GET /health`, `GET /app-config`도 공통 기반 작업 계획의 제안이며 현재 구현된 필수 API로 간주하지 않는다.
+### 저장·발견·지도 상태
 
-## API 계약을 확정할 때 남은 결정
+- [ ] 쪽지 저장·취소: `POST /api/v1/notes/{noteId}/bookmarks`, `DELETE /api/v1/notes/{noteId}/bookmarks` — **계획**
+- [ ] 저장한 쪽지 목록: `GET /api/v1/users/me/bookmarks` — **계획**
+- [ ] 발견·읽음 기록 목록: `GET /api/v1/users/me/discovered-notes` — **계획**
+- [ ] 지도 조회의 저장·읽음 상태 일괄 제공 및 저장 쪽지 거리 예외 — **계획**
 
-- 지도 클러스터 계산 위치, 물방울 하나를 선택했을 때의 이동·열람 동작
-- 위치 정확도·측정 시각의 허용 기준과 위치 권한이 없는 지도 탐색 범위
-- 친구 필터의 전체 공개 쪽지 포함 여부, 친구 해제 후 저장본 접근 권한
-- 보관함의 친구·익명 분류 기준, 저장 취소·원본 삭제 시 기록 처리
-- 카카오 로그인과 기존 이메일 계정 연결 방식, 회원 탈퇴 시 작성 쪽지 처리
-- 페이지네이션 방식과 응답 필드. 특히 [PR #84](https://github.com/ApptiveDev/yeogi-namgim/pull/84)의 실제 경로·페이지 방식은 초기 작업 계획의 제안과 다르므로 구현 계약을 기준으로 연동한다.
+### 보관함·통계·알림
 
-## 갱신 규칙
+- [ ] 달력형 보관함 날짜: `GET /api/v1/users/me/archive/calendar` — **계획**
+- [ ] 날짜·유형별 보관함 목록: `GET /api/v1/users/me/archive/notes` — **계획**
+- [ ] 저장 쪽지 수 조회 서비스를 마이 탭 통계에 연결 — **계획**, A의 `GET /api/v1/users/me/stats`와 연동
+- [ ] 회원 알림·푸시 정책 및 API — **계획**, 기획과 인증·공개 범위 계약 확정 후 경로 결정
+- [ ] 탈퇴 시 저장·발견·알림 데이터 정리 — **계획**, A의 회원 탈퇴 API와 함께 검증
 
-1. API 이슈와 PR에서 담당·메서드·경로·인증·요청·응답·오류·페이지네이션을 확인한다.
-2. `main`에 병합한 후 실제 컨트롤러와 테스트를 확인하고 이 문서의 상태를 변경한다.
-3. API의 필드나 동작이 바뀌면 도메인별 상세 문서와 프론트 호출부를 함께 갱신한다. 작성 시점의 계획 문서와 현재 구현이 다르면 현재 구현을 우선 확인한다.
+## 아직 확정하지 않은 API
+
+지도 클러스터, 물방울별 쪽지 목록, `GET /health`, `GET /app-config`는 제공된 작업 계획의 **제안**이다. 구현 여부·경로·담당을 확정하기 전에는 체크리스트의 완료 항목으로 올리지 않는다. 친구 필터의 공개 쪽지 포함, 친구 관계 변경 후 저장본 접근, 보관함 분류, 카카오 계정 연결 방식도 해당 기능 이슈에서 결정한다.
+
+## 갱신 방법
+
+1. 기능별 이슈를 만들고 이슈 #87의 A 또는 B 체크리스트에 연결한다.
+2. PR 본문에 `Closes #이슈번호`를 적어 `main` 병합 시 작업 이슈가 닫히도록 한다.
+3. 병합 후 실제 컨트롤러·테스트·도메인별 상세 문서를 확인하고 이 파일의 체크박스와 API 계약을 갱신한다.
