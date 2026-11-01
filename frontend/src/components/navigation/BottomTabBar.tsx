@@ -19,7 +19,7 @@ export default function BottomTabBar({ onAddPress, selectedTab = 'home' }: Props
           icon={require('../../../assets/images/tabIcons/home.png')}
           label="지도"
           selected={selectedTab === 'home'}
-          onPress={() => { if (selectedTab !== 'home') router.navigate('/'); }}
+          onPress={() => { if (selectedTab !== 'home') router.dismissTo('/'); }}
         />
 
         <BottomTabItem

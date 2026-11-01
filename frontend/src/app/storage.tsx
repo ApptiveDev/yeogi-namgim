@@ -16,7 +16,7 @@ import { useDeveloperSettings } from '@/hooks/use-developer-settings';
 import { useStorageNotes } from '@/hooks/use-storage-notes';
 
 function openCompose() {
-  router.navigate({ pathname: '/', params: { compose: 'true' } });
+  router.dismissTo({ pathname: '/', params: { compose: 'true' } });
 }
 
 export default function StorageScreen() {
