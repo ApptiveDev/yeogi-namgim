@@ -186,9 +186,8 @@ class AuthFlowIntegrationTests {
 	@Test
 	void memberAndGuestTokensCannotBeUsedInterchangeablyAndDeletedMembersAreRejected() throws Exception {
 		mvc.perform(get("/api/v1/users/me")).andExpect(status().isUnauthorized());
-		String response = mvc.perform(post("/api/v1/guest-sessions")).andExpect(status().isCreated())
-			.andReturn().getResponse().getContentAsString();
-		String guestToken = json.readTree(response).at("/data/guestToken").asText();
+		mvc.perform(post("/api/v1/guest-sessions")).andExpect(status().isNotFound());
+		String guestToken = "g".repeat(43);
 		mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + guestToken)).andExpect(status().isUnauthorized());
 		String memberToken = tokens.issue(UUID.randomUUID(), UUID.randomUUID()).accessToken();
 		mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + memberToken)).andExpect(status().isUnauthorized());
@@ -197,7 +196,7 @@ class AuthFlowIntegrationTests {
 			.param("minLongitude", "129.06").param("maxLongitude", "129.09")).andExpect(status().isUnauthorized());
 		mvc.perform(get("/api/v1/notes").header("Authorization", "Bearer " + guestToken)
 			.param("minLatitude", "35.17").param("maxLatitude", "35.19")
-			.param("minLongitude", "129.06").param("maxLongitude", "129.09")).andExpect(status().isOk());
+			.param("minLongitude", "129.06").param("maxLongitude", "129.09")).andExpect(status().isUnauthorized());
 	}
 
 	@Test

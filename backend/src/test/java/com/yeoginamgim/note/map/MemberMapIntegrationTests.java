@@ -67,8 +67,8 @@ class MemberMapIntegrationTests extends MemberMapTestSupport {
 
 	@Test
 	void lockedNotesHaveMarkersButNeverCardsOrPreview() throws Exception {
-		var near = note(stranger, NoteVisibility.PUBLIC, 199.9, "범위안");
-		var far = note(stranger, NoteVisibility.PUBLIC, 200.1, "잠긴본문유출금지");
+		var near = note(stranger, NoteVisibility.PUBLIC, 149.9, "범위안");
+		var far = note(stranger, NoteVisibility.PUBLIC, 150.1, "잠긴본문유출금지");
 		var data = data(map("ALL", true).andExpect(status().isOk()));
 		assertThat(ids(data.get("notes"))).containsExactly(near.getId().toString(), far.getId().toString());
 		assertThat(ids(data.get("openableNotes"))).containsExactly(near.getId().toString());
@@ -146,15 +146,14 @@ class MemberMapIntegrationTests extends MemberMapTestSupport {
 	}
 
 	@Test
-	void guestLegacyMapRemainsIsolatedAndRejectsMemberFilters() throws Exception {
+	void legacyGuestTokenCannotAccessAnyMapFilter() throws Exception {
 		var guest = guests.create();
 		notes.saveAndFlush(Note.create(UUID.randomUUID(), guest.guestId(), "예전쪽지", 35, 129, Instant.now()));
 		note(stranger, NoteVisibility.PUBLIC, 10, "회원쪽지는비회원에게노출안함");
 		String memberToken = token;
 		token = guest.guestToken();
-		map("ALL", false).andExpect(status().isOk()).andExpect(jsonPath("$.data.notes.length()").value(1))
-			.andExpect(jsonPath("$.data.openableNotes").doesNotExist());
-		map("FRIENDS", false).andExpect(status().isBadRequest());
+		map("ALL", false).andExpect(status().isUnauthorized());
+		map("FRIENDS", false).andExpect(status().isUnauthorized());
 		token = memberToken + "broken";
 		map("ALL", true).andExpect(status().isUnauthorized());
 		mvc.perform(get("/api/v1/notes").param("minLatitude", "34").param("minLongitude", "128")

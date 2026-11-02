@@ -55,7 +55,7 @@ class MapPermissionFailureTests {
 	void nullPermissionNeverReleasesDetailContent() {
 		var repository = mock(NoteRepository.class);
 		var actors = mock(NoteActorProvider.class);
-		when(actors.identify("member")).thenReturn(new NoteActorProvider.Actor(user, true));
+		when(actors.identify("member")).thenReturn(new NoteActorProvider.Actor(user));
 		when(repository.findById(id)).thenReturn(Optional.of(Note.createMember(id, author, "비밀", 35, 129,
 			Instant.now(), NoteVisibility.PUBLIC, null, null, null)));
 		when(access.evaluate(any(), any(), any())).thenReturn(Map.of(id, new NoteAccessResult(null, 10.0)));
