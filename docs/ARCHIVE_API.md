@@ -9,3 +9,5 @@
 목록 응답에는 `notes`, `size`, `hasNext`, `nextCursor`가 있다. 첫 요청에서는 `cursor`를 생략한다. `hasNext=true`이면 `nextCursor`를 그대로 다음 요청의 `cursor`에 넣고 **같은 날짜·유형·하위 필터**를 유지한다. 예: `GET /api/v1/users/me/archive/notes?date=2026-11-02&type=ALL&size=20&cursor=<nextCursor>`. 마지막 페이지는 `hasNext=false`, `nextCursor=null`이다. 커서는 회원·날짜·필터에 묶인 불투명 값이며 다른 조건에서 재사용하거나 잘못된 값을 보내면 `400 INVALID_REQUEST`다. 기존 `page` 파라미터도 `400`으로 거절한다. 정렬 기준이 같은 쪽지는 쪽지 ID 내림차순으로 이어서 조회한다. 새 쪽지가 앞에 추가되어도 이미 받은 커서 뒤의 결과가 밀리지 않는다. 저장 취소·공개 범위·친구 관계 변경은 조회 시점에 다시 적용하므로, 그 사이 볼 수 없게 된 쪽지는 다음 페이지에서 제외된다.
 
 저장 분류의 `FRIEND/ANONYMOUS`는 **조회 시점의 현재 친구 관계**로 계산한다. 친구 해제 후 공개 쪽지는 `ANONYMOUS`로 분류되고 더 이상 볼 수 없는 `FRIENDS` 쪽지는 목록과 달력에서 빠진다. 내가 쓴 쪽지는 저장 기록 없이 `WRITTEN`에 포함된다. 보관함 목록 조회는 읽음 기록을 만들지 않는다.
+
+보관함 카드의 `authorCategory`는 `MINE/FRIEND/ANONYMOUS`다. `authorDisplayName`은 내 쪽지에는 현재 내 닉네임, 현재 친구의 저장 쪽지에는 그 친구의 닉네임, 그 외 저장 쪽지에는 `익명`을 반환한다. 친구 관계가 바뀌면 다음 조회부터 표시명도 다시 판정한다. 보관함 응답에 작성자 회원 ID는 포함하지 않는다. 이 표시명은 보관함 목록에만 추가되며 저장·발견 목록의 응답 계약은 유지한다.

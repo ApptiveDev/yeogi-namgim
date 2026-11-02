@@ -19,12 +19,12 @@ import com.yeoginamgim.note.repository.VisibleMemberNoteSql;
 @Repository
 public class ArchiveRepository {
 	private static final String WRITTEN = """
-		SELECT n.id AS note_id, n.created_at, NULL::timestamptz AS saved_at, 'WRITTEN' AS source
+		SELECT n.id AS note_id, n.author_user_id, n.created_at, NULL::timestamptz AS saved_at, 'WRITTEN' AS source
 		FROM app.notes n WHERE n.author_user_id = :userId
 		AND n.created_at >= :startAt AND n.created_at < :endAt
 		""";
 	private static final String SAVED = """
-		SELECT n.id AS note_id, n.created_at, b.saved_at, 'SAVED' AS source
+		SELECT n.id AS note_id, n.author_user_id, n.created_at, b.saved_at, 'SAVED' AS source
 		FROM app.note_bookmarks b JOIN app.notes n ON n.id = b.note_id
 		WHERE b.user_id = :userId AND n.author_user_id IS NOT NULL
 		AND n.author_user_id <> :userId AND n.created_at >= :startAt AND n.created_at < :endAt
@@ -79,9 +79,10 @@ public class ArchiveRepository {
 			params.put("visibility", request.writtenVisibility().name());
 		}
 		return jdbc.query(sql, params, (rs, row) -> new Entry(rs.getObject("note_id", UUID.class),
-			rs.getTimestamp("created_at").toInstant(), rs.getString("source"), rs.getTimestamp("saved_at") == null ? null
+			rs.getObject("author_user_id", UUID.class), rs.getTimestamp("created_at").toInstant(),
+			rs.getString("source"), rs.getTimestamp("saved_at") == null ? null
 				: rs.getTimestamp("saved_at").toInstant()));
 	}
 
-	public record Entry(UUID noteId, Instant createdAt, String source, Instant savedAt) {}
+	public record Entry(UUID noteId, UUID authorUserId, Instant createdAt, String source, Instant savedAt) {}
 }

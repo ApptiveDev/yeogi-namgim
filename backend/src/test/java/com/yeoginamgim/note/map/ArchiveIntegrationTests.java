@@ -43,6 +43,14 @@ class ArchiveIntegrationTests extends MemberMapTestSupport {
 		var all = data(archive(date, "ALL", null).andExpect(status().isOk()));
 		assertThat(ids(all.get("notes"))).containsExactlyInAnyOrder(mine.getId().toString(),
 			friendPublic.getId().toString(), anonymous.getId().toString());
+		for (var card : all.get("notes")) {
+			String id = card.get("noteId").asText();
+			String expectedName = id.equals(mine.getId().toString()) ? me.getNickname()
+				: id.equals(friendPublic.getId().toString()) ? friend.getNickname() : "익명";
+			assertThat(card.get("authorDisplayName").asText()).isEqualTo(expectedName);
+		}
+		mvc.perform(get("/api/v1/users/me/bookmarks").header("Authorization", "Bearer " + token))
+			.andExpect(status().isOk()).andExpect(jsonPath("$.data.notes[0].authorDisplayName").doesNotExist());
 		archive(date, "WRITTEN", "writtenVisibility=PRIVATE").andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.notes[0].noteId").value(mine.getId().toString()));
 		archive(date, "SAVED", "savedCategory=FRIEND").andExpect(status().isOk())
@@ -52,8 +60,11 @@ class ArchiveIntegrationTests extends MemberMapTestSupport {
 			me.getId(), friend.getId(), friend.getId(), me.getId());
 		archive(date, "SAVED", "savedCategory=FRIEND").andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.notes.length()").value(0));
-		archive(date, "SAVED", "savedCategory=ANONYMOUS").andExpect(status().isOk())
-			.andExpect(jsonPath("$.data.notes.length()").value(2));
+		var afterUnfriend = data(archive(date, "SAVED", "savedCategory=ANONYMOUS")
+			.andExpect(status().isOk()).andExpect(jsonPath("$.data.notes.length()").value(2)));
+		for (var card : afterUnfriend.get("notes")) {
+			assertThat(card.get("authorDisplayName").asText()).isEqualTo("익명");
+		}
 	}
 
 	@Test
