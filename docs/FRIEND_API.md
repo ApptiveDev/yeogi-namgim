@@ -155,4 +155,4 @@ PostgreSQL·PostGIS DB를 실행한 `backend/`에서 `./gradlew test --tests 'co
 
 `DELETE /api/v1/friends/{friendId}`는 인증된 회원과 지정한 회원 사이의 친구 관계를 해제한다. 양쪽 목록·친구 수에 반영되며 다른 회원 간 관계는 변경하지 않는다. 관계가 이미 없거나 본인을 지정한 경우에도 같은 성공 응답을 반환한다. `friendId`는 UUID 형식이어야 한다.
 
-회원 Access Token이 필요하다. 성공은 `200 OK`, `Cache-Control: no-store`이며 공통 응답의 `data`는 `{ "removed": true }`다. 인증 실패는 `401 UNAUTHORIZED`, 잘못된 UUID는 `400 INVALID_REQUEST`다. 해제 후 친구 공개 쪽지는 지도·소식·상세에서 현재 친구 관계를 다시 확인하므로 접근할 수 없다. 저장 쪽지에 관한 별도 정책은 확인 중이다.
+회원 Access Token이 필요하다. 성공은 `200 OK`, `Cache-Control: no-store`이며 공통 응답의 `data`는 `{ "removed": true }`다. 인증 실패는 `401 UNAUTHORIZED`, 잘못된 UUID는 `400 INVALID_REQUEST`다. 해제 후 친구 공개 쪽지는 지도·소식·상세에서 현재 친구 관계를 다시 확인하므로 접근할 수 없다. 친구 해제 시 저장 기록은 삭제하지 않는다. 현재 권한이 없는 친구 공개 쪽지는 숨기고 전체 공개 쪽지는 계속 제공한다. 다시 친구가 되면 저장 기록이 남아 있는 친구 공개 쪽지는 다시 접근할 수 있다. 저장 기능은 PR #95에서 구현 중이다.
