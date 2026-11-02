@@ -1,3 +1,4 @@
+import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,11 +21,14 @@ export function FriendAddDialog({ onClose, onAccepted, initialMode = 'options' }
   const [mode, setMode] = useState<'options' | 'create' | 'enter'>(initialMode);
   const [now, setNow] = useState(Date.now);
   const [sharing, setSharing] = useState(false);
-  const [shareError, setShareError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [copying, setCopying] = useState(false);
+  const copyingRef = useRef(false);
   const sharingRef = useRef(false);
   const notifiedRef = useRef(false);
   const mountedRef = useRef(true);
-  const busy = state.busy !== null || sharing;
+  const busy = state.busy !== null || sharing || copying;
   const cannotClose = state.busy === 'accept' || sharing;
   const createdExpired = !!state.created && Date.parse(state.created.expiresAt) <= now;
   const previewExpired = !!state.preview && Date.parse(state.preview.expiresAt) <= now;
@@ -51,24 +55,48 @@ export function FriendAddDialog({ onClose, onAccepted, initialMode = 'options' }
     if (busy) return;
     Keyboard.dismiss();
     flow.clearPreview();
-    setShareError(null);
+    setActionError(null);
+    setCopiedCode(null);
     setMode(next);
+  }
+
+  async function copyCode() {
+    const invitation = state.created;
+    if (busy || copyingRef.current || sharingRef.current || !invitation) return;
+    if (Date.parse(invitation.expiresAt) <= Date.now()) {
+      setActionError('초대 코드가 만료됐어요. 새 코드를 발급해 주세요.');
+      return;
+    }
+    copyingRef.current = true;
+    setCopying(true);
+    setCopiedCode(null);
+    setActionError(null);
+    try {
+      const copied = await Clipboard.setStringAsync(invitation.code);
+      if (!copied) throw new Error('Clipboard write failed');
+      if (mountedRef.current) setCopiedCode(invitation.code);
+    } catch {
+      if (mountedRef.current) setActionError('코드를 복사하지 못했어요. 코드 영역을 다시 눌러 주세요.');
+    } finally {
+      copyingRef.current = false;
+      if (mountedRef.current) setCopying(false);
+    }
   }
 
   async function shareCode() {
     const invitation = state.created;
-    if (busy || sharingRef.current || !invitation) return;
+    if (busy || sharingRef.current || copyingRef.current || !invitation) return;
     if (Date.parse(invitation.expiresAt) <= Date.now()) {
-      setShareError('초대 코드가 만료됐어요. 새 코드를 발급해 주세요.');
+      setActionError('초대 코드가 만료됐어요. 새 코드를 발급해 주세요.');
       return;
     }
     sharingRef.current = true;
     setSharing(true);
-    setShareError(null);
+    setActionError(null);
     try {
       await Share.share({ title: '여기남김 친구 초대', message: `여기남김 친구 초대 코드: ${invitation.code}\n앱의 친구 → 추가 → 초대 코드 입력에서 확인해 주세요.\n만료: ${formatExpiry(invitation.expiresAt)} (한국 시간)` });
     } catch {
-      if (mountedRef.current) setShareError('공유 창을 열지 못했어요. 위 코드를 길게 눌러 복사해 주세요.');
+      if (mountedRef.current) setActionError('공유 창을 열지 못했어요. 위 코드 영역을 눌러 복사해 주세요.');
     } finally {
       sharingRef.current = false;
       if (mountedRef.current) setSharing(false);
@@ -99,18 +127,22 @@ export function FriendAddDialog({ onClose, onAccepted, initialMode = 'options' }
                 </Pressable>
               </> : mode === 'create' ? <>
                 <Text style={s.description}>{'친구에게 아래 코드를 보내 주세요.\n한 코드로 한 명만 친구가 될 수 있어요.'}</Text>
-                {state.created ? <View style={s.codeCard}>
-                  <Text selectable accessibilityLabel={`내 초대 코드 ${state.created.code}`} style={s.code}>{state.created.code}</Text>
+                {state.created ? <Pressable accessibilityRole="button" accessibilityLabel="초대 코드 복사"
+                  accessibilityHint="초대 코드를 클립보드에 복사합니다" accessibilityState={{ disabled: busy || createdExpired, busy: copying }}
+                  disabled={busy || createdExpired} onPress={() => { void copyCode(); }} style={({ pressed }) => [s.codeCard, (pressed || copying) && s.disabled]}>
+                  <Text style={s.code}>{state.created.code}</Text>
                   <Text style={s.notice}>{createdExpired ? '만료된 코드예요' : `${formatExpiry(state.created.expiresAt)}까지 · 한국 시간`}</Text>
-                </View> : null}
+                </Pressable> : null}
                 <Pressable accessibilityRole="button" accessibilityLabel="초대 코드 공유" disabled={busy || !state.created || createdExpired}
                   accessibilityState={{ disabled: busy || !state.created || createdExpired }} onPress={() => { void shareCode(); }} style={[s.button, s.primary, (busy || !state.created || createdExpired) && s.disabled]}>
                   <Text style={s.buttonLabel}>{sharing ? '공유 중…' : '코드 공유하기'}</Text>
                 </Pressable>
-                <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setShareError(null); void flow.generate(); }} style={[s.button, s.secondary, busy && s.disabled]}>
+                <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setActionError(null); setCopiedCode(null); void flow.generate(); }} style={[s.button, s.secondary, busy && s.disabled]}>
                   <Text style={s.buttonLabel}>{state.created ? '새 코드 발급' : '코드 발급'}</Text>
                 </Pressable>
-                <Text style={s.notice}>코드는 길게 눌러 복사할 수도 있어요.</Text>
+                <Text accessibilityLiveRegion="polite" style={[s.notice, copiedCode === state.created?.code && s.copied]}>
+                  {copying ? '코드 복사 중…' : copiedCode === state.created?.code ? '초대 코드를 복사했어요.' : '코드 영역을 누르면 바로 복사돼요.'}
+                </Text>
               </> : <>
                 <Text style={s.description}>친구에게 받은 16자리 코드를 입력해 주세요.</Text>
                 <TextInput autoFocus value={state.input} onChangeText={flow.setInput} editable={!busy} accessibilityLabel="초대 코드 입력"
@@ -128,7 +160,7 @@ export function FriendAddDialog({ onClose, onAccepted, initialMode = 'options' }
                 </Pressable>}
               </>}
               {state.busy ? <ActivityIndicator color={C.blue} style={s.status} accessibilityLabel={state.busy === 'create' ? '초대 코드 발급 중' : state.busy === 'preview' ? '초대 정보 확인 중' : '친구 추가 중'} /> : null}
-              {state.error || shareError ? <Text accessibilityRole="alert" style={s.error}>{state.error || shareError}</Text> : null}
+              {state.error || actionError ? <Text accessibilityRole="alert" style={s.error}>{state.error || actionError}</Text> : null}
               {mode !== 'options' ? <Pressable disabled={busy} accessibilityRole="button" onPress={() => changeMode('options')} style={s.back}>
                 <Text style={s.backLabel}>다른 방법으로 추가</Text>
               </Pressable> : null}
@@ -157,6 +189,7 @@ const s = StyleSheet.create({
   codeCard: { backgroundColor: C.surface, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 18, gap: 10, alignItems: 'center' },
   code: { color: C.ink, fontSize: 20, letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', textAlign: 'center' },
   notice: { fontFamily: F.regular, fontSize: 11, lineHeight: 18, color: C.muted, textAlign: 'center' },
+  copied: { color: C.blue },
   input: { minHeight: 54, paddingHorizontal: 16, borderWidth: 1, borderColor: '#E3E3DF', borderRadius: 16, backgroundColor: C.surface, fontFamily: F.regular, fontSize: 15, color: C.ink },
   preview: { gap: 12 },
   inviter: { fontFamily: F.bold, fontSize: 16, lineHeight: 24, color: C.ink, textAlign: 'center' },
