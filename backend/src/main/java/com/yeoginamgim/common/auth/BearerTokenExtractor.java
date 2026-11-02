@@ -2,7 +2,7 @@ package com.yeoginamgim.common.auth;
 
 import org.springframework.stereotype.Component;
 
-import com.yeoginamgim.guest.service.InvalidGuestTokenException;
+import com.yeoginamgim.auth.service.AuthException;
 
 @Component
 public class BearerTokenExtractor {
@@ -11,12 +11,12 @@ public class BearerTokenExtractor {
 	public String extract(String authorizationHeader) {
 		if (authorizationHeader == null
 			|| !authorizationHeader.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
-			throw new InvalidGuestTokenException();
+			throw AuthException.unauthorized();
 		}
 
 		String token = authorizationHeader.substring(BEARER_PREFIX.length()).trim();
 		if (token.isEmpty()) {
-			throw new InvalidGuestTokenException();
+			throw AuthException.unauthorized();
 		}
 		return token;
 	}

@@ -25,7 +25,6 @@ import com.yeoginamgim.auth.dto.AuthResponses.TokenPair;
 import com.yeoginamgim.auth.service.MemberSessionService;
 import com.yeoginamgim.auth.service.VerificationMailSender;
 import com.yeoginamgim.friend.repository.FriendshipRepository;
-import com.yeoginamgim.guest.service.GuestSessionService;
 import com.yeoginamgim.user.domain.Member;
 import com.yeoginamgim.user.repository.MemberRepository;
 import tools.jackson.databind.json.JsonMapper;
@@ -41,7 +40,6 @@ class MemberProfileIntegrationTests {
 	@Autowired WebApplicationContext context;
 	@Autowired MemberRepository members;
 	@Autowired MemberSessionService sessions;
-	@Autowired GuestSessionService guests;
 	@Autowired FriendshipRepository friendships;
 	@MockitoBean VerificationMailSender mail;
 	MockMvc mvc;
@@ -114,7 +112,7 @@ class MemberProfileIntegrationTests {
 		members.deleteById(second.getId());
 		members.flush();
 		sessions.logout(tokens.refreshToken());
-		for (String token : List.of("invalid", guests.create().guestToken(), tokens.refreshToken(), tokens.accessToken(), deletedToken)) {
+		for (String token : List.of("invalid", tokens.refreshToken(), tokens.accessToken(), deletedToken)) {
 			mvc.perform(patch("/api/v1/users/me").header("Authorization", "Bearer " + token)
 				.contentType(MediaType.APPLICATION_JSON).content("{\"nickname\":\"새이름\"}"))
 				.andExpect(status().isUnauthorized());
