@@ -90,18 +90,18 @@ class FriendIntegrationTests {
 	}
 
 	@Test
-	void generatesExpiringNonPermanentCodesAndStoresOnlyHash() throws Exception {
+	void generatesSixCharacterCodeAndReusesItUntilExpiry() throws Exception {
 		Instant before = Instant.now();
 		JsonNode result = data(create(firstTokens.accessToken()).andExpect(status().isCreated())
 			.andExpect(header().string("Cache-Control", "no-store")));
 		String code = result.get("code").asText();
-		assertThat(code).matches("[A-HJ-NP-Z2-9]{16}");
+		assertThat(code).matches("[A-HJ-NP-Z2-9]{6}");
 		Instant expiry = Instant.parse(result.get("expiresAt").asText());
-		assertThat(Duration.between(before, expiry).toSeconds()).isBetween(86400L, 86405L);
+		assertThat(Duration.between(before, expiry).toSeconds()).isBetween(600L, 605L);
 		assertThat(jdbc.queryForObject("SELECT code_hash FROM app.friend_invitations WHERE inviter_id = ?",
 			String.class, first.getId())).isEqualTo(codes.hash(code)).isNotEqualTo(code);
 		String another = data(create(firstTokens.accessToken()).andExpect(status().isCreated())).get("code").asText();
-		assertThat(another).isNotEqualTo(code);
+		assertThat(another).isEqualTo(code);
 		assertThat(new InvitationCreated(code, expiry).toString()).doesNotContain(code);
 	}
 
@@ -127,17 +127,17 @@ class FriendIntegrationTests {
 			.andExpect(jsonPath("$.data.friends[0].friendId").value(first.getId().toString()));
 		assertThat(query.countFriends(first.getId())).isEqualTo(1);
 		assertThat(query.countFriends(second.getId())).isEqualTo(1);
-		assertThat(invitations.find(codes.hash(code), false).orElseThrow().acceptedBy()).isEqualTo(second.getId());
+		assertThat(invitations.find(codes.hash(code), false).orElseThrow().acceptedBy()).isNull();
 	}
 
 	@Test
-	void rejectsUsedExpiredUnknownAndMalformedCodes() throws Exception {
+	void rejectsExpiredUnknownAndMalformedCodes() throws Exception {
 		String used = invitation(first);
 		accept(secondTokens.accessToken(), used).andExpect(status().isOk());
-		String expired = invitation(first);
+		String expired = invitation(third);
 		jdbc.update("UPDATE app.friend_invitations SET created_at = now() - interval '2 days', expires_at = now() - interval '1 day' WHERE code_hash = ?",
 			codes.hash(expired));
-		for (String code : List.of(used, expired, "AAAAAAAAAAAAAAAA", "wrong-code")) {
+		for (String code : List.of(expired, "AAAAAAAAAAAAAAAA", "wrong-code")) {
 			preview(secondTokens.accessToken(), code).andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error.code").value("FRIEND_INVITATION_INVALID"));
 			accept(secondTokens.accessToken(), code).andExpect(status().isBadRequest())
@@ -247,17 +247,17 @@ class FriendIntegrationTests {
 	}
 
 	@Test
-	void sameCodeCanBeAcceptedByOnlyOneConcurrentUser() throws Exception {
+	void sameCodeCanBeAcceptedByMultipleConcurrentUsers() throws Exception {
 		String code = invitation(first);
 		var outcomes = concurrently(() -> acceptOutcome(second.getId(), code), () -> acceptOutcome(third.getId(), code));
-		assertThat(outcomes).containsExactlyInAnyOrder("OK", "FRIEND_INVITATION_INVALID");
-		assertThat(query.countFriends(first.getId())).isEqualTo(1);
-		UUID winner = invitations.find(codes.hash(code), false).orElseThrow().acceptedBy();
-		assertThat(query.findFriendIds(first.getId(), Set.of(second.getId(), third.getId()))).containsExactly(winner);
+		assertThat(outcomes).containsOnly("OK").hasSize(2);
+		assertThat(query.countFriends(first.getId())).isEqualTo(2);
+		assertThat(query.findFriendIds(first.getId(), Set.of(second.getId(), third.getId())))
+			.containsExactlyInAnyOrder(second.getId(), third.getId());
 	}
 
 	@Test
-	void concurrentDifferentCodesCannotDuplicateSameFriendPair() throws Exception {
+	void concurrentSameCodeCannotDuplicateSameFriendPair() throws Exception {
 		String firstCode = invitation(first);
 		String secondCode = invitation(first);
 		var outcomes = concurrently(() -> acceptOutcome(second.getId(), firstCode), () -> acceptOutcome(second.getId(), secondCode));
@@ -265,7 +265,7 @@ class FriendIntegrationTests {
 		assertThat(query.countFriends(first.getId())).isEqualTo(1);
 		long used = List.of(firstCode, secondCode).stream()
 			.filter(code -> invitations.find(codes.hash(code), false).orElseThrow().acceptedBy() != null).count();
-		assertThat(used).isEqualTo(1);
+		assertThat(used).isZero();
 	}
 
 	@Test
@@ -284,7 +284,33 @@ class FriendIntegrationTests {
 		friends.accept(second.getId(), code);
 		jdbc.update("DELETE FROM app.users WHERE id = ?", second.getId());
 		assertThat(query.countFriends(first.getId())).isZero();
+		assertThat(invitations.find(codes.hash(code), false)).isPresent();
+		jdbc.update("DELETE FROM app.users WHERE id = ?", first.getId());
 		assertThat(invitations.find(codes.hash(code), false)).isEmpty();
+	}
+
+	@Test
+	void currentCodeIsPrivateAndExpiresWithoutBeingReplacedByReads() throws Exception {
+		mvc.perform(get("/api/v1/friends/invitations/current")).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/v1/friends/invitations/current").header("Authorization", "Bearer " + firstTokens.accessToken()))
+			.andExpect(status().isNoContent());
+		String code = invitation(first);
+		mvc.perform(get("/api/v1/friends/invitations/current").header("Authorization", "Bearer " + firstTokens.accessToken()))
+			.andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
+			.andExpect(jsonPath("$.data.code").value(code));
+		mvc.perform(get("/api/v1/friends/invitations/current").header("Authorization", "Bearer " + secondTokens.accessToken()))
+			.andExpect(status().isNoContent());
+		jdbc.update("UPDATE app.friend_invitations SET created_at = now() - interval '2 days', expires_at = now() - interval '1 day' WHERE code_hash = ?", codes.hash(code));
+		mvc.perform(get("/api/v1/friends/invitations/current").header("Authorization", "Bearer " + firstTokens.accessToken()))
+			.andExpect(status().isNoContent());
+		assertThat(invitation(first)).isNotEqualTo(code);
+	}
+
+	@Test
+	void concurrentCreationReturnsOneCurrentCode() throws Exception {
+		var codes = concurrently(() -> invitation(first), () -> invitation(first));
+		assertThat(codes.get(0)).isEqualTo(codes.get(1));
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM app.friend_invitations WHERE inviter_id = ?", Long.class, first.getId())).isEqualTo(1);
 	}
 
 	private List<String> concurrently(Callable<String> firstTask, Callable<String> secondTask) throws Exception {
