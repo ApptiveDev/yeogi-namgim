@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.yeoginamgim.note.domain.Note;
 
 public interface NoteRepository extends JpaRepository<Note, UUID> {
+	long countByAuthorUserId(UUID authorUserId);
 	Slice<Note> findByAuthorUserId(UUID authorUserId, Pageable pageable);
 	Optional<Note> findByIdAndAuthorUserId(UUID id, UUID authorUserId);
 }
