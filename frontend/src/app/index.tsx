@@ -1,5 +1,6 @@
 import { useFonts } from 'expo-font';
-import { useEffect, useRef, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CameraRef } from '@maplibre/maplibre-react-native';
@@ -23,6 +24,7 @@ export default function HomeScreen() {
 }
 
 function HomeContent({ onRetry }: { onRetry: () => void }) {
+  const { compose } = useLocalSearchParams<{ compose?: string }>();
   const [homeReady, setHomeReady] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
@@ -55,6 +57,14 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   const { selectedNote, setSelectedNote, handleOpenNote } = useNoteReader({
     isComposeOpen, setUserCoordinates,
   });
+  const openRequestedCompose = useEffectEvent(() => {
+    router.setParams({ compose: undefined });
+    if (!isComposeOpen) void openCompose();
+  });
+
+  useEffect(() => {
+    if (homeReady && compose === 'true') openRequestedCompose();
+  }, [homeReady, compose]);
 
   useEffect(() => {
     if (homeReady || startupError) return;

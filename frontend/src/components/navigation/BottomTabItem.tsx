@@ -19,7 +19,7 @@ export default function BottomTabItem({
   onPress,
 }: Props) {
   return (
-    <Pressable style={styles.item} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+    <Pressable style={styles.item} onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected }}>
       <Image
         source={icon}
         style={[
