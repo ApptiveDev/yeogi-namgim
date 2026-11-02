@@ -68,6 +68,14 @@ export async function getMemberProfile(accessToken: string) {
   return validateProfile(await apiRequest<MemberProfile>('/api/v1/users/me', { headers: { Authorization: `Bearer ${accessToken}` } }));
 }
 
+export async function updateMemberProfile(nickname: string, accessToken: string) {
+  return validateProfile(await apiRequest<MemberProfile>('/api/v1/users/me', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nickname: nickname.trim() }),
+  }));
+}
+
 export function authErrorMessage(error: unknown) {
   if (error instanceof ApiError && error.status === 404) return '회원 인증 서비스를 사용할 수 없어요. 서버 설정을 확인해 주세요.';
   return error instanceof Error ? error.message : '요청을 처리하지 못했어요. 다시 시도해 주세요.';
