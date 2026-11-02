@@ -1,13 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomTabItem from './BottomTabItem';
 
 type Props = {
   onAddPress: () => void;
+  selectedTab?: 'home' | 'storage' | 'friends' | 'my';
 };
 
-export default function BottomTabBar({ onAddPress }: Props) {
+export default function BottomTabBar({ onAddPress, selectedTab = 'home' }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -16,14 +18,15 @@ export default function BottomTabBar({ onAddPress }: Props) {
         <BottomTabItem
           icon={require('../../../assets/images/tabIcons/home.png')}
           label="지도"
-          selected
-          onPress={() => {}}
+          selected={selectedTab === 'home'}
+          onPress={() => { if (selectedTab !== 'home') router.navigate('/'); }}
         />
 
         <BottomTabItem
           icon={require('../../../assets/images/tabIcons/storage.png')}
           label="보관함"
-          onPress={() => {}}
+          selected={selectedTab === 'storage'}
+          onPress={() => { if (selectedTab !== 'storage') router.navigate('/storage'); }}
         />
 
         <View style={styles.addSlot}>
@@ -35,13 +38,15 @@ export default function BottomTabBar({ onAddPress }: Props) {
         <BottomTabItem
           icon={require('../../../assets/images/tabIcons/friends.png')}
           label="친구"
-          onPress={() => {}}
+          selected={selectedTab === 'friends'}
+          onPress={() => { if (selectedTab !== 'friends') router.navigate('/friends'); }}
         />
 
         <BottomTabItem
           icon={require('../../../assets/images/tabIcons/my.png')}
           label="마이"
-          onPress={() => {}}
+          selected={selectedTab === 'my'}
+          onPress={() => { if (selectedTab !== 'my') router.navigate('/my'); }}
         />
       </View>
     </View>
