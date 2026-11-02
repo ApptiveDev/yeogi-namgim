@@ -29,14 +29,16 @@ class GeographicNoteAccessServiceTests {
 	private final MemberNoteMapRepository notes = mock(MemberNoteMapRepository.class);
 	@SuppressWarnings("unchecked")
 	private final ObjectProvider<BookmarkQueryService> bookmarks = mock(ObjectProvider.class);
-	private final GeographicNoteAccessService service = new GeographicNoteAccessService(friends, bookmarks, notes);
+	private final GeographicNoteAccessService service = new GeographicNoteAccessService(friends, bookmarks, notes,
+		new LocationQualityPolicy(50, java.time.Duration.ofSeconds(30), java.time.Duration.ofSeconds(10),
+			java.time.Clock.systemUTC()));
 
 	@ParameterizedTest
 	@CsvSource({"149.999, OPENABLE", "150.0, OPENABLE", "150.001, LOCKED", "175.0, LOCKED", "200.0, LOCKED"})
 	void appliesInclusive150MeterLimit(double meters, NoteAccessStatus expected) {
 		when(friends.findFriendIds(any(), any())).thenReturn(Set.of());
 		when(notes.findDistances(any(), any())).thenReturn(Map.of(id, meters));
-		assertThat(service.evaluate(viewer, new LocationInput(35.0, 129.0, null, null),
+		assertThat(service.evaluate(viewer, new LocationInput(35.0, 129.0, 10.0, Instant.now()),
 			List.of(target(author, NoteVisibility.PUBLIC))).get(id).status()).isEqualTo(expected);
 	}
 

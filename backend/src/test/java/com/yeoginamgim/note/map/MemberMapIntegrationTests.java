@@ -73,7 +73,7 @@ class MemberMapIntegrationTests extends MemberMapTestSupport {
 		assertThat(ids(data.get("notes"))).containsExactly(near.getId().toString(), far.getId().toString());
 		assertThat(ids(data.get("openableNotes"))).containsExactly(near.getId().toString());
 		assertThat(data.get("notes").get(1).get("accessStatus").asText()).isEqualTo("LOCKED");
-		open(far.getId(), "{\"latitude\":35,\"longitude\":129}").andExpect(status().isForbidden())
+		open(far.getId(), locationBody(35, 129)).andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.error.code").value("NOTE_LOCKED"));
 	}
 
@@ -93,11 +93,11 @@ class MemberMapIntegrationTests extends MemberMapTestSupport {
 	void detailRechecksCurrentLocationAndFriendPermissionAfterListWasReturned() throws Exception {
 		var target = note(friend, NoteVisibility.FRIENDS, 100, "친구쪽지");
 		map("FRIENDS", true).andExpect(status().isOk()).andExpect(jsonPath("$.data.openableNotes.length()").value(1));
-		open(target.getId(), "{\"latitude\":35,\"longitude\":129}").andExpect(status().isOk());
-		open(target.getId(), "{\"latitude\":36,\"longitude\":129}").andExpect(status().isForbidden());
+		open(target.getId(), locationBody(35, 129)).andExpect(status().isOk());
+		open(target.getId(), locationBody(36, 129)).andExpect(status().isForbidden());
 		jdbc.update("DELETE FROM app.friendships WHERE (user_low = ? AND user_high = ?) OR (user_low = ? AND user_high = ?)",
 			me.getId(), friend.getId(), friend.getId(), me.getId());
-		open(target.getId(), "{\"latitude\":35,\"longitude\":129}").andExpect(status().isNotFound());
+		open(target.getId(), locationBody(35, 129)).andExpect(status().isNotFound());
 		map("FRIENDS", true).andExpect(status().isOk()).andExpect(jsonPath("$.data.notes.length()").value(0));
 	}
 
@@ -136,7 +136,23 @@ class MemberMapIntegrationTests extends MemberMapTestSupport {
 		map("ALL", true, Map.of("accuracyMeters", "-1")).andExpect(status().isBadRequest());
 		map("ALL", true, Map.of("measuredAt", "wrong")).andExpect(status().isBadRequest());
 		map("ALL", true, Map.of("accuracyMeters", "10", "measuredAt", "2026-10-28T00:00:00Z"))
-			.andExpect(status().isOk());
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void rejectsUnverifiedLocationBeforeMapSortingOrDetailOpen() throws Exception {
+		var target = note(stranger, NoteVisibility.PUBLIC, 50, "위치 검증 전에는 미리보기 금지");
+		map("ALL", true, Map.of("accuracyMeters", "50.001"))
+			.andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+		map("ALL", true, Map.of("measuredAt", Instant.now().minusSeconds(31).toString()))
+			.andExpect(status().isBadRequest());
+		map("ALL", true, Map.of("measuredAt", Instant.now().plusSeconds(11).toString()))
+			.andExpect(status().isBadRequest());
+		open(target.getId(), "{\"latitude\":35,\"longitude\":129}")
+			.andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+		open(target.getId(), "{\"latitude\":35,\"longitude\":129,\"accuracyMeters\":10,"
+			+ "\"measuredAt\":\"2026-10-28T00:00:00Z\"}").andExpect(status().isBadRequest());
+		open(target.getId(), locationBody(35, 129)).andExpect(status().isOk());
 	}
 
 	@Test

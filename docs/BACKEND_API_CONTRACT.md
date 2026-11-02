@@ -92,10 +92,10 @@
 
 내부 공통 입력은 `LocationInput(latitude, longitude, accuracyMeters, measuredAt)`으로 정한다. 기존 API의 `latitude`·`longitude` 이름을 유지하고, 컨트롤러에서 내부 입력으로 변환한다.
 
-- 좌표는 유한한 숫자이며 허용 범위를 검증한다. `accuracyMeters`는 유한한 0 이상의 미터 값, `measuredAt`은 UTC 시각이다.
+- 좌표는 유한한 숫자이며 허용 범위를 검증한다. 거리 판정에 위치를 제공할 때는 `accuracyMeters`(미터)와 `measuredAt`(UTC 시각)을 둘 다 제공한다.
 - 위치 입력 자체가 없는 경우와 일부 필드만 들어온 잘못된 입력을 구분한다. 잘못된 형식은 `400 INVALID_REQUEST`다.
 - 작성에는 현재 위치가 필요하다. 열람은 작성자·저장 거리 예외를 먼저 고려하고, 거리가 필요한 경우에만 위치를 요구한다.
-- 정확도 허용치·측정 유효 시간·미래 시각 허용 오차는 아직 확정되지 않았다. 위치·열람 담당이 설정값으로 분리하고 적용 전에 기준을 문서화한다.
+- **임의로 정한 초기 기준(기획 미확정):** 정확도 `50m 이하`, 서버 검증 시각 기준 측정 후 `30초 이내`, 미래 시각 `10초 이내`만 허용한다. 경계값은 포함한다. 누락·초과·오래된 측정값은 `400 INVALID_REQUEST`다. 위치를 아예 생략하면 지도 탐색과 본인·저장 쪽지의 거리 예외는 유지되지만, 타인 미저장 쪽지는 열람할 수 없다. 운영 값은 `NOTE_LOCATION_MAX_ACCURACY_METERS`, `NOTE_LOCATION_MAX_AGE_SECONDS`, `NOTE_LOCATION_FUTURE_TOLERANCE_SECONDS`로 조정한다. 이 기준은 팀의 기획 확정 후 재검토한다.
 
 ## 5. 백엔드 공통 조회 인터페이스
 

@@ -90,7 +90,10 @@ abstract class MemberMapTestSupport {
 		var request = get("/api/v1/notes").header("Authorization", "Bearer " + token);
 		Map<String, String> params = new java.util.HashMap<>(Map.of("minLatitude", "34.99", "minLongitude", "128.99",
 			"maxLatitude", "35.01", "maxLongitude", "129.01", "filter", filter));
-		if (location) { params.put("latitude", "35"); params.put("longitude", "129"); }
+		if (location) {
+			params.put("latitude", "35"); params.put("longitude", "129");
+			params.put("accuracyMeters", "10"); params.put("measuredAt", Instant.now().toString());
+		}
 		params.putAll(extra);
 		params.forEach(request::param);
 		return mvc.perform(request);
@@ -99,6 +102,11 @@ abstract class MemberMapTestSupport {
 	protected ResultActions open(UUID id, String body) throws Exception {
 		return mvc.perform(post("/api/v1/notes/{id}/open", id).header("Authorization", "Bearer " + token)
 			.contentType(MediaType.APPLICATION_JSON).content(body));
+	}
+
+	protected String locationBody(double latitude, double longitude) {
+		return "{\"latitude\":" + latitude + ",\"longitude\":" + longitude
+			+ ",\"accuracyMeters\":10,\"measuredAt\":\"" + Instant.now() + "\"}";
 	}
 
 	protected JsonNode data(ResultActions result) throws Exception {

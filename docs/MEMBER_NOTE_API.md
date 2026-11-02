@@ -105,7 +105,7 @@
 
 ## 4. 내 쪽지 열람·담당 경계
 
-`POST /api/v1/notes/{noteId}/open`에 회원 토큰과 `{}`를 전달한다. 내 쪽지는 위치 없이, 또는 멀리 떨어진 위치에서도 열람할 수 있다. 본문 생략도 허용한다. 좌표를 보낼 때는 두 필드를 함께 보내며 범위를 검증한다.
+`POST /api/v1/notes/{noteId}/open`에 회원 토큰과 `{}`를 전달한다. 내 쪽지는 위치 없이, 또는 멀리 떨어진 위치에서도 열람할 수 있다. 본문 생략도 허용한다. 현재 좌표를 보낼 때는 `latitude`, `longitude`, `accuracyMeters`, `measuredAt`을 함께 보내며 [공통 위치 입력 기준](BACKEND_API_CONTRACT.md#위치-입력)을 검증한다. 허용 수치는 기획 미확정 상태에서 임의로 정한 초기값이다.
 
 기존 `noteId/content/isMine/createdAt`에 `visibility/color/placeName/neighborhood`를 추가한 `data`를 반환한다. 익명 작성자 UUID는 포함하지 않는다.
 
