@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 export function useUserLocation() {
   const [userCoordinates, setUserCoordinates] =
     useState<Location.LocationObjectCoords | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'permission' | 'locating' | 'ready' | 'denied' | 'error'>('permission');
 
   useEffect(() => {
     let cancelled = false;
@@ -17,10 +18,12 @@ export function useUserLocation() {
       if (cancelled) return;
 
       if (status !== 'granted') {
+        setLocationStatus('denied');
         console.log('위치 권한이 거부되었습니다.');
         return;
       }
 
+      setLocationStatus('locating');
       subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
@@ -28,13 +31,17 @@ export function useUserLocation() {
           timeInterval: 1000,
         },
         ({ coords }) => {
-          if (!cancelled) setUserCoordinates(coords);
+          if (!cancelled) {
+            setUserCoordinates(coords);
+            setLocationStatus('ready');
+          }
         },
       );
       if (cancelled) subscription.remove();
     };
 
     startLocationTracking().catch((error) => {
+      if (!cancelled) setLocationStatus('error');
       console.warn('위치를 가져오지 못했습니다.', error);
     });
 
@@ -44,5 +51,5 @@ export function useUserLocation() {
     };
   }, []);
 
-  return { userCoordinates, setUserCoordinates };
+  return { userCoordinates, setUserCoordinates, locationStatus };
 }

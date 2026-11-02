@@ -24,20 +24,20 @@ import com.yeoginamgim.common.api.GlobalExceptionHandler;
 import com.yeoginamgim.common.auth.BearerTokenExtractor;
 import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
-import com.yeoginamgim.note.dto.NoteMarkerResponse;
-import com.yeoginamgim.note.dto.NoteMarkersResponse;
+import com.yeoginamgim.note.dto.MemberMapResponse;
 import com.yeoginamgim.note.dto.NoteOpenResponse;
 import com.yeoginamgim.note.service.NoteService;
 import com.yeoginamgim.note.service.NoteOpenService;
+import com.yeoginamgim.note.service.NoteMapService;
 
 class NoteControllerTests {
 	@Test
 	void opensNoteWithValidCoordinates() throws Exception {
 		UUID noteId = UUID.randomUUID();
-		when(noteOpenService.open(eq("guest-token"), eq(noteId), any()))
+		when(noteOpenService.open(eq("member-token"), eq(noteId), any()))
 			.thenReturn(new NoteOpenResponse(noteId, "내용", false, Instant.parse("2026-09-29T01:30:00Z")));
 		mockMvc.perform(post("/api/v1/notes/{noteId}/open", noteId)
-				.header("Authorization", "Bearer guest-token")
+				.header("Authorization", "Bearer member-token")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"latitude\":35.1797,\"longitude\":129.0755}"))
 			.andExpect(status().isOk())
@@ -47,13 +47,13 @@ class NoteControllerTests {
 	@Test
 	void rejectsMalformedNoteIdAndCoordinates() throws Exception {
 		mockMvc.perform(post("/api/v1/notes/not-a-uuid/open")
-				.header("Authorization", "Bearer guest-token")
+				.header("Authorization", "Bearer member-token")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"latitude\":35.0,\"longitude\":129.0}"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
 		mockMvc.perform(post("/api/v1/notes/{noteId}/open", UUID.randomUUID())
-				.header("Authorization", "Bearer guest-token")
+				.header("Authorization", "Bearer member-token")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"latitude\":91.0,\"longitude\":129.0}"))
 			.andExpect(status().isBadRequest())
@@ -61,25 +61,26 @@ class NoteControllerTests {
 	}
 	private final NoteService noteService = mock(NoteService.class);
 	private final NoteOpenService noteOpenService = mock(NoteOpenService.class);
+	private final NoteMapService noteMapService = mock(NoteMapService.class);
 	private MockMvc mockMvc;
 
 	@BeforeEach
 	void setUp() {
 		mockMvc = MockMvcBuilders
-			.standaloneSetup(new NoteController(noteService, noteOpenService, new BearerTokenExtractor()))
+			.standaloneSetup(new NoteController(noteService, noteOpenService, noteMapService, new BearerTokenExtractor()))
 			.setControllerAdvice(new GlobalExceptionHandler())
 			.build();
 	}
 
 	@Test
-	void createsNoteWithGuestBearerToken() throws Exception {
+	void createsNoteWithMemberBearerToken() throws Exception {
 		UUID noteId = UUID.randomUUID();
 		Instant createdAt = Instant.parse("2026-09-29T01:30:00Z");
-		when(noteService.create(eq("guest-token"), any(NoteCreateRequest.class)))
+		when(noteService.create(eq("member-token"), any(NoteCreateRequest.class)))
 			.thenReturn(new NoteCreateResponse(noteId, createdAt));
 
 		mockMvc.perform(post("/api/v1/notes")
-				.header("Authorization", "Bearer guest-token")
+				.header("Authorization", "Bearer member-token")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -95,7 +96,7 @@ class NoteControllerTests {
 	}
 
 	@Test
-	void rejectsRequestWithoutGuestToken() throws Exception {
+	void rejectsRequestWithoutBearerToken() throws Exception {
 		mockMvc.perform(post("/api/v1/notes")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -110,7 +111,7 @@ class NoteControllerTests {
 	@Test
 	void rejectsBlankContentAndOutOfRangeCoordinates() throws Exception {
 		mockMvc.perform(post("/api/v1/notes")
-				.header("Authorization", "Bearer guest-token")
+				.header("Authorization", "Bearer member-token")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{"content":"   ","latitude":91.0,"longitude":181.0}
@@ -124,13 +125,13 @@ class NoteControllerTests {
 	@Test
 	void returnsMarkersInsideMapBoundsWithoutContent() throws Exception {
 		UUID noteId = UUID.randomUUID();
-		when(noteService.findMarkers(eq("guest-token"), any()))
-			.thenReturn(new NoteMarkersResponse(List.of(
-				new NoteMarkerResponse(noteId, 35.1796, 129.0756, true)
-			)));
+		when(noteMapService.find(eq("member-token"), any()))
+			.thenReturn(new MemberMapResponse(List.of(
+				new MemberMapResponse.Marker(noteId, 35.1796, 129.0756, true, null, null, null, null, null, null)
+			), List.of(), 0, 100, false));
 
 		mockMvc.perform(get("/api/v1/notes")
-				.header("Authorization", "Bearer guest-token")
+				.header("Authorization", "Bearer member-token")
 				.param("minLatitude", "35.17")
 				.param("minLongitude", "129.06")
 				.param("maxLatitude", "35.19")
@@ -147,7 +148,7 @@ class NoteControllerTests {
 	@Test
 	void rejectsInvalidMapBounds() throws Exception {
 		mockMvc.perform(get("/api/v1/notes")
-				.header("Authorization", "Bearer guest-token")
+				.header("Authorization", "Bearer member-token")
 				.param("minLatitude", "35.19")
 				.param("minLongitude", "129.09")
 				.param("maxLatitude", "35.17")

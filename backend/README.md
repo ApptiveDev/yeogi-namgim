@@ -6,7 +6,7 @@ Spring Initializr로 생성한 백엔드 기본 프로젝트입니다.
 
 회원 전환 및 백엔드 병렬 개발의 후속 구현 기준은 [백엔드 공통 API 계약](../docs/BACKEND_API_CONTRACT.md)을 확인합니다. 현재 구현과 신규 계약, 담당 경계 및 기획 미정 사항을 구분해 정리한 문서이며, 실제 기능 구현 완료를 의미하지 않습니다.
 
-이메일 인증·회원가입·로그인·내 프로필 조회를 추가했습니다. [이메일 인증 API 사용법](../docs/EMAIL_AUTH_API.md)에서 비밀번호 규칙, 요청 예시와 SMTP·비밀키 설정을 확인합니다. 회원 API는 `AUTH_ENABLED=true`와 필수 설정을 준비한 뒤 사용할 수 있으며, 기존 비회원 API도 유지합니다.
+이메일 인증·회원가입·로그인·내 프로필 조회를 추가했습니다. [이메일 인증 API 사용법](../docs/EMAIL_AUTH_API.md)에서 비밀번호 규칙, 요청 예시와 SMTP·비밀키 설정을 확인합니다. 회원 API는 `AUTH_ENABLED=true`와 필수 설정을 준비한 뒤 사용할 수 있으며, 비회원 API는 종료했습니다.
 
 로그인은 Access·Refresh Token 쌍을 발급합니다. [토큰 재발급·로그아웃 API](../docs/TOKEN_SESSION_API.md)에서 토큰 교체·재사용 탐지·로그아웃 시 즉시 무효화·기존 토큰 전환 규칙을 확인합니다.
 
@@ -81,21 +81,9 @@ cd backend
 
 Windows에서는 `gradlew.bat bootRun`을 사용합니다. 첫 실행에는 Gradle과 의존성 다운로드를 위한 인터넷 연결이 필요합니다.
 
-기본 포트는 `8080`입니다. `/api/v1/guest-sessions`에서 비회원 세션을 발급하고, 발급받은 Bearer 토큰으로 `POST /api/v1/notes`에서 현재 위치에 쪽지를 작성할 수 있습니다. `GET /api/v1/notes`에 최소·최대 위도와 경도를 전달하면 해당 지도 범위의 마커 데이터를 조회할 수 있습니다. 별도 루트 API가 없으므로 `/` 요청은 `404`를 반환합니다. 서버 종료는 `Ctrl+C`를 사용합니다.
+기본 포트는 `8080`입니다. 회원 가입·로그인 후 Access Token으로 쪽지를 작성·조회·열람합니다. `AUTH_ENABLED=true`와 인증·메일 설정이 필요합니다. 비회원 세션·위치·주변 알림·푸시 토큰 API와 비회원 예약 푸시는 제거했습니다. 기존 비회원 토큰으로 쪽지를 요청하면 401을 반환합니다.
 
-### 앱 내 주변 쪽지 알림 조회
-
-앱은 현재 좌표와 비회원 Bearer 토큰으로 `GET /api/v1/notifications/nearby?latitude=35.1797&longitude=129.0755`를 호출할 수 있습니다. 서버는 PostGIS로 500m 안의 쪽지 존재 여부만 판정합니다.
-
-```json
-{
-  "success": true,
-  "data": { "hasNearbyNotes": true },
-  "meta": { "requestId": "req_...", "timestamp": "2026-09-29T05:30:00Z" }
-}
-```
-
-응답에는 쪽지 ID·좌표·내용이 없습니다. 앱은 `hasNearbyNotes`를 이용해 화면 내 안내 표시 여부와 반복 표시 간격을 결정합니다. 좌표 누락·범위 오류는 `400 INVALID_REQUEST`, 비회원 토큰 오류는 `401 UNAUTHORIZED`로 반환합니다.
+타인의 미저장 쪽지는 150m 이하에서 열람할 수 있습니다. 본인과 접근 권한이 있는 저장 쪽지의 거리 예외는 유지합니다. 지도 마커는 화면 영역 기준으로 조회합니다. 기존 비회원 DB 기록은 보존하지만 회원에게 자동 귀속하거나 노출하지 않습니다.
 
 ## 빌드 및 테스트
 
@@ -123,12 +111,13 @@ java -jar build/libs/yeogi-namgim-0.0.1-SNAPSHOT.jar
 - `V7__create_member_auth_sessions.sql`은 회원 로그인 세션과 사용한 Refresh Token 해시 이력을 저장합니다.
 - `V8__extend_notes_for_members.sql`은 회원 쪽지 작성자·공개 범위·색상·장소와 작성자 단일 참조 제약 및 내 쪽지 정렬 인덱스를 추가합니다. 사용법과 담당 경계는 [회원 쪽지 API](../docs/MEMBER_NOTE_API.md)를 따릅니다.
 - `V9__create_friendships_and_invitations.sql`은 일회용 친구 초대와 중복 없는 상호 친구 관계를 추가합니다. API·설정·공통 조회 계약은 [친구 API](../docs/FRIEND_API.md)를 따릅니다.
+- `V10__index_member_note_map_bounds.sql`은 회원 지도 화면 범위 조회를 위한 geometry 부분 공간 인덱스를 추가합니다. 최신 정책·조회·저장 담당 인계는 [회원 지도 API](../docs/MEMBER_MAP_API.md)를 따릅니다.
 - 애플리케이션 테이블과 Flyway 이력은 `app` 스키마에 관리합니다. 접속 시 `app,public` 순서로 스키마를 검색합니다.
 - JPA는 `ddl-auto=validate`를 사용하며 테이블을 자동 생성하거나 수정하지 않습니다.
 - 후속 변경은 마지막 적용 버전 다음의 새 마이그레이션 파일로 추가하고, 이미 적용한 파일은 수정하지 않습니다.
 
 ## 초기 설정 범위
 
-현재 프로젝트는 기본 실행 환경, 비회원 세션 발급 API, 비회원 쪽지 작성 API 및 지도 범위 쪽지 조회 API를 포함합니다. 쪽지 열람, FCM 및 나머지 서비스 API는 후속 작업에서 추가합니다.
+현재 프로젝트는 이메일 회원 인증·세션, 회원 쪽지 작성·조회·열람, 친구 관계와 회원 지도 필터를 제공합니다. 회원 알림·푸시, 저장·읽음 쓰기와 보관함은 후속 작업입니다.
 
 협업 규칙은 [협업 가이드](../docs/CONTRIBUTING.md)를 따릅니다.

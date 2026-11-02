@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
-import com.yeoginamgim.guest.service.InvalidGuestTokenException;
+import com.yeoginamgim.auth.service.AuthException;
 
 class BearerTokenExtractorTests {
 	private final BearerTokenExtractor extractor = new BearerTokenExtractor();
@@ -18,10 +18,10 @@ class BearerTokenExtractorTests {
 	@Test
 	void rejectsMissingOrMalformedHeader() {
 		assertThatThrownBy(() -> extractor.extract(null))
-			.isInstanceOf(InvalidGuestTokenException.class);
+			.isInstanceOf(AuthException.class);
 		assertThatThrownBy(() -> extractor.extract("guest-token"))
-			.isInstanceOf(InvalidGuestTokenException.class);
+			.isInstanceOf(AuthException.class);
 		assertThatThrownBy(() -> extractor.extract("Bearer "))
-			.isInstanceOf(InvalidGuestTokenException.class);
+			.isInstanceOf(AuthException.class);
 	}
 }
