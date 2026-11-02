@@ -4,7 +4,7 @@
 
 ## 요청과 범위
 
-기존 `GET /api/v1/notes`를 유지한다. 회원은 `Authorization: Bearer <accessToken>`을 사용한다. 비회원 토큰 요청은 기존 비회원 지도 응답만 반환하며 회원 데이터와 섞지 않는다. 모든 지도 응답은 `Cache-Control: no-store`다.
+기존 `GET /api/v1/notes`를 유지한다. 회원은 `Authorization: Bearer <accessToken>`을 사용한다. 비회원 토큰 요청은 `401 UNAUTHORIZED`로 거절한다. 기존 비회원 데이터는 회원 지도에 노출하지 않는다. 모든 지도 응답은 `Cache-Control: no-store`다.
 
 ```text
 GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLongitude=129.01&filter=ALL&latitude=35&longitude=129&page=0&size=100
@@ -12,7 +12,7 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 
 | 입력 | 규칙 |
 | --- | --- |
-| `minLatitude/minLongitude/maxLatitude/maxLongitude` | 필수, 위도 -90~90·경도 -180~180, 최소 ≤ 최대. 화면의 사각형 범위이며 200m 조회 반경이 아님 |
+| `minLatitude/minLongitude/maxLatitude/maxLongitude` | 필수, 위도 -90~90·경도 -180~180, 최소 ≤ 최대. 화면의 사각형 범위이며 150m 조회 반경이 아님 |
 | `filter` | 기본 `ALL`, `ALL/FRIENDS/MINE/SAVED` |
 | `latitude/longitude` | 현재 사용자 위치, 둘 다 생략하거나 둘 다 제공. 화면 중심과 별개 |
 | `accuracyMeters/measuredAt` | 선택적인 측정 정확도(유한한 0 이상)·ISO UTC 시각. 좌표 없이 메타데이터만 제공하면 400 |
@@ -89,7 +89,7 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 
 - 내가 쓴 쪽지: 위치·거리 무관 OPENABLE.
 - 현재 노출 권한이 있고 실제 저장 관계가 있는 쪽지: 위치·거리 무관 OPENABLE.
-- 그 외 노출 가능한 타인 쪽지: 위치 없음 LOCATION_REQUIRED, 거리 ≤200m OPENABLE, 초과 LOCKED.
+- 그 외 노출 가능한 타인 쪽지: 위치 없음 LOCATION_REQUIRED, 거리 ≤150m OPENABLE, 초과 LOCKED.
 - 다른 사람의 PRIVATE 또는 현재 친구가 아닌 작성자의 FRIENDS: HIDDEN.
 
 `POST /api/v1/notes/{noteId}/open`은 요청한 현재 좌표로 매번 다시 판정한다. 잠긴 쪽지는 403 NOTE_LOCKED, 위치 필요는 403 LOCATION_REQUIRED, 존재하지 않거나 권한 없는 쪽지는 404다. 프론트는 이 오류를 예전 잠금 상세·길찾기·‘가까이 가야’ 팝업으로 확장하지 않는다. 전체 지도 상세에는 작성자 회원 ID나 닉네임을 추가하지 않는다.
@@ -116,8 +116,8 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 
 새 마이그레이션은 기존 notes 테이블에 회원 지도용 공간 인덱스를 추가하는 **V10**이다. V1~V9는 수정하지 않았다. 후속 번호는 최신 병합 상태를 확인하고 V11부터 할당한다.
 
-프론트 인계: 회원 토큰·이 API 연결, 완전한 페이지 집합으로 물방울과 개수 조립, 화면상 200m 원의 너비가 화면 너비의 1/3인지 판정, 열람 가능 한 개/여러 개 분기, 최신 좌표로 상세 재검증, 익명·친구 이름 구분을 적용한다. 이 PR에서 최종 회원 지도 UI를 새로 구현하지 않았다.
+프론트 인계: 회원 토큰·이 API 연결, 완전한 페이지 집합으로 물방울과 개수 조립, 화면상 150m 원의 너비가 화면 너비의 1/3인지 판정, 열람 가능 한 개/여러 개 분기, 최신 좌표로 상세 재검증, 익명·친구 이름 구분을 적용한다. 이 PR에서 최종 회원 지도 UI를 새로 구현하지 않았다.
 
-검증은 실제 PostgreSQL/PostGIS에서 공개 범위·친구 전용·익명·현재 위치 없음·200m 경계·이동 후 재잠금·친구 해제 후 재검사·화면 경계·넓은 세계 범위·페이지·저장/읽음 소스 연결을 포함한다. 기존 비회원 화면에서 친구·개인 선택값이 요청에서 빠지는 문제는 프론트 담당의 후속 수정 대상으로 인계한다. 이번 PR에는 frontend 경로의 변경을 포함하지 않는다.
+검증은 실제 PostgreSQL/PostGIS에서 공개 범위·친구 전용·익명·현재 위치 없음·150m 경계·이동 후 재잠금·친구 해제 후 재검사·화면 경계·넓은 세계 범위·페이지·저장/읽음 소스 연결을 포함한다. 비회원 API는 종료했으므로 프론트 담당은 회원 인증 흐름으로 연결해야 한다. 이번 PR에는 frontend 경로의 변경을 포함하지 않는다.
 
 거리·인덱스 참고: [PostGIS ST_Distance](https://postgis.net/docs/ST_Distance.html), [ST_DWithin](https://postgis.net/docs/ST_DWithin.html).

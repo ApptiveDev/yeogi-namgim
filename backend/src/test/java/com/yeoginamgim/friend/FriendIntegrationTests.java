@@ -40,7 +40,7 @@ import com.yeoginamgim.friend.service.FriendException;
 import com.yeoginamgim.friend.service.FriendInvitationCodeCodec;
 import com.yeoginamgim.friend.service.FriendService;
 import com.yeoginamgim.friend.service.FriendshipQueryService;
-import com.yeoginamgim.guest.service.GuestSessionService;
+import com.yeoginamgim.LegacyGuestFixtures;
 import com.yeoginamgim.user.domain.Member;
 import com.yeoginamgim.user.repository.MemberRepository;
 
@@ -58,7 +58,7 @@ class FriendIntegrationTests {
 	@Autowired private JdbcTemplate jdbc;
 	@Autowired private MemberRepository members;
 	@Autowired private MemberSessionService sessions;
-	@Autowired private GuestSessionService guests;
+	@Autowired private LegacyGuestFixtures guests;
 	@Autowired private FriendService friends;
 	@Autowired private FriendshipRepository relationships;
 	@Autowired private FriendInvitationRepository invitations;

@@ -31,8 +31,8 @@ import org.springframework.web.context.WebApplicationContext;
 import com.yeoginamgim.auth.dto.AuthResponses.TokenPair;
 import com.yeoginamgim.auth.service.MemberSessionService;
 import com.yeoginamgim.auth.service.VerificationMailSender;
-import com.yeoginamgim.guest.dto.GuestSessionCreateResponse;
-import com.yeoginamgim.guest.service.GuestSessionService;
+import com.yeoginamgim.LegacyGuestFixtures.Guest;
+import com.yeoginamgim.LegacyGuestFixtures;
 import com.yeoginamgim.note.domain.Note;
 import com.yeoginamgim.note.domain.NoteVisibility;
 import com.yeoginamgim.note.repository.NoteRepository;
@@ -56,7 +56,7 @@ class MemberNoteIntegrationTests {
 	@Autowired private JdbcTemplate jdbc;
 	@Autowired private MemberRepository members;
 	@Autowired private MemberSessionService sessions;
-	@Autowired private GuestSessionService guests;
+	@Autowired private LegacyGuestFixtures guests;
 	@Autowired private NoteRepository notes;
 	@Autowired private NearbyNotificationRepository nearby;
 	@Autowired private PushDeliveryRepository push;
@@ -65,7 +65,7 @@ class MemberNoteIntegrationTests {
 	private MockMvc mvc;
 	private Member member;
 	private TokenPair tokens;
-	private GuestSessionCreateResponse guest;
+	private Guest guest;
 
 	@BeforeEach
 	void setUp() {
@@ -138,7 +138,7 @@ class MemberNoteIntegrationTests {
 		}
 		var other = sessions.open(newMember().getId());
 		create(other.accessToken(), request("PRIVATE")).andExpect(status().isCreated());
-		create(guest.guestToken(), guestRequest()).andExpect(status().isCreated());
+		create(guest.guestToken(), guestRequest()).andExpect(status().isUnauthorized());
 		mvc.perform(get("/api/v1/users/me/notes").header("Authorization", "Bearer " + tokens.accessToken()))
 			.andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
 			.andExpect(jsonPath("$.data.notes.length()").value(3))
@@ -194,10 +194,13 @@ class MemberNoteIntegrationTests {
 		var other = sessions.open(newMember().getId());
 		for (String visibility : List.of("PUBLIC", "FRIENDS", "PRIVATE")) {
 			UUID noteId = id(create(tokens.accessToken(), request(visibility)).andExpect(status().isCreated()));
+			notes.flush();
 			for (String token : List.of(guest.guestToken(), other.accessToken())) {
 				var result = open(token, noteId, "{\"latitude\":35.1796,\"longitude\":129.0756}");
 				if (token.equals(other.accessToken()) && visibility.equals("PUBLIC")) {
 					result.andExpect(status().isOk());
+				} else if (token.equals(guest.guestToken())) {
+					result.andExpect(status().isUnauthorized());
 				} else {
 					result.andExpect(status().isNotFound())
 						.andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"))
@@ -208,22 +211,13 @@ class MemberNoteIntegrationTests {
 		mvc.perform(get("/api/v1/notes").header("Authorization", "Bearer " + guest.guestToken())
 			.param("minLatitude", "35.17").param("minLongitude", "129.06")
 			.param("maxLatitude", "35.19").param("maxLongitude", "129.09"))
-			.andExpect(status().isOk()).andExpect(jsonPath("$.data.notes.length()").value(0));
+			.andExpect(status().isUnauthorized());
 	}
 
 	@Test
-	void preservesGuestCreationAndNearbyOpeningAndRequiresLocation() throws Exception {
-		UUID noteId = id(create(guest.guestToken(), guestRequest()).andExpect(status().isCreated()));
-		Note saved = notes.findById(noteId).orElseThrow();
-		assertThat(saved.getGuestAuthorId()).isEqualTo(guest.guestId());
-		assertThat(saved.getAuthorUserId()).isNull();
-		assertThat(saved.getVisibility()).isEqualTo(NoteVisibility.PUBLIC);
-		open(guest.guestToken(), noteId, "{\"latitude\":35.1796,\"longitude\":129.0756}")
-			.andExpect(status().isOk()).andExpect(jsonPath("$.data.isMine").value(true));
-		open(guest.guestToken(), noteId, "{\"latitude\":36,\"longitude\":129}")
-			.andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("NOTE_LOCKED"));
-		open(guest.guestToken(), noteId, "{}").andExpect(status().isBadRequest());
-		create(guest.guestToken(), request("PRIVATE")).andExpect(status().isBadRequest());
+	void rejectsLegacyGuestCreationAndOpening() throws Exception {
+		create(guest.guestToken(), guestRequest()).andExpect(status().isUnauthorized());
+		open(guest.guestToken(), UUID.randomUUID(), "{}").andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -283,6 +277,24 @@ class MemberNoteIntegrationTests {
 				}
 				return null;
 			});
+		}
+	}
+
+	@Test
+	void guestOnlyEndpointsAreRemovedEvenWithMemberAuthentication() throws Exception {
+		for (String token : List.of(guest.guestToken(), tokens.accessToken())) {
+			mvc.perform(post("/api/v1/guest-sessions").header("Authorization", "Bearer " + token))
+				.andExpect(status().isNotFound());
+			mvc.perform(get("/api/v1/notifications/nearby").header("Authorization", "Bearer " + token)
+				.param("latitude", "35").param("longitude", "129")).andExpect(status().isNotFound());
+			mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/locations/current")
+				.header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"latitude\":35,\"longitude\":129}")).andExpect(status().isNotFound());
+			mvc.perform(post("/api/v1/push-tokens").header("Authorization", "Bearer " + token)
+				.contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isNotFound());
+			mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/push-tokens/" + UUID.randomUUID())
+				.header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"enabled\":true}")).andExpect(status().isNotFound());
 		}
 	}
 
