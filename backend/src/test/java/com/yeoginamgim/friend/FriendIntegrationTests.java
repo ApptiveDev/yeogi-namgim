@@ -1,6 +1,7 @@
 package com.yeoginamgim.friend;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -234,6 +235,23 @@ class FriendIntegrationTests {
 		}
 		mvc.perform(post("/api/v1/friends/invitations")).andExpect(status().isUnauthorized());
 		mvc.perform(get("/api/v1/friends")).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void removeFriendIsSymmetricIdempotentAndCannotAffectOtherPairs() throws Exception {
+		relationships.create(first.getId(), second.getId(), Instant.now());
+		relationships.create(second.getId(), third.getId(), Instant.now());
+		mvc.perform(delete("/api/v1/friends/{id}", second.getId()).header("Authorization", "Bearer " + firstTokens.accessToken()))
+			.andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
+			.andExpect(jsonPath("$.data.removed").value(true));
+		assertThat(query.countFriends(first.getId())).isZero();
+		assertThat(query.findFriendIds(second.getId(), Set.of(first.getId(), third.getId()))).containsExactly(third.getId());
+		mvc.perform(delete("/api/v1/friends/{id}", second.getId()).header("Authorization", "Bearer " + firstTokens.accessToken()))
+			.andExpect(status().isOk());
+		mvc.perform(delete("/api/v1/friends/{id}", third.getId())).andExpect(status().isUnauthorized());
+		mvc.perform(delete("/api/v1/friends/{id}", "not-a-uuid").header("Authorization", "Bearer " + firstTokens.accessToken()))
+			.andExpect(status().isBadRequest());
+		assertThat(query.findFriendIds(second.getId(), Set.of(third.getId()))).containsExactly(third.getId());
 	}
 
 	@Test

@@ -150,3 +150,9 @@ PostgreSQL·PostGIS DB를 실행한 `backend/`에서 `./gradlew test --tests 'co
 현재 친구 소식 카드 모델에 `noteId → id`, `friendId/nickname → friend.id/displayName`, `createdAt → createdAt`을 연결한다. `locationLabel`은 `placeName → neighborhood → 장소 정보 없음` 순서로 표시할 수 있다. 프로필 이미지는 제공하지 않으므로 기존 기본 아바타를 사용한다. 실제 프론트 연결·푸시 알림은 이번 변경 범위에 포함하지 않는다.
 
 구현 기준은 main의 친구 소식 카드와 기존 확정 친구 지도 공개 정책이다. 소식 전용 정책이 별도로 정해지면 이 계약과 테스트를 함께 조정한다.
+
+## 친구 관계 해제
+
+`DELETE /api/v1/friends/{friendId}`는 인증된 회원과 지정한 회원 사이의 친구 관계를 해제한다. 양쪽 목록·친구 수에 반영되며 다른 회원 간 관계는 변경하지 않는다. 관계가 이미 없거나 본인을 지정한 경우에도 같은 성공 응답을 반환한다. `friendId`는 UUID 형식이어야 한다.
+
+회원 Access Token이 필요하다. 성공은 `200 OK`, `Cache-Control: no-store`이며 공통 응답의 `data`는 `{ "removed": true }`다. 인증 실패는 `401 UNAUTHORIZED`, 잘못된 UUID는 `400 INVALID_REQUEST`다. 해제 후 친구 공개 쪽지는 지도·소식·상세에서 현재 친구 관계를 다시 확인하므로 접근할 수 없다. 저장 쪽지에 관한 별도 정책은 확인 중이다.

@@ -64,6 +64,11 @@ public class FriendService {
 		return new Friend(invitation.inviterId(), invitation.nickname(), now);
 	}
 
+	@Transactional
+	public void removeFriend(UUID userId, UUID friendId) {
+		friendships.remove(userId, friendId);
+	}
+
 	@Transactional(readOnly = true)
 	public FriendList findFriends(UUID userId, FriendPageRequest page) {
 		var friends = friendships.findFriends(userId, page.size() + 1, page.page() * page.size());
