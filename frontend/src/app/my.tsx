@@ -37,7 +37,7 @@ export default function MyScreen() {
           <MyComingSoonSections />
         </ScrollView>
       )}
-      <BottomTabBar selectedTab="my" onAddPress={() => router.navigate({ pathname: '/', params: { compose: 'true' } })} />
+      <BottomTabBar selectedTab="my" onAddPress={() => router.dismissTo({ pathname: '/', params: { compose: 'true' } })} />
     </View>
   );
 }

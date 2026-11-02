@@ -74,7 +74,7 @@ export default function FriendsScreen() {
           </View>}
         />
       )}
-      <BottomTabBar selectedTab="friends" onAddPress={() => router.navigate({ pathname: '/', params: { compose: 'true' } })} />
+      <BottomTabBar selectedTab="friends" onAddPress={() => router.dismissTo({ pathname: '/', params: { compose: 'true' } })} />
       {isAddFriendOpen ? <FriendAddDialog onClose={() => setIsAddFriendOpen(false)} /> : null}
     </View>
   );

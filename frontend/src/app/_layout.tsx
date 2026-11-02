@@ -1,44 +1,36 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { Alert, useColorScheme } from 'react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useColorScheme } from 'react-native';
 
 import { StartupScreen } from '@/components/StartupScreen';
-import { getGuestToken } from '@/auth/guest-token';
+import { initializeSession } from '@/auth/member-session';
+import { useAuthSession } from '@/hooks/use-auth-session';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  // 비회원 key 발급
-  const started = useRef(false);
-  const [authStatus, setAuthStatus] = useState<'loading'|'ready'|'error'>('loading');
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    async function initializeGuest() {
-      try {
-        await getGuestToken();
-        setAuthStatus('ready');
-      } catch (error) {
-        setAuthStatus('error');
-        Alert.alert(error instanceof Error ? error.message : '비회원 토큰 발급 실패');
-      }
-    }
-    initializeGuest();
-  }, []);
-
   const colorScheme = useColorScheme();
+  const auth = useAuthSession();
+  const isLoggedIn = auth.status === 'authenticated';
+  if (auth.status === 'loading' || auth.status === 'error') {
+    return <StartupScreen message={auth.error ?? undefined}
+      actionLabel={auth.status === 'error' ? '다시 시도' : undefined}
+      onAction={() => { void initializeSession(true); }} />;
+  }
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {authStatus === 'ready' ? (
-        <Stack screenOptions={{ headerShown: false }} />
-      ) : (
-        <StartupScreen
-          message={authStatus === 'error'
-            ? '서버와의 연결에 실패했습니다. 앱을 다시 실행해 주세요.'
-            : undefined}
-        />
-      )}
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Protected guard={!isLoggedIn}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+        <Stack.Protected guard={isLoggedIn}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="storage" />
+          <Stack.Screen name="friends" />
+          <Stack.Screen name="my" />
+          <Stack.Screen name="settings" />
+        </Stack.Protected>
+      </Stack>
     </ThemeProvider>
   );
 }
