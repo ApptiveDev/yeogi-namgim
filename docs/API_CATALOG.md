@@ -40,7 +40,7 @@
 - [ ] 작성 쪽지·친구·저장 수: `GET /api/v1/users/me/stats` — [#79](https://github.com/ApptiveDev/yeogi-namgim/issues/79), [PR #80](https://github.com/ApptiveDev/yeogi-namgim/pull/80). 저장 수 조회 서비스가 없으면 응답값은 `null`이다.
 - [ ] 카카오 로그인: `POST /api/v1/auth/kakao` — **계획**
 - [ ] 기존 계정의 카카오 연결: `POST /api/v1/users/me/auth-accounts/kakao` — **제안**, 계정 연결 방식과 경로 확정 필요
-- [ ] 회원 탈퇴: `DELETE /api/v1/users/me` — **계획**, 작성 쪽지·연관 데이터 처리 정책 확정 필요
+- [ ] 회원 탈퇴: `DELETE /api/v1/users/me` — **PR 작업 중**, #103. 작성 쪽지는 익명으로 보존한다.
 
 ## 백엔드 B — 열람·위치·저장·보관함·알림
 
