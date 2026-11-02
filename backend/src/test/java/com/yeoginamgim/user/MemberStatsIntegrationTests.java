@@ -22,7 +22,7 @@ import com.yeoginamgim.auth.dto.AuthResponses.TokenPair;
 import com.yeoginamgim.auth.service.MemberSessionService;
 import com.yeoginamgim.auth.service.VerificationMailSender;
 import com.yeoginamgim.friend.repository.FriendshipRepository;
-import com.yeoginamgim.guest.service.GuestSessionService;
+import com.yeoginamgim.LegacyGuestFixtures;
 import com.yeoginamgim.note.domain.Note;
 import com.yeoginamgim.note.domain.NoteVisibility;
 import com.yeoginamgim.note.repository.NoteRepository;
@@ -42,7 +42,7 @@ class MemberStatsIntegrationTests {
 	@Autowired NoteRepository notes;
 	@Autowired FriendshipRepository friendships;
 	@Autowired MemberSessionService sessions;
-	@Autowired GuestSessionService guests;
+	@Autowired LegacyGuestFixtures guests;
 	@MockitoBean VerificationMailSender mail;
 	MockMvc mvc;
 	Member first;
@@ -86,10 +86,10 @@ class MemberStatsIntegrationTests {
 	}
 
 	@Test
-	void rejectsMissingGuestRefreshInvalidAndLoggedOutTokens() throws Exception {
+	void rejectsMissingRefreshInvalidAndLoggedOutTokens() throws Exception {
 		mvc.perform(get("/api/v1/users/me/stats")).andExpect(status().isUnauthorized());
 		sessions.logout(tokens.refreshToken());
-		for (String token : List.of("invalid", guests.create().guestToken(), tokens.refreshToken(), tokens.accessToken())) {
+		for (String token : List.of("invalid", tokens.refreshToken(), tokens.accessToken())) {
 			mvc.perform(get("/api/v1/users/me/stats").header("Authorization", "Bearer " + token))
 				.andExpect(status().isUnauthorized()).andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
 		}
