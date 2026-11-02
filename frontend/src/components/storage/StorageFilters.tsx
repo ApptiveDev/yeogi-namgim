@@ -23,8 +23,8 @@ type TabMeasurements = { slot?: TabLayout; content?: TabLayout };
 const INDICATOR_EXTRA_PADDING = 2;
 
 const INDICATOR_ANIMATION = {
-  duration: 260,
-  easing: Easing.bezier(0.22, 1, 0.36, 1),
+  duration: 280,
+  easing: Easing.bezier(0.2, 0, 0.2, 1),
   reduceMotion: ReduceMotion.System,
 };
 
