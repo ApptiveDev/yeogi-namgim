@@ -37,10 +37,15 @@ public class ArchiveService {
 		LocalDate date = request.date();
 		var start = date.atStartOfDay(SEOUL).toInstant();
 		var end = date.plusDays(1).atStartOfDay(SEOUL).toInstant();
-		var found = archive.find(userId, start, end, request);
-		var refs = found.stream().limit(request.size())
+		var position = ArchiveCursor.decode(request.cursor(), userId, request);
+		var found = archive.find(userId, start, end, request, position);
+		var page = found.stream().limit(request.size()).toList();
+		var refs = page.stream()
 			.map(item -> new Reference(item.noteId(), item.source(), item.savedAt(), null, null)).toList();
-		return new ArchiveNotesResponse(date, cards.assemble(userId, refs, null), request.page(), request.size(),
-			found.size() > request.size());
+		boolean hasNext = found.size() > request.size();
+		String nextCursor = hasNext ? ArchiveCursor.encode(userId, request,
+			page.getLast().createdAt(), page.getLast().noteId()) : null;
+		return new ArchiveNotesResponse(date, cards.assemble(userId, refs, null), request.size(),
+			hasNext, nextCursor);
 	}
 }

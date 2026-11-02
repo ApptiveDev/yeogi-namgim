@@ -91,6 +91,62 @@ class ArchiveIntegrationTests extends MemberMapTestSupport {
 			.andExpect(status().isBadRequest());
 	}
 
+	@Test
+	void cursorKeepsTieOrderWhenANewerNoteIsAddedBetweenPages() throws Exception {
+		Instant createdAt = Instant.parse("2026-11-02T03:00:00Z");
+		String date = "2026-11-02";
+		note(UUID.fromString("00000000-0000-0000-0000-000000000001"), me,
+			NoteVisibility.PUBLIC, 0, "내쪽지1", createdAt);
+		note(UUID.fromString("00000000-0000-0000-0000-000000000002"), me,
+			NoteVisibility.PUBLIC, 0, "내쪽지2", createdAt);
+		var saved1 = note(UUID.fromString("00000000-0000-0000-0000-000000000003"), friend,
+			NoteVisibility.PUBLIC, 10, "저장1", createdAt);
+		var saved2 = note(UUID.fromString("00000000-0000-0000-0000-000000000004"), stranger,
+			NoteVisibility.PUBLIC, 10, "저장2", createdAt);
+		save(saved1.getId(), "{\"latitude\":35,\"longitude\":129}").andExpect(status().isCreated());
+		save(saved2.getId(), "{\"latitude\":35,\"longitude\":129}").andExpect(status().isCreated());
+		var expected = ids(data(archive(date, "ALL", null).andExpect(status().isOk())).get("notes"));
+		var first = data(mvc.perform(get("/api/v1/users/me/archive/notes")
+			.header("Authorization", "Bearer " + token).param("date", date).param("size", "2"))
+			.andExpect(status().isOk()));
+		assertThat(ids(first.get("notes"))).containsExactlyElementsOf(expected.subList(0, 2));
+		assertThat(first.get("hasNext").asBoolean()).isTrue();
+		String cursor = first.get("nextCursor").asText();
+		note(UUID.randomUUID(), me, NoteVisibility.PUBLIC, 0, "새쪽지", createdAt.plusSeconds(1));
+		var second = data(mvc.perform(get("/api/v1/users/me/archive/notes")
+			.header("Authorization", "Bearer " + token).param("date", date).param("size", "2")
+			.param("cursor", cursor)).andExpect(status().isOk()));
+		assertThat(ids(second.get("notes"))).containsExactlyElementsOf(expected.subList(2, 4));
+		assertThat(second.get("hasNext").asBoolean()).isFalse();
+		assertThat(second.get("nextCursor").isNull()).isTrue();
+	}
+
+	@Test
+	void cursorRejectsMalformedOrDifferentQueryAndOldPageParameter() throws Exception {
+		String date = "2026-11-02";
+		note(UUID.randomUUID(), me, NoteVisibility.PUBLIC, 0, "첫쪽지",
+			Instant.parse("2026-11-02T03:00:00Z"));
+		note(UUID.randomUUID(), me, NoteVisibility.PUBLIC, 0, "둘째쪽지",
+			Instant.parse("2026-11-02T03:00:01Z"));
+		var first = data(mvc.perform(get("/api/v1/users/me/archive/notes")
+			.header("Authorization", "Bearer " + token).param("date", date).param("size", "1"))
+			.andExpect(status().isOk()));
+		String cursor = first.get("nextCursor").asText();
+		for (var params : java.util.List.of(
+			new String[] { "cursor", "invalid!" },
+			new String[] { "cursor", cursor, "type", "WRITTEN" },
+			new String[] { "page", "1" })) {
+			var request = get("/api/v1/users/me/archive/notes")
+				.header("Authorization", "Bearer " + token).param("date", date);
+			for (int i = 0; i < params.length; i += 2) request.param(params[i], params[i + 1]);
+			mvc.perform(request).andExpect(status().isBadRequest());
+		}
+		mvc.perform(get("/api/v1/users/me/archive/notes")
+			.header("Authorization", "Bearer " + token)
+			.param("date", "2026-11-03").param("cursor", cursor))
+			.andExpect(status().isBadRequest());
+	}
+
 	private ResultActions save(UUID noteId, String body) throws Exception {
 		return mvc.perform(post("/api/v1/notes/{id}/bookmarks", noteId)
 			.header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content(body));

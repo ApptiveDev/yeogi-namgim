@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import com.yeoginamgim.archive.dto.ArchiveCalendarResponse.Day;
 import com.yeoginamgim.archive.dto.ArchiveNotesRequest;
+import com.yeoginamgim.archive.service.ArchiveCursor;
 import com.yeoginamgim.note.repository.VisibleMemberNoteSql;
 
 @Repository
@@ -43,7 +44,8 @@ public class ArchiveRepository {
 				rs.getLong("saved_count")));
 	}
 
-	public List<Entry> find(UUID userId, Instant startAt, Instant endAt, ArchiveNotesRequest request) {
+	public List<Entry> find(UUID userId, Instant startAt, Instant endAt, ArchiveNotesRequest request,
+		ArchiveCursor.Position cursor) {
 		String written = WRITTEN;
 		if (request.writtenVisibility() != null && request.writtenVisibility() != ArchiveNotesRequest.WrittenVisibility.ALL) {
 			written += " AND n.visibility = :visibility";
@@ -59,21 +61,27 @@ public class ArchiveRepository {
 			case WRITTEN -> written;
 			case SAVED -> saved;
 		};
-		String sql = "SELECT * FROM (" + source + ") entries ORDER BY created_at DESC, note_id DESC, source DESC "
-			+ "LIMIT :limit OFFSET :offset";
+		String sql = "SELECT * FROM (" + source + ") entries";
+		if (cursor != null) {
+			sql += " WHERE (created_at < :cursorCreatedAt OR (created_at = :cursorCreatedAt AND note_id < :cursorNoteId))";
+		}
+		sql += " ORDER BY created_at DESC, note_id DESC LIMIT :limit";
 		Map<String, Object> params = new HashMap<>();
 		params.put("userId", userId);
 		params.put("startAt", java.sql.Timestamp.from(startAt));
 		params.put("endAt", java.sql.Timestamp.from(endAt));
 		params.put("limit", request.size() + 1);
-		params.put("offset", request.page() * request.size());
+		if (cursor != null) {
+			params.put("cursorCreatedAt", java.sql.Timestamp.from(cursor.createdAt()));
+			params.put("cursorNoteId", cursor.noteId());
+		}
 		if (request.writtenVisibility() != null && request.writtenVisibility() != ArchiveNotesRequest.WrittenVisibility.ALL) {
 			params.put("visibility", request.writtenVisibility().name());
 		}
 		return jdbc.query(sql, params, (rs, row) -> new Entry(rs.getObject("note_id", UUID.class),
-			rs.getString("source"), rs.getTimestamp("saved_at") == null ? null
+			rs.getTimestamp("created_at").toInstant(), rs.getString("source"), rs.getTimestamp("saved_at") == null ? null
 				: rs.getTimestamp("saved_at").toInstant()));
 	}
 
-	public record Entry(UUID noteId, String source, Instant savedAt) {}
+	public record Entry(UUID noteId, Instant createdAt, String source, Instant savedAt) {}
 }

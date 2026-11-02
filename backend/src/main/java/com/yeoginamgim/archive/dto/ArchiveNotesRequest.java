@@ -3,16 +3,16 @@ package com.yeoginamgim.archive.dto;
 import java.time.LocalDate;
 
 import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Size;
 
 public record ArchiveNotesRequest(@NotNull LocalDate date, ArchiveType type,
 	WrittenVisibility writtenVisibility, SavedCategory savedCategory,
-	@Min(0) @Max(10000) Integer page, @Min(1) @Max(100) Integer size) {
+	@Size(max = 512) String cursor, @Min(1) @Max(100) Integer size) {
 	public ArchiveNotesRequest {
 		if (type == null) type = ArchiveType.ALL;
-		if (page == null) page = 0;
 		if (size == null) size = 20;
 	}
 

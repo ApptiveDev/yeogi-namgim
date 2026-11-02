@@ -17,6 +17,7 @@ import com.yeoginamgim.archive.dto.ArchiveNotesResponse;
 import com.yeoginamgim.archive.service.ArchiveService;
 import com.yeoginamgim.common.api.ApiResponse;
 import com.yeoginamgim.common.auth.CurrentUserProvider;
+import com.yeoginamgim.note.service.InvalidNoteRequestException;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
@@ -41,7 +42,9 @@ public class ArchiveController {
 	}
 
 	@GetMapping("/notes")
-	public ResponseEntity<ApiResponse<ArchiveNotesResponse>> notes(@Valid @ModelAttribute ArchiveNotesRequest request) {
+	public ResponseEntity<ApiResponse<ArchiveNotesResponse>> notes(@Valid @ModelAttribute ArchiveNotesRequest request,
+		@RequestParam(required = false) String page) {
+		if (page != null) throw new InvalidNoteRequestException("보관함 목록은 page 대신 cursor를 사용합니다.");
 		return ResponseEntity.ok().cacheControl(CacheControl.noStore())
 			.body(ApiResponse.success(archive.find(currentUser.requireUserId(), request)));
 	}

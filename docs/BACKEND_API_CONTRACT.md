@@ -182,7 +182,7 @@ interface NoteAccessService {
 | 친구 초대·관계 | 친구 | 일회용 코드·수락으로 상호 관계 생성, 만료·재사용·자기 초대·중복 관계 검증 |
 | `GET /friends/notes/feed` | 친구 | 친구 공개 쪽지만, ID·위치·작성 시각·친구 이름 제공, 본문·미리보기 제외 |
 | `GET /users/me/archive/calendar` | 보관함 | 월별 작성 기록 날짜·저장 기록 날짜를 구분 |
-| `GET /users/me/archive/notes` | 보관함 | 날짜·1차/2차 필터에 맞는 카드, 작성 시각·미리보기·동네·작성자 구분·공개 범위 제공 |
+| `GET /users/me/archive/notes` | 보관함 | 날짜·1차/2차 필터에 맞는 카드, 작성 시각·미리보기·동네·작성자 구분·공개 범위 제공. 목록은 `cursor/size`로 이어서 조회하고 `nextCursor`를 반환 |
 | `GET /users/me/stats` | 계정·저장 | 작성 수·친구 수·저장 수 조립 |
 
 표에서 생략한 경로 접두사도 `/api/v1`이다. 신규 HTTP 요청·응답 DTO와 페이지네이션 상세는 해당 구현 이슈에서 예시와 함께 추가한다. `GET /health`, `/app-config`, 별도 클러스터·물방울 그룹 API는 현재 구현도 기획상 필수 API도 아니며 필요성을 확인한 뒤 추가한다.
