@@ -11,6 +11,14 @@ export function validateCode(value: string): string | undefined {
   if (value.length !== 6 || /[^0-9]/.test(value)) return '숫자 6자리 인증번호를 입력해 주세요.';
 }
 
+export function validateNickname(value: string): string | undefined {
+  const nickname = value.trim();
+  const length = Array.from(nickname).length;
+  if (length < 2 || length > 20 || /[\u0000-\u001f\u007f]/.test(nickname)) {
+    return '닉네임은 제어 문자 없이 2~20자로 입력해 주세요.';
+  }
+}
+
 function isPrintablePassword(value: string, minLength: number) {
   return value.length >= minLength && value.length <= 64 && !/[^\x21-\x7E]/.test(value);
 }
@@ -24,13 +32,10 @@ export function validateLogin(values: LoginValues) {
 }
 
 export function validateSignup(values: SignupValues) {
-  const nickname = values.nickname.trim();
-  const nicknameLength = Array.from(nickname).length;
   return {
     email: validateEmail(values.email),
     code: validateCode(values.code),
-    nickname: nicknameLength < 2 || nicknameLength > 20 || /[\u0000-\u001f\u007f]/.test(nickname)
-      ? '닉네임은 제어 문자 없이 2~20자로 입력해 주세요.' : undefined,
+    nickname: validateNickname(values.nickname),
     password: !isPrintablePassword(values.password, 8)
       || !/[A-Za-z]/.test(values.password) || !/[0-9]/.test(values.password) || !/[^A-Za-z0-9]/.test(values.password)
       ? '비밀번호는 공백 없이 영문·숫자·특수문자를 포함한 8~64자여야 해요.' : undefined,

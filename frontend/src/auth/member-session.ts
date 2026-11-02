@@ -12,10 +12,13 @@ let state = initialState;
 let initialization: Promise<void> | undefined;
 let refreshing: Promise<void> | undefined;
 let signingOut: Promise<void> | undefined;
+let memberSessionKey = 0;
 const listeners = new Set<() => void>();
 
 export const getAuthState = () => state;
 export const getInitialAuthState = () => initialState;
+// Changes only when the login changes, not when its tokens rotate.
+export const getMemberSessionKey = () => memberSessionKey;
 export function subscribeAuth(listener: () => void) {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
@@ -36,6 +39,7 @@ async function storeSession(session: Session | null) {
   else await SecureStore.deleteItemAsync(STORAGE_KEY);
 }
 async function clearSession(error: string | null = null) {
+  memberSessionKey += 1;
   try { await storeSession(null); }
   catch { error = '기기의 로그인 정보를 삭제하지 못했어요. 다시 로그인해 주세요.'; }
   publish({ status: 'signedOut', session: null, error });
@@ -69,6 +73,7 @@ export function refreshSession(): Promise<void> {
 
 export function initializeSession(retry = false) {
   if (initialization && (!retry || state.status === 'loading')) return initialization;
+  memberSessionKey += 1;
   publish({ status: 'loading', session: null, error: null });
   initialization = (async () => {
     try {
@@ -99,7 +104,41 @@ export function initializeSession(retry = false) {
 
 export async function signIn(email: string, password: string) {
   const requestedAt = Date.now();
-  await saveTokens(await login(email, password), requestedAt);
+  const tokens = await login(email, password);
+  memberSessionKey += 1;
+  await saveTokens(tokens, requestedAt);
+}
+
+/** Share token rotation and discard responses belonging to a previous login. */
+export async function runMemberRequest<T>(request: (accessToken: string) => Promise<T>): Promise<T> {
+  const owner = memberSessionKey;
+  const requireSession = () => {
+    if (owner !== memberSessionKey || state.status !== 'authenticated' || !state.session) {
+      throw new Error('로그인 정보를 확인해 주세요.');
+    }
+    return state.session;
+  };
+  if (requireSession().accessExpiresAt <= Date.now() + 30_000) await refreshSession();
+  const token = requireSession().accessToken;
+  try {
+    const result = await request(token);
+    requireSession();
+    return result;
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+    // Another request or the session timer may already have refreshed this token.
+    if (requireSession().accessToken === token) await refreshSession();
+    try {
+      const result = await request(requireSession().accessToken);
+      requireSession();
+      return result;
+    } catch (retryError) {
+      if (owner === memberSessionKey && retryError instanceof ApiError && retryError.status === 401) {
+        await clearSession('로그인이 만료됐어요. 다시 로그인해 주세요.');
+      }
+      throw retryError;
+    }
+  }
 }
 
 export function signOut(): Promise<void> {

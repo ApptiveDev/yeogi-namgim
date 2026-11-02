@@ -1,4 +1,4 @@
-// MY API 명세 확정 전 사용하는 화면 입력 모델입니다.
+// 화면 입력 모델. 실제 회원 API 응답은 memberToMyPage에서 변환합니다.
 export type MyPageResponse = {
   displayName?: string | null;
   avatarUrl?: string | null;
@@ -18,7 +18,7 @@ export type MyPageModel = {
   tag: string | null;
   bio: string;
   loginType: string;
-  noteCounts: { found: number; written: number; saved: number };
+  noteCounts: { found: number | null; written: number | null; saved: number | null };
 };
 
 export type MyNoteKind = keyof MyPageModel['noteCounts'];

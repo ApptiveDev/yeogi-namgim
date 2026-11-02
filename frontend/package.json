@@ -40,6 +40,7 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "test:member": "node --test tests/member.test.cjs",
     "test:auth": "node --test tests/auth.test.cjs",
     "start": "expo start",
     "android": "expo run:android",

@@ -29,6 +29,8 @@ export default function RootLayout() {
           <Stack.Screen name="friends" />
           <Stack.Screen name="my" />
           <Stack.Screen name="settings" />
+          <Stack.Screen name="profile-edit" />
+          <Stack.Screen name="my-notes" />
         </Stack.Protected>
       </Stack>
     </ThemeProvider>

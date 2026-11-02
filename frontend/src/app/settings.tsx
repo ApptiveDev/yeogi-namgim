@@ -9,13 +9,14 @@ import { signOut } from '@/auth/member-session';
 import { authErrorMessage } from '@/api/auth';
 import { SettingsBadge, SettingsRow } from '@/components/settings/SettingsRow';
 import { SettingsProfile } from '@/components/settings/SettingsProfile';
+import { AccountLoadState } from '@/components/my/AccountLoadState';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsSwitch } from '@/components/settings/SettingsSwitch';
 import { SettingsColors as C, SettingsFonts as F } from '@/constants/settings';
-import { MY_PAGE_RESPONSE } from '@/data/my-page';
 import { useDeveloperSettings } from '@/hooks/use-developer-settings';
 import { useLocationPermission } from '@/hooks/use-location-permission';
-import { resolveMyPageData } from '@/utils/my-page';
+import { useMemberAccount } from '@/hooks/use-member-account';
+import { memberToMyPage } from '@/utils/my-page';
 
 function showComingSoon(label: string) {
   Alert.alert(label, '준비 중인 기능이에요.');
@@ -30,7 +31,8 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const developer = useDeveloperSettings();
   const location = useLocationPermission();
-  const profile = resolveMyPageData(MY_PAGE_RESPONSE, developer.mockDataEnabled);
+  const account = useMemberAccount();
+  const profile = account.profile.data ? memberToMyPage(account.profile.data) : null;
   const [notifications, setNotifications] = useState({ nearby: true, friends: true, marketing: false });
   const [isSigningOut, setIsSigningOut] = useState(false);
   async function handleSignOut() {
@@ -58,7 +60,8 @@ export default function SettingsScreen() {
             <View style={s.backChevron} />
           </Pressable>
           <Text accessibilityRole="header" accessibilityLabel="설정" style={s.title}>SETTINGS</Text>
-          <SettingsProfile profile={profile} />
+          <AccountLoadState {...account.profile} label="회원 프로필" onRetry={account.reload} />
+          {profile && account.profile.data ? <SettingsProfile profile={profile} email={account.profile.data.email} onEdit={() => router.push('/profile-edit')} /> : null}
 
           <SettingsSection title="알림">
             <SettingsRow label="근처 쪽지 알림" description="반경 200m 안에 쪽지가 생기면 알려줘요" trailing={<SettingsSwitch label="근처 쪽지 알림" value={notifications.nearby} onValueChange={(nearby) => setNotifications((current) => ({ ...current, nearby }))} />} />
@@ -88,7 +91,7 @@ export default function SettingsScreen() {
           <SettingsSection title="개발자 도구">
             <SettingsRow
               label="목업 데이터 사용"
-              description="MY와 보관함에 예시 데이터를 표시해요"
+              description="보관함과 친구 화면에 예시 데이터를 표시해요"
               trailing={<SettingsSwitch label="목업 데이터 사용" value={developer.mockDataEnabled} disabled={!developer.isReady || developer.isSaving} onValueChange={(enabled) => { void developer.setMockDataEnabled(enabled); }} />}
             />
           </SettingsSection>

@@ -16,6 +16,10 @@ React Native, Expo를 기반으로 개발합니다.
 
 ## 실행 방법
 
+마이페이지·설정은 회원 프로필 조회, 닉네임 수정, 작성 쪽지 통계와 작성 목록 API에 연결되어 있습니다. `AUTH_ENABLED=true`인 백엔드에 회원 로그인한 뒤 사용합니다. 마이페이지는 개발자 목업 설정과 관계없이 실제 회원 데이터를 조회합니다. 저장·발견 수가 제공되지 않으면 `—`로 표시하며, 저장·발견·보관함 전체 API 연동은 후속 작업입니다. 상세 계약은 [마이페이지 통계 API](../docs/MEMBER_STATS_API.md)와 [회원 쪽지 API](../docs/MEMBER_NOTE_API.md)를 참고합니다.
+
+프론트 자동 검사는 `npm run lint`, `npx tsc --noEmit`, `npm run test:auth`, `npm run test:member`로 실행합니다.
+
 ### 1. 준비
 
 - Node.js 및 npm
