@@ -81,7 +81,7 @@ export function FriendsHeader({ friends, activeFriendIds, selectedFriendId, onSe
 
 const s = StyleSheet.create({
   header: { paddingTop: 18, paddingBottom: 24 },
-  title: { fontFamily: F.display, fontSize: 58, lineHeight: 64, color: C.ink, letterSpacing: -2, includeFontPadding: false },
+  title: { fontFamily: F.display, fontSize: 30, lineHeight: 64, color: C.ink, letterSpacing: -2, includeFontPadding: false },
   addCircle: { width: 70, height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'center', backgroundColor: C.lime },
   plus: { fontSize: 34, lineHeight: 40, color: C.ink, includeFontPadding: false },
   addLabel: { fontFamily: F.bold, fontSize: 12, lineHeight: 18, color: C.ink, includeFontPadding: false },
