@@ -33,6 +33,9 @@ export type NoteMarker = {
 
 export type NoteMarkersResponse = {
   notes: NoteMarker[];
+  page: number;
+  size: number;
+  hasNext: boolean;
 };
 
 export type NoteCreateRequest = {

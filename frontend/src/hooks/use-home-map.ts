@@ -1,14 +1,16 @@
 import * as Location from 'expo-location';
-import { useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
-import { Alert, type NativeSyntheticEvent } from 'react-native';
-import type { CameraRef, MapRef, ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { Alert, AppState, type NativeSyntheticEvent } from 'react-native';
+import type { CameraRef, GeoJSONSourceRef, MapRef, ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
 
 import type { MapBounds } from '@/api/types';
-import type { NoteMapItem } from '@/components/notes/NoteMapLayer';
-import { CAMERA_RETURN_DURATION, DEFAULT_MAP_VIEW, USER_RADIUS_METERS } from '@/constants/home-map';
+import { getMemberSessionKey } from '@/auth/member-session';
+import type { NoteMapItem, NoteMapPoint } from '@/components/notes/NoteMapLayer';
+import { CAMERA_RETURN_DURATION, DEFAULT_MAP_VIEW, NOTE_READ_RADIUS_METERS, USER_RADIUS_METERS } from '@/constants/home-map';
 import { useNoteMarkers } from '@/hooks/use-note-markers';
-import { createLocationCircle } from '@/utils/location-circle';
 import { getDistanceMeters } from '@/utils/distance';
+import { createLocationCircle } from '@/utils/location-circle';
 
 type Options = {
   userCoordinates: Location.LocationObjectCoords | null;
@@ -27,15 +29,18 @@ type Options = {
 
 export function useHomeMap({
   userCoordinates, composeCoordinates, isComposeOpen,
-  isFollowingUser, setIsFollowingUser, cameraRef, resumeFollowingAfterClose,
+  isFollowingUser, setIsFollowingUser, cameraRef, resumeFollowingAfterClose: resumeFollowingAfterCloseRef,
   notesRefreshKey, sheetHeight, height, width, insets,
 }: Options) {
   const mapRef = useRef<MapRef>(null);
+  const noteSourceRef = useRef<GeoJSONSourceRef>(null);
+  const pointPressGeneration = useRef(0);
+  const boundsGeneration = useRef(0);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isMapRendered, setIsMapRendered] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [bounds, setBounds] = useState<MapBounds | null>(null);
-  const { notes } = useNoteMarkers(bounds, notesRefreshKey);
+  const { notes, error: notesError, initialLoading: notesInitialLoading, retry: retryNotes } = useNoteMarkers(bounds, notesRefreshKey);
   const userPoint = useMemo<GeoJSON.Point | null>(() => userCoordinates ? {
     type: 'Point',
     coordinates: [userCoordinates.longitude, userCoordinates.latitude],
@@ -55,33 +60,71 @@ export function useHomeMap({
       easing: 'ease',
     });
   }, [isMapRendered, isFollowingUser, isComposeOpen, userPoint, cameraRef]);
-  const mapNotes: NoteMapItem[] = notes.map((note) => {  // 거리별 마커 설정
-    const distanceMeters = userCoordinates ? getDistanceMeters(userCoordinates, note):null;
-    const isInsideRadius = distanceMeters !== null && distanceMeters <= USER_RADIUS_METERS;
-    let state: NoteMapItem['state'];
-    if (note.isMine) {
-      state = 'owned';
-    } else if (isInsideRadius) {
-      state = 'available';
-    } else {
-      state = 'locked';
+  const mapNotes = useMemo<NoteMapItem[]>(() => notes.map((note) => ({
+    id: note.noteId,
+    latitude: note.latitude,
+    longitude: note.longitude,
+  })), [notes]);
+
+  useEffect(() => {
+    pointPressGeneration.current += 1;
+    return () => { pointPressGeneration.current += 1; };
+  }, [isComposeOpen, mapNotes, userCoordinates?.latitude, userCoordinates?.longitude]);
+
+  useFocusEffect(useCallback(() => () => { pointPressGeneration.current += 1; }, []));
+
+  const handleNotePointPress = async (point: NoteMapPoint) => {
+    if (isComposeOpen) return;
+    const generation = ++pointPressGeneration.current;
+    const owner = getMemberSessionKey();
+    const isCurrent = () => pointPressGeneration.current === generation && owner === getMemberSessionKey()
+      && AppState.currentState !== 'background' && AppState.currentState !== 'inactive';
+    if (!userCoordinates) {
+      Alert.alert('위치 확인 필요', '현재 위치를 확인한 뒤 다시 시도해 주세요.');
+      return;
     }
-    return {
-      id: note.noteId,
-      latitude: note.latitude,
-      longitude: note.longitude,
-      state,
-    };
-  });
+    try {
+      const ids = point.clusterId === undefined ? [point.noteId]
+        : (await noteSourceRef.current?.getClusterLeaves(point.clusterId, point.count, 0))
+          ?.map((feature) => feature.properties?.noteId);
+      if (!isCurrent()) return;
+      const byId = new Map(mapNotes.map((note) => [note.id, note]));
+      if (!ids || ids.length !== point.count || new Set(ids).size !== ids.length
+        || ids.some((id) => typeof id !== 'string' || !byId.has(id))) {
+        throw new Error('선택한 묶음이 바뀌었어요. 원을 다시 눌러 주세요.');
+      }
+      if (!ids.some((id) => getDistanceMeters(userCoordinates, byId.get(id)!) <= NOTE_READ_RADIUS_METERS)) {
+        Alert.alert('쪽지를 열 수 없어요', `쪽지를 열람할 수 있는 거리 밖에 있습니다.\n${NOTE_READ_RADIUS_METERS}m 이내로 가까이 이동해 주세요.`);
+        return;
+      }
+      const zoom = await mapRef.current?.getZoom();
+      if (!isCurrent() || zoom === undefined) return;
+      if (!Number.isFinite(zoom)) {
+        throw new Error('지도 확대 수준을 확인하지 못했어요. 다시 시도해 주세요.');
+      }
+      if (zoom >= DEFAULT_MAP_VIEW.zoom || !cameraRef.current) return;
+      resumeFollowingAfterCloseRef.current = false;
+      setIsFollowingUser(false);
+      cameraRef.current.easeTo({
+        center: [userCoordinates.longitude, userCoordinates.latitude],
+        zoom: DEFAULT_MAP_VIEW.zoom,
+        duration: CAMERA_RETURN_DURATION,
+      });
+    } catch (error) {
+      if (isCurrent()) {
+        Alert.alert('지도 쪽지 확인 실패', error instanceof Error ? error.message : '다시 시도해 주세요.');
+      }
+    }
+  };
   const userCircle = useMemo(
     () => userCoordinates
       ? createLocationCircle(
           userCoordinates.longitude,
           userCoordinates.latitude,
-          USER_RADIUS_METERS,
+          isComposeOpen ? USER_RADIUS_METERS : NOTE_READ_RADIUS_METERS,
         )
       : null,
-    [userCoordinates],
+    [userCoordinates, isComposeOpen],
   );
 
   useEffect(() => {
@@ -104,22 +147,24 @@ export function useHomeMap({
   // 사용자가 지도를 직접 조작하면
   // 내 위치 고정을 해제
   const handleRegionWillChange = (event: NativeSyntheticEvent<ViewStateChangeEvent>) => {
+    pointPressGeneration.current += 1;
     if (event.nativeEvent.userInteraction) {
-      resumeFollowingAfterClose.current = false;
+      resumeFollowingAfterCloseRef.current = false;
       setIsFollowingUser(false);
     }
   };
 
   const handleRegionDidChange = (event: NativeSyntheticEvent<ViewStateChangeEvent>) => {
-    if (resumeFollowingAfterClose.current && !event.nativeEvent.userInteraction &&
+    if (resumeFollowingAfterCloseRef.current && !event.nativeEvent.userInteraction &&
         Math.abs(event.nativeEvent.zoom - DEFAULT_MAP_VIEW.zoom) < 0.02) {
-      resumeFollowingAfterClose.current = false;
+      resumeFollowingAfterCloseRef.current = false;
       setIsFollowingUser(true);
     }
   };
 
   // 내 위치 버튼
   const moveToCurrentLocation = async () => {
+    pointPressGeneration.current += 1;
     const { status } =
       await Location.requestForegroundPermissionsAsync();
 
@@ -134,24 +179,31 @@ export function useHomeMap({
 
   // 마커 갱신
   const updateMapBounds = async () => {
+    const generation = ++boundsGeneration.current;
     try {
       const value = await mapRef.current?.getBounds();
-      if (!value) return;
+      if (!value || generation !== boundsGeneration.current) return;
       const [west, south, east, north] = value;
-      setBounds({
+      const next = {
         minLatitude: south,
         minLongitude: west,
         maxLatitude: north,
         maxLongitude: east,
-      });
+      };
+      setBounds((previous) => previous
+        && previous.minLatitude === south && previous.minLongitude === west
+        && previous.maxLatitude === north && previous.maxLongitude === east ? previous : next);
     } catch (error) {
-      Alert.alert('지도 범위 확인 실패', error instanceof Error ? error.message : '다시 시도해 주세요. ');
+      if (generation === boundsGeneration.current) {
+        Alert.alert('지도 범위 확인 실패', error instanceof Error ? error.message : '다시 시도해 주세요. ');
+      }
     }
   };
 
   return {
     mapRef, setIsMapReady, isMapReady, isMapRendered, setIsMapRendered, setMapError, startupError: mapError,
-    userPoint, composePoint, userCircle, mapNotes,
+    userPoint, composePoint, userCircle, mapNotes, noteSourceRef, handleNotePointPress,
+    notesError, notesInitialLoading, retryNotes,
     handleRegionWillChange, handleRegionDidChange, updateMapBounds, moveToCurrentLocation,
   };
 }

@@ -11,10 +11,8 @@ import { HomeMap } from '@/components/home/HomeMap';
 import { MapSelector } from '@/components/home/MapSelector';
 import { NoteComposeSheet } from '@/components/notes/NoteComposeSheet';
 import { NoteCreatedDialog } from '@/components/notes/NoteCreatedDialog';
-import { NoteReadDialog } from '@/components/notes/NoteReadDialog';
 import { useHomeMap } from '@/hooks/use-home-map';
 import { useNoteCompose } from '@/hooks/use-note-compose';
-import { useNoteReader } from '@/hooks/use-note-reader';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { styles } from '@/styles/home.styles';
 
@@ -54,9 +52,6 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
     isFollowingUser, setIsFollowingUser, cameraRef, resumeFollowingAfterClose,
     notesRefreshKey, sheetHeight, height, width, insets,
   });
-  const { selectedNote, setSelectedNote, handleOpenNote } = useNoteReader({
-    isComposeOpen, setUserCoordinates,
-  });
   const openRequestedCompose = useEffectEvent(() => {
     router.setParams({ compose: undefined });
     if (!isComposeOpen) void openCompose();
@@ -87,7 +82,6 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         initialCenter={[userCoordinates.longitude, userCoordinates.latitude]}
         cameraRef={cameraRef}
         isComposeOpen={isComposeOpen}
-        handleOpenNote={handleOpenNote}
       />}
       <MapSelector
         isComposeOpen={isComposeOpen}
@@ -97,6 +91,19 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         fontError={fontError}
         insets={insets}
       />
+
+      {!isComposeOpen && (map.notesInitialLoading || map.notesError) && (
+        <View style={[styles.notesStatus, { top: insets.top + 72 }]} accessibilityLiveRegion="polite">
+          <Text style={styles.notesStatusText}>
+            {map.notesError ?? '쪽지를 불러오는 중이에요.'}
+          </Text>
+          {map.notesError && (
+            <Pressable onPress={map.retryNotes} accessibilityRole="button" style={styles.notesRetryButton}>
+              <Text style={styles.notesRetryText}>다시 시도</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
 
       {!isComposeOpen && <Pressable
         style={[
@@ -128,10 +135,6 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
       <NoteCreatedDialog
         visible={isCreatedDialogVisible}
         onConfirm={() => setIsCreatedDialogVisible(false)}
-      />
-      <NoteReadDialog
-        note={selectedNote}
-        onClose={() => setSelectedNote(null)}
       />
       </View>
       {!homeReady && (

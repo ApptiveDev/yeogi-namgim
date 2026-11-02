@@ -1,7 +1,6 @@
 import { apiRequest } from './client';
 import type {
   MapBounds,
-  NoteMarker,
   NoteMarkersResponse,
   NoteCreateRequest,
   NoteCreateResponse,
@@ -49,12 +48,16 @@ export async function openNote(
   return result;
 }
 
-export async function getNoteMarkers(bounds: MapBounds, token: string): Promise<NoteMarker[]> {
+export const MAP_NOTES_PAGE_SIZE = 500;
+
+export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0): Promise<NoteMarkersResponse> {
   const query = new URLSearchParams({
     minLatitude: String(bounds.minLatitude),
     minLongitude: String(bounds.minLongitude),
     maxLatitude: String(bounds.maxLatitude),
     maxLongitude: String(bounds.maxLongitude),
+    page: String(page),
+    size: String(MAP_NOTES_PAGE_SIZE),
   });
 
   const data = await apiRequest<NoteMarkersResponse>(
@@ -67,9 +70,19 @@ export async function getNoteMarkers(bounds: MapBounds, token: string): Promise<
     },
   );
 
-  if (!Array.isArray(data?.notes)) {
+  if (!Array.isArray(data?.notes) || data.page !== page || data.size !== MAP_NOTES_PAGE_SIZE
+    || typeof data.hasNext !== 'boolean' || data.notes.length > MAP_NOTES_PAGE_SIZE
+    || data.notes.some((note) => !note || typeof note.noteId !== 'string' || !note.noteId
+      || !Number.isFinite(note.latitude) || note.latitude < -90 || note.latitude > 90
+      || !Number.isFinite(note.longitude) || note.longitude < -180 || note.longitude > 180
+      || typeof note.isMine !== 'boolean')) {
     throw new Error('쪽지 목록 응답이 올바르지 않습니다.');
   }
 
-  return data.notes;
+  return {
+    notes: data.notes.map(({ noteId, latitude, longitude, isMine }) => ({ noteId, latitude, longitude, isMine })),
+    page: data.page,
+    size: data.size,
+    hasNext: data.hasNext,
+  };
 }

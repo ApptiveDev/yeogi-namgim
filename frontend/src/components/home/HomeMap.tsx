@@ -1,9 +1,9 @@
-import { useRef, type RefObject } from 'react';
+import { useState, type RefObject } from 'react';
 import { Camera, GeoJSONSource, Layer, Map, type CameraRef } from '@maplibre/maplibre-react-native';
 import type { FeatureCollection } from 'geojson';
 
 import { ComposeMapDimmer } from '@/components/notes/ComposeMapDimmer';
-import { NoteMapLayer, type NoteMapItem } from '@/components/notes/NoteMapLayer';
+import { NoteMapLayer } from '@/components/notes/NoteMapLayer';
 import { NotePlacementPreview, NotePlacementPreviewImages } from '@/components/notes/NotePlacementPreview';
 import { DEFAULT_MAP_VIEW } from '@/constants/home-map';
 import type { useHomeMap } from '@/hooks/use-home-map';
@@ -18,19 +18,18 @@ type Props = {
   initialCenter: [number, number];
   cameraRef: RefObject<CameraRef | null>;
   isComposeOpen: boolean;
-  handleOpenNote: (note: NoteMapItem) => Promise<void>;
 };
 
-export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen, handleOpenNote }: Props) {
+export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen }: Props) {
   const {
     mapRef, setIsMapReady, userPoint, composePoint, userCircle, mapNotes,
     handleRegionWillChange, handleRegionDidChange, updateMapBounds,
   } = map;
   // Start at the resolved location, so an earlier default viewport cannot dismiss the cover.
-  const initialViewState = useRef({
+  const [initialViewState] = useState(() => ({
     ...DEFAULT_MAP_VIEW,
     center: initialCenter,
-  }).current;
+  }));
 
   return (
       <Map
@@ -88,10 +87,9 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen, handleOp
 
         <NoteMapLayer
           notes={mapNotes}
-          afterId={BASE_MAP_TOP_LAYER}
-          onNotePress={(note) => {
-            void handleOpenNote(note);
-          }}
+          sourceRef={map.noteSourceRef}
+          afterId={userCircle ? 'user-radius-outline' : BASE_MAP_TOP_LAYER}
+          onPointPress={(point) => { void map.handleNotePointPress(point); }}
         />
         <ComposeMapDimmer visible={isComposeOpen} />
         <NotePlacementPreviewImages />
