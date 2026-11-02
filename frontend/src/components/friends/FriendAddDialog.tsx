@@ -1,108 +1,139 @@
-import { Image } from 'expo-image';
-import { useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { Friend } from '@/api/friends';
 import { ComposeIcon } from '@/components/notes/ComposeIcon';
 import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
+import { createFriendInvitationFlow } from '@/state/friend-invitation';
 
-export function FriendAddDialog({ onClose }: { onClose: () => void }) {
+type Props = { onClose: () => void; onAccepted: (friend: Friend) => void; initialMode?: 'options' | 'enter' };
+
+function formatExpiry(expiresAt: string) {
+  return new Date(expiresAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+export function FriendAddDialog({ onClose, onAccepted, initialMode = 'options' }: Props) {
   const insets = useSafeAreaInsets();
-  const [isEnteringTag, setIsEnteringTag] = useState(false);
-  const [friendTag, setFriendTag] = useState('');
+  const [flow] = useState(createFriendInvitationFlow);
+  const state = useSyncExternalStore(flow.subscribe, flow.getState, flow.getState);
+  const [mode, setMode] = useState<'options' | 'create' | 'enter'>(initialMode);
+  const [now, setNow] = useState(Date.now);
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const sharingRef = useRef(false);
+  const notifiedRef = useRef(false);
+  const mountedRef = useRef(true);
+  const busy = state.busy !== null || sharing;
+  const cannotClose = state.busy === 'accept' || sharing;
+  const createdExpired = !!state.created && Date.parse(state.created.expiresAt) <= now;
+  const previewExpired = !!state.preview && Date.parse(state.preview.expiresAt) <= now;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => { mountedRef.current = false; clearInterval(timer); };
+  }, []);
+  useEffect(() => {
+    if (state.accepted && !notifiedRef.current) {
+      notifiedRef.current = true;
+      onAccepted(state.accepted);
+    }
+  }, [state.accepted, onAccepted]);
 
   function closeDialog() {
+    if (cannotClose) return;
     Keyboard.dismiss();
     onClose();
   }
 
-  function showAddOptions() {
+  function changeMode(next: typeof mode) {
+    if (busy) return;
     Keyboard.dismiss();
-    setIsEnteringTag(false);
-    setFriendTag('');
+    flow.clearPreview();
+    setShareError(null);
+    setMode(next);
+  }
+
+  async function shareCode() {
+    const invitation = state.created;
+    if (busy || sharingRef.current || !invitation) return;
+    if (Date.parse(invitation.expiresAt) <= Date.now()) {
+      setShareError('초대 코드가 만료됐어요. 새 코드를 발급해 주세요.');
+      return;
+    }
+    sharingRef.current = true;
+    setSharing(true);
+    setShareError(null);
+    try {
+      await Share.share({ title: '여기남김 친구 초대', message: `여기남김 친구 초대 코드: ${invitation.code}\n앱의 친구 → 추가 → 초대 코드 입력에서 확인해 주세요.\n만료: ${formatExpiry(invitation.expiresAt)} (한국 시간)` });
+    } catch {
+      if (mountedRef.current) setShareError('공유 창을 열지 못했어요. 위 코드를 길게 눌러 복사해 주세요.');
+    } finally {
+      sharingRef.current = false;
+      if (mountedRef.current) setSharing(false);
+    }
   }
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={closeDialog}>
       <View style={s.overlay}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={closeDialog}
-          accessibilityRole="button"
-          accessibilityLabel="친구 추가 창 닫기"
-        />
-        <KeyboardAvoidingView
-          // Android Modal이 adjustResize를 적용하므로 키보드 높이를 중복으로 빼지 않습니다.
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          enabled={Platform.OS === 'ios'}
-          pointerEvents="box-none"
-          style={[s.layout, { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 16) }]}
-        >
+        <Pressable style={StyleSheet.absoluteFill} onPress={closeDialog} disabled={cannotClose} accessibilityRole="button" accessibilityLabel="친구 추가 창 닫기" />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'} pointerEvents="box-none"
+          style={[s.layout, { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 16) }]}>
           <View style={s.dialog} accessibilityViewIsModal onAccessibilityEscape={closeDialog}>
-            <View style={[s.header, isEnteringTag && s.tagHeader]}>
-              <Text accessibilityRole="header" style={s.title}>{isEnteringTag ? '친구 태그 입력' : '친구 추가'}</Text>
-              <Pressable onPress={closeDialog} accessibilityRole="button" accessibilityLabel="친구 추가 창 닫기" style={({ pressed }) => [s.close, pressed && s.pressed]}>
+            <View style={s.header}>
+              <Text accessibilityRole="header" style={s.title}>{mode === 'enter' ? '초대 코드 입력' : mode === 'create' ? '내 초대 코드' : '친구 추가'}</Text>
+              <Pressable onPress={closeDialog} disabled={cannotClose} accessibilityRole="button" accessibilityLabel="친구 추가 창 닫기" accessibilityState={{ disabled: cannotClose }} style={s.close}>
                 <ComposeIcon name="close" size={20} />
               </Pressable>
             </View>
-            <View style={[s.content, isEnteringTag && s.tagContent]}>
-              {isEnteringTag ? <>
-                <View style={s.tagField}>
-                  <Text style={s.atSign} accessible={false}>@</Text>
-                  <TextInput
-                    autoFocus
-                    value={friendTag}
-                    onChangeText={(value) => setFriendTag(value.replace(/^@+/, '').replace(/[\r\n]/g, ''))}
-                    accessibilityLabel="친구 태그 입력"
-                    accessibilityHint="골뱅이 뒤에 친구의 태그를 입력해주세요"
-                    placeholder="태그를 입력해주세요"
-                    placeholderTextColor={C.muted}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    spellCheck={false}
-                    multiline={false}
-                    numberOfLines={1}
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                    underlineColorAndroid="transparent"
-                    style={s.input}
-                  />
-                </View>
-                <Pressable disabled accessibilityRole="button" accessibilityLabel="친구 추가, 준비 중" accessibilityState={{ disabled: true }} style={[s.button, s.submitButton]}>
-                  <Text style={s.submitLabel}>친구 추가</Text>
+            <ScrollView keyboardShouldPersistTaps="handled" style={s.scroll} contentContainerStyle={s.content}>
+              {mode === 'options' ? <>
+                <Text style={s.description}>{'초대 코드를 보내거나 받은 코드를 입력해\n친구와 연결해 보세요.'}</Text>
+                <Pressable accessibilityRole="button" onPress={() => { changeMode('create'); void flow.generate(); }} style={[s.button, s.primary]}>
+                  <Text style={s.buttonLabel}>초대 코드 만들기</Text>
                 </Pressable>
-                <Text style={[s.notice, s.tagNotice]}>친구 추가 기능은 준비 중이에요.</Text>
-                <Pressable onPress={showAddOptions} accessibilityRole="button" style={({ pressed }) => [s.backButton, pressed && s.pressed]}>
-                  <Text style={s.backLabel}>다른 방법으로 추가</Text>
+                <Pressable accessibilityRole="button" onPress={() => changeMode('enter')} style={[s.button, s.secondary]}>
+                  <Text style={s.buttonLabel}>초대 코드 입력</Text>
                 </Pressable>
+              </> : mode === 'create' ? <>
+                <Text style={s.description}>{'친구에게 아래 코드를 보내 주세요.\n한 코드로 한 명만 친구가 될 수 있어요.'}</Text>
+                {state.created ? <View style={s.codeCard}>
+                  <Text selectable accessibilityLabel={`내 초대 코드 ${state.created.code}`} style={s.code}>{state.created.code}</Text>
+                  <Text style={s.notice}>{createdExpired ? '만료된 코드예요' : `${formatExpiry(state.created.expiresAt)}까지 · 한국 시간`}</Text>
+                </View> : null}
+                <Pressable accessibilityRole="button" accessibilityLabel="초대 코드 공유" disabled={busy || !state.created || createdExpired}
+                  accessibilityState={{ disabled: busy || !state.created || createdExpired }} onPress={() => { void shareCode(); }} style={[s.button, s.primary, (busy || !state.created || createdExpired) && s.disabled]}>
+                  <Text style={s.buttonLabel}>{sharing ? '공유 중…' : '코드 공유하기'}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setShareError(null); void flow.generate(); }} style={[s.button, s.secondary, busy && s.disabled]}>
+                  <Text style={s.buttonLabel}>{state.created ? '새 코드 발급' : '코드 발급'}</Text>
+                </Pressable>
+                <Text style={s.notice}>코드는 길게 눌러 복사할 수도 있어요.</Text>
               </> : <>
-                <Text style={s.description}>{'초대링크를 보내거나 친구 태그를 입력해\n친구와 쪽지 소식을 나눠보세요.'}</Text>
-                <Pressable
-                  disabled
-                  accessibilityRole="button"
-                  accessibilityLabel="초대링크 보내기"
-                  accessibilityHint="준비 중인 기능이에요"
-                  accessibilityState={{ disabled: true }}
-                  style={[s.button, s.inviteButton]}
-                >
-                  <Text style={s.buttonLabel}>초대링크 보내기</Text>
-                  <Image source={require('../../../assets/images/friends-link.svg')} style={s.linkIcon} contentFit="contain" accessible={false} />
-                </Pressable>
-                <View style={s.divider} accessible={false}>
-                  <View style={s.line} /><Text style={s.or}>또는</Text><View style={s.line} />
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => setIsEnteringTag(true)}
-                  style={({ pressed }) => [s.button, s.tagButton, pressed && s.pressed]}
-                >
-                  <Text style={s.buttonLabel}>친구 태그 입력</Text>
-                </Pressable>
-                <Text style={s.notice}>초대와 친구 추가 기능은 준비 중이에요.</Text>
+                <Text style={s.description}>친구에게 받은 16자리 코드를 입력해 주세요.</Text>
+                <TextInput autoFocus value={state.input} onChangeText={flow.setInput} editable={!busy} accessibilityLabel="초대 코드 입력"
+                  placeholder="초대 코드 16자리" placeholderTextColor={C.muted} autoCapitalize="characters" autoCorrect={false} spellCheck={false}
+                  returnKeyType="done" onSubmitEditing={() => { Keyboard.dismiss(); void flow.preview(); }} style={s.input} />
+                {state.preview ? <View style={s.preview}>
+                  <Text style={s.inviter}>{state.preview.inviterNickname}님과 친구가 될까요?</Text>
+                  <Text style={s.notice}>{previewExpired ? '코드가 만료됐어요. 새 코드를 받아 주세요.' : `${formatExpiry(state.preview.expiresAt)}까지 · 한국 시간`}</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="친구 되기" disabled={busy || previewExpired}
+                    accessibilityState={{ disabled: busy || previewExpired }} onPress={() => { Keyboard.dismiss(); void flow.accept(); }} style={[s.button, s.primary, (busy || previewExpired) && s.disabled]}>
+                    <Text style={s.buttonLabel}>{state.busy === 'accept' ? '친구 추가 중…' : '친구 되기'}</Text>
+                  </Pressable>
+                </View> : <Pressable accessibilityRole="button" accessibilityLabel="초대 코드 확인" disabled={busy} onPress={() => { Keyboard.dismiss(); void flow.preview(); }} style={[s.button, s.primary, busy && s.disabled]}>
+                  <Text style={s.buttonLabel}>코드 확인</Text>
+                </Pressable>}
               </>}
-            </View>
+              {state.busy ? <ActivityIndicator color={C.blue} style={s.status} accessibilityLabel={state.busy === 'create' ? '초대 코드 발급 중' : state.busy === 'preview' ? '초대 정보 확인 중' : '친구 추가 중'} /> : null}
+              {state.error || shareError ? <Text accessibilityRole="alert" style={s.error}>{state.error || shareError}</Text> : null}
+              {mode !== 'options' ? <Pressable disabled={busy} accessibilityRole="button" onPress={() => changeMode('options')} style={s.back}>
+                <Text style={s.backLabel}>다른 방법으로 추가</Text>
+              </Pressable> : null}
+            </ScrollView>
           </View>
-          {isEnteringTag ? <View style={s.tagKeyboardGap} pointerEvents="none" /> : null}
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -112,32 +143,26 @@ export function FriendAddDialog({ onClose }: { onClose: () => void }) {
 const s = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.35)' },
   layout: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  dialog: { width: '100%', maxWidth: 400, flexShrink: 0, borderRadius: 26, backgroundColor: C.background, overflow: 'hidden', boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.16)' },
-  // 중앙보다 최대 24px 위에 배치하고, 키보드로 공간이 좁아지면 여백부터 줄입니다.
-  tagKeyboardGap: { height: 48, flexShrink: 1 },
-  header: { minHeight: 72, flexShrink: 0, flexDirection: 'row', alignItems: 'center', paddingLeft: 24, paddingRight: 12, paddingTop: 8 },
-  tagHeader: { minHeight: 64, paddingTop: 0 },
+  dialog: { width: '100%', maxWidth: 400, maxHeight: '100%', flexShrink: 1, borderRadius: 26, backgroundColor: C.background, overflow: 'hidden', boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.16)' },
+  header: { minHeight: 72, flexDirection: 'row', alignItems: 'center', paddingLeft: 24, paddingRight: 12 },
   title: { flex: 1, fontFamily: F.bold, fontSize: 22, lineHeight: 32, color: C.ink, includeFontPadding: false },
   close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  content: { paddingHorizontal: 24, paddingBottom: 28 },
-  tagContent: { paddingBottom: 16 },
-  description: { fontFamily: F.regular, fontSize: 13, lineHeight: 23, color: C.muted, marginBottom: 24, includeFontPadding: false },
-  button: { minHeight: 54, flexShrink: 0, borderRadius: 999, paddingHorizontal: 24, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  inviteButton: { backgroundColor: C.lime },
-  tagButton: { backgroundColor: C.surface },
+  scroll: { flexGrow: 0 },
+  content: { paddingHorizontal: 24, paddingBottom: 24, gap: 12 },
+  description: { fontFamily: F.regular, fontSize: 13, lineHeight: 23, color: C.muted, marginBottom: 8, includeFontPadding: false },
+  button: { minHeight: 54, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 15, alignItems: 'center', justifyContent: 'center' },
+  primary: { backgroundColor: C.lime },
+  secondary: { backgroundColor: C.surface },
   buttonLabel: { fontFamily: F.bold, fontSize: 14, lineHeight: 24, color: C.ink, textAlign: 'center', includeFontPadding: false },
-  linkIcon: { width: 20, height: 20, flexShrink: 0 },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 18 },
-  line: { flex: 1, height: 1, backgroundColor: '#E3E3DF' },
-  or: { fontFamily: F.regular, fontSize: 12, lineHeight: 18, color: C.muted },
-  tagField: { height: 54, flexShrink: 0, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#E3E3DF', borderRadius: 16, backgroundColor: C.surface },
-  atSign: { fontFamily: F.medium, fontSize: 15, lineHeight: 24, color: C.ink, includeFontPadding: false },
-  input: { flex: 1, minWidth: 0, height: '100%', paddingHorizontal: 0, paddingVertical: 0, fontFamily: F.regular, fontSize: 14, color: C.ink, includeFontPadding: false, textAlignVertical: 'center' },
-  submitButton: { marginTop: 12, backgroundColor: '#E3E3DF' },
-  submitLabel: { fontFamily: F.bold, fontSize: 14, lineHeight: 24, color: C.muted },
-  notice: { marginTop: 18, fontFamily: F.regular, fontSize: 11, lineHeight: 18, color: C.muted, textAlign: 'center' },
-  tagNotice: { marginTop: 12 },
-  backButton: { minHeight: 44, marginTop: 4, alignItems: 'center', justifyContent: 'center' },
-  backLabel: { fontFamily: F.medium, fontSize: 12, lineHeight: 18, color: C.ink },
-  pressed: { opacity: 0.65 },
+  codeCard: { backgroundColor: C.surface, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 18, gap: 10, alignItems: 'center' },
+  code: { color: C.ink, fontSize: 20, letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', textAlign: 'center' },
+  notice: { fontFamily: F.regular, fontSize: 11, lineHeight: 18, color: C.muted, textAlign: 'center' },
+  input: { minHeight: 54, paddingHorizontal: 16, borderWidth: 1, borderColor: '#E3E3DF', borderRadius: 16, backgroundColor: C.surface, fontFamily: F.regular, fontSize: 15, color: C.ink },
+  preview: { gap: 12 },
+  inviter: { fontFamily: F.bold, fontSize: 16, lineHeight: 24, color: C.ink, textAlign: 'center' },
+  error: { color: '#B42318', fontFamily: F.regular, fontSize: 13, lineHeight: 21, textAlign: 'center' },
+  status: { marginVertical: 4 },
+  back: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  backLabel: { fontFamily: F.medium, fontSize: 12, color: C.ink },
+  disabled: { opacity: 0.45 },
 });

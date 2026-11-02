@@ -20,6 +20,8 @@ React Native, Expo를 기반으로 개발합니다.
 
 프론트 자동 검사는 `npm run lint`, `npx tsc --noEmit`, `npm run test:auth`, `npm run test:member`로 실행합니다.
 
+친구 추가는 일회용 초대 코드 생성·기기 텍스트 공유·초대한 사람 확인·수락 API에 연결되어 있습니다. 수락 후 실제 친구 목록을 갱신합니다. 예시 모드에서도 추가를 시작하면 해당 화면을 실제 목록으로 전환하며, `예시 친구 보기`로 돌아갈 수 있습니다. 보관함의 목업 설정은 유지합니다. 친구 소식과 초대 링크 앱 진입은 후속 작업입니다. 계약은 [친구 API](../docs/FRIEND_API.md), 자동 검사는 `npm run test:friends`를 참고합니다.
+
 ### 1. 준비
 
 - Node.js 및 npm
@@ -127,20 +129,25 @@ frontend/
 | 화면 | 경로 | 주요 기능 |
 | --- | --- | --- |
 | 보관함 | `/storage` | 필터·날짜별 노트 조회 |
-| MY | `/my` | 프로필, 태그, 한 줄 소개, 노트 통계 |
-| 설정 | `/settings` | 위치 권한 관리, 개발용 목업 설정 |
-| 친구 | `/friends` | 친구 목록과 활동 소식 |
+| MY | `/my` | 회원 프로필과 작성 쪽지 통계 |
+| 설정 | `/settings` | 프로필·닉네임 편집·로그아웃, 위치 권한 관리, 개발용 목업 설정 |
+| 친구 | `/friends` | 실제 친구 목록·초대 코드 추가, 예시 활동 소식 |
 
-MY의 찾은·작성한·저장한 노트를 누르면 보관함의 전체·내 노트·저장 필터로 이동합니다.
+MY의 작성한 노트를 누르면 `/my-notes`의 전체 기간 페이지 목록으로 이동합니다.
+찾은·저장한 노트 집계와 이동은 후속 구현 대상입니다.
 보관함 필터는 `?filter=all|mine|saved|friends`로 지정합니다.
 위치 권한은 실제 기기와 연동하며, 기기 설정에서 앱으로 돌아오면 상태를 갱신합니다.
 
 ## 개발용 목업 데이터
 
 **MY → 설정 → 개발자 도구 → 목업 데이터 사용**에서 켜고 끕니다. 기본값은 켜짐이며,
-선택은 기기에 저장되어 재실행 후에도 유지됩니다. MY·보관함·친구 화면에 함께 적용됩니다.
+선택은 기기에 저장되어 재실행 후에도 유지되며 보관함과 친구 예시 화면에 적용됩니다.
+MY·설정의 회원 정보는 실제 API를 사용합니다.
 
-API 응답이 없을 때 목업을 사용하며, 목업을 끄면 빈 상태를 표시합니다.
+보관함은 API 연결 전이므로 목업을 끄면 빈 상태를 표시합니다.
+친구 화면은 목업을 끄거나 친구 추가를 시작하면 실제 친구 목록을 조회합니다.
+친구 화면의 `예시 친구 보기`는 해당 화면만 예시 모드로 바꾸며 보관함 설정은 변경하지 않습니다.
+실제 API 요청이 실패하면 오류·재시도를 제공하며 목업으로 대체하지 않습니다.
 실제 응답의 `0`과 빈 목록은 그대로 유지합니다. 예시 데이터는 `src/data/*.mock.ts`에서 수정합니다.
 앱 시작 시 비회원 토큰은 발급하지 않으며, 저장된 회원 세션이 없으면 로그인 화면으로 이동합니다.
 
@@ -151,15 +158,15 @@ API 응답이 없을 때 목업을 사용하며, 목업을 끄면 빈 상태를 
 앱 시작 시 저장된 회원 세션을 확인하며, 모바일 토큰은 SecureStore에 저장합니다.
 인증 관련 자동 검증은 `npm run test:auth`로 실행합니다. 실제 SMTP 발송·수신 확인은 별도로 필요합니다.
 
-보관함·MY·친구 API는 아직 연결하지 않았습니다. 연결 시 응답을 아래 화면 모델로 변환해 전달합니다.
+보관함과 친구 소식은 후속 연결 대상입니다. MY·설정과 친구 목록·추가는 실제 회원 API를 사용합니다.
 
 | 화면 | 응답 입력 | 화면 모델 |
 | --- | --- | --- |
 | 보관함 | [storage-notes.ts](src/data/storage-notes.ts)의 `STORAGE_NOTES_RESPONSE` | [StorageNote](src/types/storage.ts) 배열 |
-| MY | [my-page.ts](src/data/my-page.ts)의 `MY_PAGE_RESPONSE` | [MyPageResponse](src/types/my.ts) |
-| 친구 | [friends.ts](src/data/friends.ts)의 `FRIENDS_RESPONSE` | [FriendsData](src/types/friends.ts) |
+| MY·설정 | `GET /users/me`, `GET /users/me/stats`, `PATCH /users/me` | [MyPageModel](src/types/my.ts) |
+| 친구 | `GET /friends`, `POST /friends/invitations`, 초대 확인·수락 API | [FriendProfile](src/types/friends.ts), [친구 API DTO](src/api/friends.ts) |
 
 ## 미구현 기능
 
-MY QUEST·MY STICKERS는 준비 중입니다. 알림 설정, 프로필 편집, 회원 탈퇴, 약관 상세,
-친구 초대·등록은 UI만 제공하며 실제 기능은 연결하지 않았습니다.
+MY QUEST·MY STICKERS, 알림 설정, 회원 탈퇴, 약관 상세, 친구 소식, 초대 링크 앱 진입은 준비 중입니다.
+프로필 편집은 닉네임만 지원하며 프로필 이미지·태그·한 줄 소개 수정은 후속 구현 대상입니다.
