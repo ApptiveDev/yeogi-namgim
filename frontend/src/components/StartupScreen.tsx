@@ -1,3 +1,4 @@
+import { useFonts } from 'expo-font';
 import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -12,7 +13,9 @@ type Props = {
 export function StartupScreen({ message, actionLabel, onAction }: Props) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const fontSize = Math.min(width * 0.125, 64);
+  const [fontsLoaded, fontError] = useFonts({
+    ArchivoBlack: require('../../assets/fonts/ArchivoBlack-Regular.ttf'),
+  });
 
   return (
     <View style={styles.screen} accessibilityViewIsModal>
@@ -24,16 +27,16 @@ export function StartupScreen({ message, actionLabel, onAction }: Props) {
         onError={() => SplashScreen.hide()}
         accessible={false}
       />
-      <Text
-        style={[styles.title, {
-          top: Math.max(insets.top + 32, height * 0.135),
-          left: width * 0.085,
-          fontSize,
-          lineHeight: fontSize * 0.98,
-        }]}
-      >
-        {'FIND\nNOTES\nNEAR YOU'}
-      </Text>
+      {(fontsLoaded || fontError) && (
+        <Text
+          style={[styles.title, !fontsLoaded && styles.titleFontFallback, {
+            top: Math.max(insets.top + 32, height * 0.135),
+            left: width * 0.085,
+          }]}
+        >
+          {'FIND\nNOTES\nNEAR YOU'}
+        </Text>
+      )}
       <View style={[styles.footer, { bottom: insets.bottom + 24 }]}>
         {!message && !actionLabel && <ActivityIndicator color="#3155E7" size="small" />}
         {message && <Text style={styles.message} accessibilityLiveRegion="polite">{message}</Text>}
@@ -53,7 +56,8 @@ export function StartupScreen({ message, actionLabel, onAction }: Props) {
 
 const styles = StyleSheet.create({
   screen: { ...StyleSheet.absoluteFill, backgroundColor: '#526FFF', zIndex: 2000 },
-  title: { position: 'absolute', color: '#FFF', fontWeight: '900', letterSpacing: -1.5 },
+  title: { position: 'absolute', color: '#FFF', fontFamily: 'ArchivoBlack', fontSize: 44, lineHeight: 44, letterSpacing: -1.5, includeFontPadding: false },
+  titleFontFallback: { fontFamily: undefined, fontWeight: '900' },
   footer: { position: 'absolute', left: 24, right: 24, gap: 14 },
   message: { color: '#222', fontSize: 15, textAlign: 'center' },
   button: { minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: '#D5F743' },

@@ -1,0 +1,42 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend build and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: '15432'
+      DB_NAME: yeoginamgim
+      DB_USERNAME: yeoginamgim
+      DB_PASSWORD: ci-only-password
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: |
+            backend/build.gradle
+            backend/settings.gradle
+            backend/gradle/wrapper/gradle-wrapper.properties
+      - name: Start PostGIS
+        run: docker compose up -d --wait
+      - name: Build and run JUnit tests
+        run: ./gradlew --no-daemon clean build
