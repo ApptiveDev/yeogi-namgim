@@ -21,6 +21,8 @@ import com.yeoginamgim.common.auth.BearerTokenExtractor;
 import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
 import com.yeoginamgim.note.dto.NoteMapBoundsRequest;
+import com.yeoginamgim.note.dto.NoteMapClusterRequest;
+import com.yeoginamgim.note.dto.MemberMapClusterResponse;
 import com.yeoginamgim.note.dto.NoteOpenRequest;
 import com.yeoginamgim.note.dto.NoteOpenResponse;
 import com.yeoginamgim.note.service.NoteService;
@@ -63,6 +65,16 @@ public class NoteController {
 		String token = bearerTokenExtractor.extract(authorizationHeader);
 		return ResponseEntity.ok().cacheControl(CacheControl.noStore())
 			.body(ApiResponse.success(noteMapService.find(token, bounds)));
+	}
+
+	@GetMapping("/clusters")
+	public ResponseEntity<ApiResponse<MemberMapClusterResponse>> findClusters(
+		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
+		@Valid @ModelAttribute NoteMapClusterRequest bounds
+	) {
+		String token = bearerTokenExtractor.extract(authorizationHeader);
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+			.body(ApiResponse.success(noteMapService.findClusters(token, bounds)));
 	}
 
 	@PostMapping("/{noteId}/open")

@@ -13,6 +13,8 @@ import org.springframework.stereotype.Repository;
 import com.yeoginamgim.note.access.LocationInput;
 import com.yeoginamgim.note.domain.NoteVisibility;
 import com.yeoginamgim.note.dto.NoteMapBoundsRequest;
+import com.yeoginamgim.note.dto.NoteMapClusterRequest;
+import com.yeoginamgim.note.dto.MemberMapClusterResponse.Cluster;
 
 @Repository
 public class MemberNoteMapRepository {
@@ -28,12 +30,7 @@ public class MemberNoteMapRepository {
 	public MemberNoteMapRepository(JdbcTemplate jdbc) { this.jdbc = new NamedParameterJdbcTemplate(jdbc); }
 
 	public List<MemberMapCandidate> find(UUID userId, NoteMapBoundsRequest query) {
-		String filter = switch (query.filter()) {
-			case ALL -> "TRUE";
-			case FRIENDS -> "n.visibility = 'FRIENDS' AND " + IS_FRIEND;
-			case MINE -> "n.author_user_id = :userId";
-			case SAVED -> throw new IllegalArgumentException("Saved IDs must come from the bookmark source");
-		};
+		String filter = filter(query.filter());
 		String order = query.filter() == com.yeoginamgim.note.domain.NoteMapFilter.MINE || query.location() == null
 			? "n.created_at DESC, n.id DESC" : "distance_meters ASC, n.id DESC";
 		Map<String, Object> params = parameters(userId, query);
@@ -62,6 +59,54 @@ public class MemberNoteMapRepository {
 		return distances;
 	}
 
+	/** Aggregate in SQL before any pagination; at most gridSize squared rows leave the DB. */
+	public List<Cluster> findClusters(UUID userId, NoteMapClusterRequest query) {
+		Map<String, Object> params = parameters(userId, query.bounds());
+		params.put("gridSize", query.gridSize());
+		String sql = """
+			WITH visible AS (
+				SELECT n.id, n.latitude, n.longitude,
+					LEAST(:gridSize - 1, GREATEST(0, COALESCE(FLOOR(
+						(n.longitude - :minLongitude) / NULLIF(:maxLongitude - :minLongitude, 0)
+						* :gridSize), 0)))::integer AS cell_x,
+					LEAST(:gridSize - 1, GREATEST(0, COALESCE(FLOOR(
+						(n.latitude - :minLatitude) / NULLIF(:maxLatitude - :minLatitude, 0)
+						* :gridSize), 0)))::integer AS cell_y
+				FROM app.notes n WHERE
+			""" + visibleInBounds() + " AND (" + filter(query.filter()) + ")" + """
+			)
+			SELECT cell_x, cell_y, COUNT(*) AS note_count,
+				AVG(latitude) AS latitude, AVG(longitude) AS longitude,
+				CASE WHEN COUNT(*) = 1 THEN MIN(id::text) ELSE NULL END AS note_id,
+				MIN(latitude) AS min_latitude, MIN(longitude) AS min_longitude,
+				MAX(latitude) AS max_latitude, MAX(longitude) AS max_longitude
+			FROM visible GROUP BY cell_x, cell_y ORDER BY cell_y, cell_x
+			""";
+		return jdbc.query(sql, params, (rs, row) -> new Cluster(
+			rs.getInt("cell_x") + ":" + rs.getInt("cell_y"), rs.getDouble("latitude"),
+			rs.getDouble("longitude"), rs.getLong("note_count"),
+			rs.getString("note_id") == null ? null : UUID.fromString(rs.getString("note_id")),
+			rs.getDouble("min_latitude"), rs.getDouble("min_longitude"),
+			rs.getDouble("max_latitude"), rs.getDouble("max_longitude")));
+	}
+
+	private static String filter(com.yeoginamgim.note.domain.NoteMapFilter filter) {
+		return switch (filter) {
+			case ALL -> "TRUE";
+			case FRIENDS -> "n.visibility = 'FRIENDS' AND " + IS_FRIEND;
+			case MINE -> "n.author_user_id = :userId";
+			case SAVED -> throw new IllegalArgumentException("Saved IDs must come from the bookmark source");
+		};
+	}
+
+	private static String visibleInBounds() {
+		return "n.author_user_id IS NOT NULL AND " + VISIBLE + " AND " + """
+			n.location::public.geometry && public.ST_MakeEnvelope(:minLongitude, :minLatitude, :maxLongitude, :maxLatitude, 4326)
+			AND n.latitude BETWEEN :minLatitude AND :maxLatitude
+			AND n.longitude BETWEEN :minLongitude AND :maxLongitude
+			""";
+	}
+
 	private Map<String, Object> parameters(UUID userId, NoteMapBoundsRequest query) {
 		Map<String, Object> params = new HashMap<>();
 		params.put("userId", userId);
@@ -82,13 +127,8 @@ public class MemberNoteMapRepository {
 			public.ST_SetSRID(public.ST_MakePoint(:longitude, :latitude), 4326)::public.geography)
 			""";
 		String sql = "SELECT n.*, u.nickname, " + distance + " AS distance_meters FROM app.notes n "
-			+ "JOIN app.users u ON u.id = n.author_user_id WHERE n.author_user_id IS NOT NULL AND " + VISIBLE + " AND "
-			+ """
-			n.location::public.geometry && public.ST_MakeEnvelope(:minLongitude, :minLatitude, :maxLongitude, :maxLatitude, 4326)
-			AND n.latitude BETWEEN :minLatitude AND :maxLatitude
-			AND n.longitude BETWEEN :minLongitude AND :maxLongitude
-			AND (
-			""" + filter + ")" + suffix;
+			+ "JOIN app.users u ON u.id = n.author_user_id WHERE " + visibleInBounds()
+			+ " AND (" + filter + ")" + suffix;
 		return jdbc.query(sql, params, (rs, row) -> new MemberMapCandidate(rs.getObject("id", UUID.class),
 			rs.getObject("author_user_id", UUID.class), NoteVisibility.valueOf(rs.getString("visibility")),
 			rs.getString("content"), rs.getDouble("latitude"), rs.getDouble("longitude"),
