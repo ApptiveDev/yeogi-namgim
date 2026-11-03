@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
 
-export function FriendsEmptyState() {
+export function FriendsEmptyState({ onInvite, onEnterCode }: { onInvite: () => void; onEnterCode: () => void }) {
   return (
     <View style={s.container}>
       <View style={s.copy}>
@@ -12,25 +12,21 @@ export function FriendsEmptyState() {
       </View>
       <View style={s.actions}>
         <Pressable
-          disabled
           accessibilityRole="button"
-          accessibilityLabel="초대링크 보내기"
-          accessibilityHint="준비 중인 기능이에요"
-          accessibilityState={{ disabled: true }}
+          accessibilityLabel="초대 코드 만들기"
+          onPress={onInvite}
           style={[s.button, s.inviteButton]}
         >
-          <Text style={s.buttonLabel}>초대링크 보내기</Text>
+          <Text style={s.buttonLabel}>초대 코드 만들기</Text>
           <Image source={require('../../../assets/images/friends-link.svg')} style={s.linkIcon} contentFit="contain" accessible={false} />
         </Pressable>
         <Pressable
-          disabled
           accessibilityRole="button"
-          accessibilityLabel="친구 태그 입력"
-          accessibilityHint="준비 중인 기능이에요"
-          accessibilityState={{ disabled: true }}
+          accessibilityLabel="초대 코드 입력"
+          onPress={onEnterCode}
           style={[s.button, s.tagButton]}
         >
-          <Text style={s.buttonLabel}>친구 태그 입력</Text>
+          <Text style={s.buttonLabel}>초대 코드 입력</Text>
         </Pressable>
       </View>
     </View>

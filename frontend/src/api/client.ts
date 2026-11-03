@@ -1,5 +1,12 @@
 import type { ApiFailure, ApiSuccess } from './types';
 
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: string) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
 
@@ -18,10 +25,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
     if (!response.ok) {
       const failure: ApiFailure | null = await response.json().catch(() => null);
-      if (response.status === 401) {
-        throw new Error('인증 정보를 확인할 수 없어요. 앱을 다시 실행해 주세요.');
-      }
-      throw new Error(failure?.error?.message || `API 요청 실패: ${response.status}`);
+      throw new ApiError(failure?.error?.message || `API 요청 실패: ${response.status}`, response.status, failure?.error?.code);
     }
 
     const result: ApiSuccess<T> = await response.json();
@@ -31,7 +35,9 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     return result.data;
   } catch (error) {
     if (controller.signal.aborted) {
-      throw new Error(path === '/api/v1/notes' && options.method === 'POST'
+      throw new Error(path === '/api/v1/auth/signup'
+        ? '응답 시간이 초과됐어요. 가입됐을 수 있으니 로그인으로 확인해 주세요.'
+        : path === '/api/v1/notes' && options.method === 'POST'
         ? '응답 시간이 초과됐어요. 저장됐을 수 있으니 지도에서 확인 후 다시 시도해 주세요.'
         : '응답 시간이 초과됐어요. 잠시 후 다시 시도해 주세요.');
     }

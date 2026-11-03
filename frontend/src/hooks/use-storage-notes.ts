@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { STORAGE_FILTERS } from '@/constants/storage';
 import type { StorageFilter, StorageFilterCounts, StorageNote } from '@/types/storage';
 import { dateKey, isSameMonth, shiftMonth, startOfMonth } from '@/utils/storage-calendar';
+import { isStorageMonthAllowed } from '@/utils/storage-month-picker';
 
 export function useStorageNotes(notes: readonly StorageNote[], filter: StorageFilter = 'all') {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
@@ -20,23 +21,27 @@ export function useStorageNotes(notes: readonly StorageNote[], filter: StorageFi
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   function changeMonth(offset: number) {
-    setMonth((current) => shiftMonth(current, offset));
+    const next = shiftMonth(month, offset);
+    if (!isStorageMonthAllowed(next)) return;
+    setMonth(next);
     setSelectedDate(null);
   }
 
   function selectDate(date: Date) {
+    if (!isStorageMonthAllowed(date)) return;
     const key = dateKey(date);
     if (!isSameMonth(date, month)) setMonth(startOfMonth(date));
     setSelectedDate((current) => current === key ? null : key);
   }
 
-  function goToToday() {
-    setMonth(startOfMonth(new Date()));
+  function selectMonth(date: Date) {
+    if (!isStorageMonthAllowed(date)) return;
+    setMonth(startOfMonth(date));
     setSelectedDate(null);
   }
 
   return {
-    filter, month, selectedDate, selectDate, changeMonth, goToToday,
+    filter, month, selectedDate, selectDate, changeMonth, selectMonth,
     counts, markedDates, visibleNotes, activeFilter,
   };
 }
