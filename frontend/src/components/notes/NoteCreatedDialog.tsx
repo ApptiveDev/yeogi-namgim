@@ -12,7 +12,7 @@ export function NoteCreatedDialog({ visible, onConfirm }: NoteCreatedDialogProps
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onConfirm}>
       <View style={s.backdrop}>
         <View style={s.card} accessibilityViewIsModal>
-          <NoteMarker state="owned" size={64} />
+          <NoteMarker size={64} />
           <Text style={s.title} accessibilityRole="header">쪽지를 남겼어요!</Text>
           <Text style={s.message}>다른 사용자가 발견할 수 있어요</Text>
           <Pressable

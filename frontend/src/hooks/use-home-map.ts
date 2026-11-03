@@ -88,7 +88,7 @@ export function useHomeMap({
   useEffect(() => {
     pointPressGeneration.current += 1;
     return () => { pointPressGeneration.current += 1; };
-  }, [isComposeOpen, mapNotes, userCoordinates?.latitude, userCoordinates?.longitude]);
+  }, [isComposeOpen, mapNotes]);
 
   useFocusEffect(useCallback(() => () => clearMapSelection(), [clearMapSelection]));
   useEffect(() => {

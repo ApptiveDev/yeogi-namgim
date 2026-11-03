@@ -1,6 +1,5 @@
 import { useState, type RefObject } from 'react';
 import { Camera, GeoJSONSource, Layer, Map, Marker, type CameraRef } from '@maplibre/maplibre-react-native';
-import type { FeatureCollection } from 'geojson';
 
 import { ComposeMapDimmer } from '@/components/notes/ComposeMapDimmer';
 import { NoteMapLayer } from '@/components/notes/NoteMapLayer';
@@ -11,7 +10,6 @@ import type { useHomeMap } from '@/hooks/use-home-map';
 import { styles } from '@/styles/home.styles';
 import { localizedMapStyle } from '@/styles/map-style';
 
-const EMPTY_RADIUS: FeatureCollection = { type: 'FeatureCollection', features: []};
 const BASE_MAP_TOP_LAYER = localizedMapStyle.layers.at(-1)?.id;
 
 type Props = {
@@ -61,7 +59,7 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen }: Props)
 
         {/* 유저 주변 원 */}
         {userCircle && (
-          <GeoJSONSource id="user-radius" data={userCircle ?? EMPTY_RADIUS}>
+          <GeoJSONSource id="user-radius" data={userCircle}>
             <Layer
               id="user-radius-fill"
               type="fill"
