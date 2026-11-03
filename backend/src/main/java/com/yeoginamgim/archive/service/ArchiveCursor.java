@@ -1,6 +1,7 @@
 package com.yeoginamgim.archive.service;
 
 import java.nio.charset.StandardCharsets;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Base64;
@@ -40,7 +41,7 @@ public final class ArchiveCursor {
 				throw new InvalidNoteRequestException(INVALID);
 			}
 			return new Position(createdAt, UUID.fromString(fields[7]));
-		} catch (IllegalArgumentException exception) {
+		} catch (DateTimeException | IllegalArgumentException exception) {
 			throw new InvalidNoteRequestException(INVALID);
 		}
 	}
