@@ -2,6 +2,8 @@ export type FriendProfile = {
   id: string;
   displayName: string;
   avatarUrl: string | null;
+  sticker?: { source: number; backgroundColor: string };
+  hasNewActivity?: boolean;
 };
 
 export type FriendActivity = {
