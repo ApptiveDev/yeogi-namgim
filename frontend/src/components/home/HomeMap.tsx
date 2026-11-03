@@ -1,9 +1,10 @@
 import { useState, type RefObject } from 'react';
-import { Camera, GeoJSONSource, Layer, Map, type CameraRef } from '@maplibre/maplibre-react-native';
+import { Camera, GeoJSONSource, Layer, Map, Marker, type CameraRef } from '@maplibre/maplibre-react-native';
 import type { FeatureCollection } from 'geojson';
 
 import { ComposeMapDimmer } from '@/components/notes/ComposeMapDimmer';
 import { NoteMapLayer } from '@/components/notes/NoteMapLayer';
+import { NoteSelectionHighlight } from '@/components/notes/NoteSelectionHighlight';
 import { NotePlacementPreview, NotePlacementPreviewImages } from '@/components/notes/NotePlacementPreview';
 import { DEFAULT_MAP_VIEW } from '@/constants/home-map';
 import type { useHomeMap } from '@/hooks/use-home-map';
@@ -39,6 +40,7 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen }: Props)
         logo={false}
         attribution={false}
         onRegionWillChange={handleRegionWillChange}
+        onPress={map.clearMapSelection}
         onDidFinishLoadingMap={() => {
           setIsMapReady(true);
           void updateMapBounds();
@@ -65,8 +67,8 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen }: Props)
               type="fill"
               afterId={BASE_MAP_TOP_LAYER}
               paint={{
-                'fill-color': '#EDB84A',
-                'fill-opacity': 0.18,
+                'fill-color': '#D6F65A',
+                'fill-opacity': 0.3,
                 'fill-antialias': false,
               }}
             />
@@ -75,10 +77,8 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen }: Props)
               type="line"
               afterId="user-radius-fill"
               paint={{
-                'line-color': '#D2643E',
-                'line-opacity': 0.7,
-                'line-width': 1.5,
-                'line-dasharray': [5, 4],
+                'line-color': '#9CC414',
+                'line-width': 2,
               }}
               layout={{ 'line-join': 'round', 'line-cap': 'round' }}
             />
@@ -113,6 +113,11 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen }: Props)
           <GeoJSONSource id="note-placement" data={composePoint}>
             <NotePlacementPreview />
           </GeoJSONSource>
+        )}
+        {map.selectedMapPoint?.isInside && (
+          <Marker id="selected-note-highlight" lngLat={map.selectedMapPoint.point.center} pointerEvents="none">
+            <NoteSelectionHighlight key={map.selectedMapPoint.key} point={map.selectedMapPoint.point} isInside />
+          </Marker>
         )}
       </Map>
   );

@@ -11,6 +11,7 @@ import { HomeMap } from '@/components/home/HomeMap';
 import { MapSelector } from '@/components/home/MapSelector';
 import { NoteComposeSheet } from '@/components/notes/NoteComposeSheet';
 import { NoteCreatedDialog } from '@/components/notes/NoteCreatedDialog';
+import { NoteLockedDialog } from '@/components/notes/NoteLockedDialog';
 import { useHomeMap } from '@/hooks/use-home-map';
 import { useNoteCompose } from '@/hooks/use-note-compose';
 import { useUserLocation } from '@/hooks/use-user-location';
@@ -54,7 +55,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   });
   const openRequestedCompose = useEffectEvent(() => {
     router.setParams({ compose: undefined });
-    if (!isComposeOpen) void openCompose();
+    if (!isComposeOpen) { map.clearMapSelection(); void openCompose(); }
   });
 
   useEffect(() => {
@@ -118,7 +119,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         </Text>
       </Pressable>}
 
-      {!isComposeOpen && <BottomTabBar onAddPress={openCompose} />}
+      {!isComposeOpen && <BottomTabBar onAddPress={() => { map.clearMapSelection(); void openCompose(); }} />}
 
       {isComposeOpen && (
         <NoteComposeSheet
@@ -136,6 +137,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         visible={isCreatedDialogVisible}
         onConfirm={() => setIsCreatedDialogVisible(false)}
       />
+      <NoteLockedDialog selection={map.selectedMapPoint} onClose={map.clearMapSelection} />
       </View>
       {!homeReady && (
         <StartupScreen

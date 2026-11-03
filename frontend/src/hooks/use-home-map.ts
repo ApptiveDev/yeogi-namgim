@@ -12,6 +12,14 @@ import { useNoteMarkers } from '@/hooks/use-note-markers';
 import { getDistanceMeters } from '@/utils/distance';
 import { createLocationCircle } from '@/utils/location-circle';
 
+export type NoteMapSelection = {
+  key: number;
+  point: NoteMapPoint;
+  isInside: boolean;
+  distanceMeters: number;
+  screenPoint?: [number, number];
+};
+
 type Options = {
   userCoordinates: Location.LocationObjectCoords | null;
   composeCoordinates: Location.LocationObjectCoords | null;
@@ -40,6 +48,7 @@ export function useHomeMap({
   const [isMapRendered, setIsMapRendered] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [bounds, setBounds] = useState<MapBounds | null>(null);
+  const [selection, setSelection] = useState<{ owner: number; notes: NoteMapItem[]; value: NoteMapSelection } | null>(null);
   const { notes, error: notesError, initialLoading: notesInitialLoading, retry: retryNotes } = useNoteMarkers(bounds, notesRefreshKey);
   const userPoint = useMemo<GeoJSON.Point | null>(() => userCoordinates ? {
     type: 'Point',
@@ -60,22 +69,39 @@ export function useHomeMap({
       easing: 'ease',
     });
   }, [isMapRendered, isFollowingUser, isComposeOpen, userPoint, cameraRef]);
-  const mapNotes = useMemo<NoteMapItem[]>(() => notes.map((note) => ({
-    id: note.noteId,
-    latitude: note.latitude,
-    longitude: note.longitude,
-  })), [notes]);
+  const userLatitude = userCoordinates?.latitude;
+  const userLongitude = userCoordinates?.longitude;
+  const mapNotes = useMemo<NoteMapItem[]>(() => {
+    const location = userLatitude !== undefined && userLongitude !== undefined
+      ? { latitude: userLatitude, longitude: userLongitude } : null;
+    return notes.map((note) => ({
+      id: note.noteId, latitude: note.latitude, longitude: note.longitude,
+      isWithinRadius: !!location && getDistanceMeters(location, note) <= NOTE_READ_RADIUS_METERS,
+    }));
+  }, [notes, userLatitude, userLongitude]);
+
+  const clearMapSelection = useCallback(() => {
+    pointPressGeneration.current += 1;
+    setSelection(null);
+  }, []);
 
   useEffect(() => {
     pointPressGeneration.current += 1;
     return () => { pointPressGeneration.current += 1; };
   }, [isComposeOpen, mapNotes, userCoordinates?.latitude, userCoordinates?.longitude]);
 
-  useFocusEffect(useCallback(() => () => { pointPressGeneration.current += 1; }, []));
+  useFocusEffect(useCallback(() => () => clearMapSelection(), [clearMapSelection]));
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next !== 'active') clearMapSelection();
+    });
+    return () => subscription.remove();
+  }, [clearMapSelection]);
 
   const handleNotePointPress = async (point: NoteMapPoint) => {
     if (isComposeOpen) return;
-    const generation = ++pointPressGeneration.current;
+    clearMapSelection();
+    const generation = pointPressGeneration.current;
     const owner = getMemberSessionKey();
     const isCurrent = () => pointPressGeneration.current === generation && owner === getMemberSessionKey()
       && AppState.currentState !== 'background' && AppState.currentState !== 'inactive';
@@ -93,8 +119,16 @@ export function useHomeMap({
         || ids.some((id) => typeof id !== 'string' || !byId.has(id))) {
         throw new Error('선택한 묶음이 바뀌었어요. 원을 다시 눌러 주세요.');
       }
-      if (!ids.some((id) => getDistanceMeters(userCoordinates, byId.get(id)!) <= NOTE_READ_RADIUS_METERS)) {
-        Alert.alert('쪽지를 열 수 없어요', `쪽지를 열람할 수 있는 거리 밖에 있습니다.\n${NOTE_READ_RADIUS_METERS}m 이내로 가까이 이동해 주세요.`);
+      const distanceMeters = Math.min(...ids.map((id) => getDistanceMeters(userCoordinates, byId.get(id)!)));
+      if (distanceMeters > NOTE_READ_RADIUS_METERS) {
+        const screenPoint = await mapRef.current?.project(point.center);
+        if (!isCurrent()) return;
+        if (!screenPoint || screenPoint.length !== 2 || !screenPoint.every(Number.isFinite)) {
+          throw new Error('선택한 원의 위치를 확인하지 못했어요. 원을 다시 눌러 주세요.');
+        }
+        resumeFollowingAfterCloseRef.current = false;
+        setIsFollowingUser(false);
+        setSelection({ owner, notes: mapNotes, value: { key: generation, point, isInside: false, distanceMeters, screenPoint } });
         return;
       }
       const zoom = await mapRef.current?.getZoom();
@@ -102,6 +136,7 @@ export function useHomeMap({
       if (!Number.isFinite(zoom)) {
         throw new Error('지도 확대 수준을 확인하지 못했어요. 다시 시도해 주세요.');
       }
+      setSelection({ owner, notes: mapNotes, value: { key: generation, point, isInside: true, distanceMeters } });
       if (zoom >= DEFAULT_MAP_VIEW.zoom || !cameraRef.current) return;
       resumeFollowingAfterCloseRef.current = false;
       setIsFollowingUser(false);
@@ -149,12 +184,14 @@ export function useHomeMap({
   const handleRegionWillChange = (event: NativeSyntheticEvent<ViewStateChangeEvent>) => {
     pointPressGeneration.current += 1;
     if (event.nativeEvent.userInteraction) {
+      clearMapSelection();
       resumeFollowingAfterCloseRef.current = false;
       setIsFollowingUser(false);
     }
   };
 
   const handleRegionDidChange = (event: NativeSyntheticEvent<ViewStateChangeEvent>) => {
+    clearMapSelection();
     if (resumeFollowingAfterCloseRef.current && !event.nativeEvent.userInteraction &&
         Math.abs(event.nativeEvent.zoom - DEFAULT_MAP_VIEW.zoom) < 0.02) {
       resumeFollowingAfterCloseRef.current = false;
@@ -164,7 +201,7 @@ export function useHomeMap({
 
   // 내 위치 버튼
   const moveToCurrentLocation = async () => {
-    pointPressGeneration.current += 1;
+    clearMapSelection();
     const { status } =
       await Location.requestForegroundPermissionsAsync();
 
@@ -204,6 +241,8 @@ export function useHomeMap({
     mapRef, setIsMapReady, isMapReady, isMapRendered, setIsMapRendered, setMapError, startupError: mapError,
     userPoint, composePoint, userCircle, mapNotes, noteSourceRef, handleNotePointPress,
     notesError, notesInitialLoading, retryNotes,
+    selectedMapPoint: !isComposeOpen && selection?.owner === getMemberSessionKey() && selection.notes === mapNotes ? selection.value : null,
+    clearMapSelection,
     handleRegionWillChange, handleRegionDidChange, updateMapBounds, moveToCurrentLocation,
   };
 }

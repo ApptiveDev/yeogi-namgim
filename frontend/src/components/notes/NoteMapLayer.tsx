@@ -1,5 +1,5 @@
 import { GeoJSONSource, Layer, type GeoJSONSourceRef } from '@maplibre/maplibre-react-native';
-import type { ExpressionSpecification } from '@maplibre/maplibre-gl-style-spec';
+import type { ExpressionSpecification, GeoJSONSourceSpecification } from '@maplibre/maplibre-gl-style-spec';
 import type { FeatureCollection, Point } from 'geojson';
 import { memo, useMemo, type Ref } from 'react';
 
@@ -7,6 +7,7 @@ export interface NoteMapItem {
   id: string;
   latitude: number;
   longitude: number;
+  isWithinRadius?: boolean;
 }
 
 export interface NoteMapPoint {
@@ -28,6 +29,10 @@ export interface NoteMapLayerProps {
 const COUNT: ExpressionSpecification = ['coalesce', ['get', 'point_count'], 1];
 // The stroke is drawn outside circle-radius; include it in the 44/52/64px diameter.
 const RADIUS: ExpressionSpecification = ['step', COUNT, 19, 100, 23, 10000, 29];
+const INSIDE: ExpressionSpecification = ['>', ['coalesce', ['get', 'insideCount'], 0], 0];
+const CLUSTER_PROPERTIES: GeoJSONSourceSpecification['clusterProperties'] = {
+  insideCount: ['+', ['get', 'insideCount']],
+};
 
 /** One clustered source; isolated notes use the same numbered circle as clusters. */
 export const NoteMapLayer = memo(function NoteMapLayer({
@@ -43,7 +48,7 @@ export const NoteMapLayer = memo(function NoteMapLayer({
       type: 'Feature',
       id: note.id,
       geometry: { type: 'Point', coordinates: [note.longitude, note.latitude] },
-      properties: { noteId: note.id },
+      properties: { noteId: note.id, insideCount: note.isWithinRadius ? 1 : 0 },
     })),
   }), [notes]);
 
@@ -57,6 +62,7 @@ export const NoteMapLayer = memo(function NoteMapLayer({
       cluster
       clusterRadius={50}
       clusterMinPoints={2}
+      clusterProperties={CLUSTER_PROPERTIES}
       maxzoom={24}
       clusterMaxZoom={24}
       onPress={onPointPress ? (event) => {
@@ -84,10 +90,10 @@ export const NoteMapLayer = memo(function NoteMapLayer({
         type="circle"
         afterId={afterId}
         paint={{
-          'circle-radius': RADIUS,
-          'circle-color': '#2350FF',
-          'circle-stroke-color': '#FFFFFF',
-          'circle-stroke-width': 3,
+          'circle-radius': ['+', RADIUS, ['case', INSIDE, 0.5, 0]],
+          'circle-color': ['case', INSIDE, '#D6F65A', '#2350FF'],
+          'circle-stroke-color': ['case', INSIDE, '#0E0E0E', '#FFFFFF'],
+          'circle-stroke-width': ['case', INSIDE, 2.5, 3],
           'circle-pitch-alignment': 'viewport',
           'circle-pitch-scale': 'viewport',
         }}
@@ -106,7 +112,7 @@ export const NoteMapLayer = memo(function NoteMapLayer({
           'text-pitch-alignment': 'viewport',
           'text-rotation-alignment': 'viewport',
         }}
-        paint={{ 'text-color': '#FFFFFF' }}
+        paint={{ 'text-color': ['case', INSIDE, '#0E0E0E', '#FFFFFF'] }}
       />
     </GeoJSONSource>
   );
