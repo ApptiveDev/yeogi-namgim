@@ -2,7 +2,6 @@ package com.yeoginamgim.user;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.hamcrest.Matchers.nullValue;
 
 import java.time.Instant;
 import java.util.List;
@@ -58,12 +57,12 @@ class MemberStatsIntegrationTests {
 	}
 
 	@Test
-	void emptyCountsDistinguishMissingBookmarkSourceAndKeepProfileCompatible() throws Exception {
+	void emptyCountsIncludeBookmarkSourceAndKeepProfileCompatible() throws Exception {
 		mvc.perform(get("/api/v1/users/me/stats").header("Authorization", "Bearer " + tokens.accessToken()))
 			.andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
 			.andExpect(jsonPath("$.data.writtenNoteCount").value(0))
 			.andExpect(jsonPath("$.data.friendCount").value(0))
-			.andExpect(jsonPath("$.data.savedNoteCount").value(nullValue()));
+			.andExpect(jsonPath("$.data.savedNoteCount").value(0));
 		mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + tokens.accessToken()))
 			.andExpect(status().isOk()).andExpect(jsonPath("$.data.userId").value(first.getId().toString()));
 	}
