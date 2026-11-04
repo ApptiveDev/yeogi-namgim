@@ -7,7 +7,7 @@
 기존 `GET /api/v1/notes`를 유지한다. 회원은 `Authorization: Bearer <accessToken>`을 사용한다. 비회원 토큰 요청은 `401 UNAUTHORIZED`로 거절한다. 기존 비회원 데이터는 회원 지도에 노출하지 않는다. 모든 지도 응답은 `Cache-Control: no-store`다.
 
 ```text
-GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLongitude=129.01&filter=ALL&latitude=35&longitude=129&page=0&size=100
+GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLongitude=129.01&filter=ALL&latitude=35&longitude=129&accuracyMeters=10&measuredAt=<현재_UTC_측정시각>&page=0&size=100
 ```
 
 | 입력 | 규칙 |
@@ -15,10 +15,10 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 | `minLatitude/minLongitude/maxLatitude/maxLongitude` | 필수, 위도 -90~90·경도 -180~180, 최소 ≤ 최대. 화면의 사각형 범위이며 150m 조회 반경이 아님 |
 | `filter` | 기본 `ALL`, `ALL/FRIENDS/MINE/SAVED` |
 | `latitude/longitude` | 현재 사용자 위치, 둘 다 생략하거나 둘 다 제공. 화면 중심과 별개 |
-| `accuracyMeters/measuredAt` | 선택적인 측정 정확도(유한한 0 이상)·ISO UTC 시각. 좌표 없이 메타데이터만 제공하면 400 |
+| `accuracyMeters/measuredAt` | 현재 사용자 좌표를 보낼 때 함께 보내는 측정 정확도(미터)·ISO UTC 시각. 임의의 초기 허용 기준은 정확도 50m 이하, 측정 후 30초 이내, 미래 10초 이내. 좌표 없이 메타데이터만 제공해도 400 |
 | `page/size` | 기본 0/100, `page=0~10000`, `size=1~500` |
 
-좌표·페이지·필터·측정 메타데이터 형식 오류는 `400 INVALID_REQUEST`다. 위치를 생략해도 지도를 탐색할 수 있으며, 모르는 위치나 정확도를 서버가 0 또는 현재 시각으로 만들어 넣지 않는다. 위치 측정 품질·유효 시간 제한은 열람 담당이 실제 기준을 정해 추가한다.
+좌표·페이지·필터·측정 메타데이터의 누락·형식 오류·품질 기준 위반은 `400 INVALID_REQUEST`다. 위치를 아예 생략해도 지도를 탐색할 수 있으며, 모르는 위치나 정확도를 서버가 0 또는 현재 시각으로 만들어 넣지 않는다. 수치 기준은 기획에서 확정한 값이 아닌 임의의 초기 설정이며 [공통 API 계약](BACKEND_API_CONTRACT.md#위치-입력)에 조정 방법을 적었다.
 
 필터·정렬은 다음과 같다. 동률은 `noteId DESC`로 고정한다.
 

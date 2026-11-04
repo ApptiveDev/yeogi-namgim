@@ -21,17 +21,20 @@ public class GeographicNoteAccessService implements NoteAccessService {
 	private final FriendshipQueryService friends;
 	private final ObjectProvider<BookmarkQueryService> bookmarks;
 	private final MemberNoteMapRepository notes;
+	private final LocationQualityPolicy locationQuality;
 
 	public GeographicNoteAccessService(FriendshipQueryService friends, ObjectProvider<BookmarkQueryService> bookmarks,
-		MemberNoteMapRepository notes) {
+		MemberNoteMapRepository notes, LocationQualityPolicy locationQuality) {
 		this.friends = friends;
 		this.bookmarks = bookmarks;
 		this.notes = notes;
+		this.locationQuality = locationQuality;
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public Map<UUID, NoteAccessResult> evaluate(UUID userId, LocationInput location, List<NoteAccessTarget> targets) {
+		locationQuality.requireValid(location);
 		if (targets.isEmpty()) return Map.of();
 		Set<UUID> authorIds = targets.stream().map(NoteAccessTarget::authorUserId).collect(Collectors.toSet());
 		Set<UUID> friendIds = friends.findFriendIds(userId, authorIds);

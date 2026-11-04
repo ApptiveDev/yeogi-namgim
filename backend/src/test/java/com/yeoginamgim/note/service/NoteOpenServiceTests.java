@@ -25,7 +25,8 @@ class NoteOpenServiceTests {
 		when(actors.identify("member-token")).thenReturn(new NoteActorProvider.Actor(userId));
 		when(noteRepository.findById(note.getId())).thenReturn(Optional.of(note));
 		when(access.evaluate(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(java.util.Map.of(note.getId(), new com.yeoginamgim.note.access.NoteAccessResult(com.yeoginamgim.note.access.NoteAccessStatus.OPENABLE, 0.0)));
-		var response = noteOpenService.open("member-token", note.getId(), new NoteOpenRequest(35.0, 129.0));
+		var response = noteOpenService.open("member-token", note.getId(),
+			new NoteOpenRequest(35.0, 129.0, 10.0, java.time.Instant.now()));
 		assertThat(response.content()).isEqualTo("내용");
 		assertThat(response.isMine()).isTrue();
 	}

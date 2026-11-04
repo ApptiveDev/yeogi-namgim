@@ -134,7 +134,8 @@ class FriendActivityIntegrationTests {
 			.andExpect(jsonPath("$.data.activities.length()").value(1));
 		mvc.perform(post("/api/v1/notes/{id}/open", item.getId())
 			.header("Authorization", "Bearer " + tokens.accessToken())
-			.contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":0,\"longitude\":0}"))
+			.contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":0,\"longitude\":0,"
+				+ "\"accuracyMeters\":10,\"measuredAt\":\"" + Instant.now() + "\"}"))
 			.andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("NOTE_LOCKED"));
 		assertThat(notes.findById(item.getId()).orElseThrow().getContent()).isEqualTo("secret body");
 	}

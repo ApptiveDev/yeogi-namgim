@@ -46,8 +46,8 @@ class MemberMapStateIntegrationTests extends MemberMapTestSupport {
 		when(discoveries.findReadNoteIds(eq(me.getId()), any())).thenReturn(Set.of(target.getId()));
 		map("ALL", true).andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.openableNotes[0].isRead").value(true));
-		open(target.getId(), "{\"latitude\":35,\"longitude\":129}").andExpect(status().isOk());
-		open(target.getId(), "{\"latitude\":36,\"longitude\":129}").andExpect(status().isForbidden())
+		open(target.getId(), locationBody(35, 129)).andExpect(status().isOk());
+		open(target.getId(), locationBody(36, 129)).andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.error.code").value("NOTE_LOCKED"));
 		map("ALL", false).andExpect(status().isOk()).andExpect(jsonPath("$.data.openableNotes.length()").value(0));
 	}

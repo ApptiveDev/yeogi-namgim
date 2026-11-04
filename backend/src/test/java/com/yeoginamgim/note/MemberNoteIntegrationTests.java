@@ -178,7 +178,7 @@ class MemberNoteIntegrationTests {
 	@Test
 	void opensOwnPrivateNoteWithoutLocationOrAtAnyDistance() throws Exception {
 		UUID noteId = id(create(tokens.accessToken(), request("PRIVATE")).andExpect(status().isCreated()));
-		for (String body : List.of("{}", "{\"latitude\":-35,\"longitude\":-129}")) {
+		for (String body : List.of("{}", locationBody(-35, -129))) {
 			open(tokens.accessToken(), noteId, body).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.content").value("현재 위치의 기록"))
 				.andExpect(jsonPath("$.data.visibility").value("PRIVATE"))
@@ -196,7 +196,7 @@ class MemberNoteIntegrationTests {
 			UUID noteId = id(create(tokens.accessToken(), request(visibility)).andExpect(status().isCreated()));
 			notes.flush();
 			for (String token : List.of(guest.guestToken(), other.accessToken())) {
-				var result = open(token, noteId, "{\"latitude\":35.1796,\"longitude\":129.0756}");
+				var result = open(token, noteId, locationBody(35.1796, 129.0756));
 				if (token.equals(other.accessToken()) && visibility.equals("PUBLIC")) {
 					result.andExpect(status().isOk());
 				} else if (token.equals(guest.guestToken())) {
@@ -318,6 +318,10 @@ class MemberNoteIntegrationTests {
 	private ResultActions open(String token, UUID id, String body) throws Exception {
 		return mvc.perform(post("/api/v1/notes/{id}/open", id).header("Authorization", "Bearer " + token)
 			.contentType(MediaType.APPLICATION_JSON).content(body));
+	}
+	private String locationBody(double latitude, double longitude) {
+		return "{\"latitude\":" + latitude + ",\"longitude\":" + longitude
+			+ ",\"accuracyMeters\":10,\"measuredAt\":\"" + Instant.now() + "\"}";
 	}
 	private ResultActions mine(String page, String size) throws Exception {
 		return mvc.perform(get("/api/v1/users/me/notes").header("Authorization", "Bearer " + tokens.accessToken())
