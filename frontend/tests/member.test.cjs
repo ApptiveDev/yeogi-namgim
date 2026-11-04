@@ -86,6 +86,11 @@ test('nickname editing sends only the normalized nickname and returns the saved 
   const { validateNickname } = require('../src/utils/auth-validation.ts');
   for (const value of ['가나', ' 😀😀 ', '😀'.repeat(20)]) assert.equal(validateNickname(value), undefined);
   for (const value of ['', ' ', '가', '가'.repeat(21), '😀'.repeat(21), '가\n나', '가\u007f나']) assert.ok(validateNickname(value));
+  for (const character of ['가', '😀']) {
+    assert.equal(validateNickname(character.repeat(12), 12), undefined);
+    assert.ok(validateNickname(character.repeat(13), 12));
+    assert.equal(validateNickname(character.repeat(13)), undefined);
+  }
 });
 
 test('my notes request the selected page and reject foreign or malformed records', async () => {

@@ -4,6 +4,8 @@ import { useColorScheme } from 'react-native';
 
 import { StartupScreen } from '@/components/StartupScreen';
 import { initializeSession } from '@/auth/member-session';
+import { MyColors } from '@/constants/my';
+import { StorageColors } from '@/constants/storage';
 import { useAuthSession } from '@/hooks/use-auth-session';
 
 SplashScreen.preventAutoHideAsync();
@@ -26,8 +28,8 @@ export default function RootLayout() {
         <Stack.Protected guard={isLoggedIn}>
           <Stack.Screen name="index" />
           <Stack.Screen name="storage" />
-          <Stack.Screen name="friends" />
-          <Stack.Screen name="my" />
+          <Stack.Screen name="friends" options={{ animation: 'none', statusBarStyle: 'dark', contentStyle: { backgroundColor: StorageColors.background } }} />
+          <Stack.Screen name="my" options={{ animation: 'none', statusBarStyle: 'dark', contentStyle: { backgroundColor: MyColors.background } }} />
           <Stack.Screen name="settings" />
           <Stack.Screen name="profile-edit" />
           <Stack.Screen name="my-notes" />

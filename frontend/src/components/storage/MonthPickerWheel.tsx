@@ -1,9 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { type NativeScrollEvent, type NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { type SharedValue, useAnimatedRef, useAnimatedStyle, useReducedMotion, useScrollOffset, useSharedValue } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  cancelAnimation, Easing, type SharedValue, useAnimatedRef, useAnimatedStyle,
+  useReducedMotion, useScrollOffset, useSharedValue, withSpring, withTiming,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
-import { MONTH_PICKER_ROW_HEIGHT as ROW_HEIGHT, MONTH_PICKER_VISIBLE_ROWS, monthPickerIndex } from '@/utils/storage-month-picker';
+import { MONTH_PICKER_ROW_HEIGHT as ROW_HEIGHT, MONTH_PICKER_SPRING, MONTH_PICKER_VISIBLE_ROWS, monthPickerIndex, monthPickerRelease } from '@/utils/storage-month-picker';
 
 type Props = {
   label: string;
@@ -17,8 +22,8 @@ type Props = {
 
 const WHEEL_HEIGHT = ROW_HEIGHT * MONTH_PICKER_VISIBLE_ROWS;
 const EDGE_PADDING = (WHEEL_HEIGHT - ROW_HEIGHT) / 2;
-// 기본값(0.985)과 이전 값(0.995) 사이로 조정해 과도하게 여러 칸 넘어가지 않게 합니다.
-const DECELERATION_RATE = Platform.OS === 'android' ? 0.99 : 'normal';
+const IS_WEB = Platform.OS === 'web';
+const JUMP_ANIMATION = { duration: 240, easing: Easing.out(Easing.cubic) };
 
 export function MonthPickerWheel({ label, values, value, kind, format, onChange, onScrollingChange }: Props) {
   const scrollRef = useAnimatedRef<ScrollView>();
@@ -28,11 +33,20 @@ export function MonthPickerWheel({ label, values, value, kind, format, onChange,
   const programmaticTargetRef = useRef<number | null>(null);
   const currentOffsetRef = useRef(selectedIndex * ROW_HEIGHT);
   const scrollOffset = useSharedValue(selectedIndex * ROW_HEIGHT);
-  useScrollOffset(scrollRef, scrollOffset);
+  const previousTranslationY = useSharedValue(0);
+  const maxOffset = (values.length - 1) * ROW_HEIGHT;
+  useScrollOffset(IS_WEB ? scrollRef : null, scrollOffset);
   const reducedMotion = useReducedMotion();
 
   function scrollToIndex(index: number) {
     const y = index * ROW_HEIGHT;
+    if (!IS_WEB) {
+      onScrollingChange(true);
+      scrollOffset.set(withTiming(y, JUMP_ANIMATION, (finished) => {
+        if (finished) scheduleOnRN(onScrollingChange, false);
+      }));
+      return;
+    }
     const animated = !reducedMotion && Math.abs(currentOffsetRef.current - y) > 0.5;
     programmaticTargetRef.current = animated ? y : null;
     onScrollingChange(animated);
@@ -65,17 +79,50 @@ export function MonthPickerWheel({ label, values, value, kind, format, onChange,
       // '오늘'로 이동하는 동안 중간 행이 목표 값을 덮어쓰지 않도록 합니다.
       return;
     }
-    // Web은 드래그/관성 종료 콜백을 제공하지 않습니다.
-    if (Platform.OS === 'web') commitOffset(offset);
+    commitIndex(monthPickerIndex(offset, values.length));
   }
 
-  function commitOffset(offset: number) {
-    const index = monthPickerIndex(offset, values.length);
+  function commitIndex(index: number) {
     const nextValue = values[index];
     if (nextValue === lastReportedRef.current) return;
     lastReportedRef.current = nextValue;
     onChange(nextValue);
   }
+
+  function finishGesture(index: number) {
+    commitIndex(index);
+    onScrollingChange(false);
+  }
+
+  const pan = Gesture.Pan()
+    .activeOffsetY([-4, 4])
+    .failOffsetX([-16, 16])
+    .maxPointers(1)
+    .onStart(({ translationY }) => {
+      cancelAnimation(scrollOffset);
+      previousTranslationY.set(translationY);
+      scheduleOnRN(onScrollingChange, true);
+    })
+    .onUpdate(({ translationY }) => {
+      const deltaY = translationY - previousTranslationY.get();
+      previousTranslationY.set(translationY);
+      scrollOffset.set(Math.max(0, Math.min(maxOffset, scrollOffset.get() - deltaY)));
+    })
+    .onEnd(({ velocityY }, success) => {
+      const { index, springVelocity } = monthPickerRelease(scrollOffset.get(), success ? -velocityY : 0, values.length);
+      scrollOffset.set(withSpring(index * ROW_HEIGHT, { ...MONTH_PICKER_SPRING, velocity: springVelocity }, (finished) => {
+        if (finished) scheduleOnRN(finishGesture, index);
+      }));
+    });
+
+  const trackStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -scrollOffset.get() }] }));
+  const items = values.map((item, index) => (
+    <Pressable key={item} onPress={() => select(index)} style={s.item} accessible={false}>
+      <View style={kind === 'year' ? s.yearLabel : s.monthLabel}>
+        <WheelLabel index={index} scrollOffset={scrollOffset} text={format(item, false)} selectedText={format(item, true)} />
+      </View>
+    </Pressable>
+  ));
 
   return (
     <View
@@ -90,46 +137,32 @@ export function MonthPickerWheel({ label, values, value, kind, format, onChange,
         else if (event.nativeEvent.actionName === 'decrement') select(selectedIndex - 1);
       }}
     >
-      <Animated.ScrollView
-        ref={scrollRef}
-        style={s.scroll}
-        contentContainerStyle={s.items}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ROW_HEIGHT}
-        decelerationRate={DECELERATION_RATE}
-        bounces={false}
-        overScrollMode="never"
-        nestedScrollEnabled
-        scrollEventThrottle={16}
-        onContentSizeChange={() => {
-          if (initializedRef.current) return;
-          initializedRef.current = true;
-          scrollRef.current?.scrollTo({ y: selectedIndex * ROW_HEIGHT, animated: false });
-        }}
-        onScroll={reportScroll}
-        onScrollBeginDrag={() => { programmaticTargetRef.current = null; onScrollingChange(true); }}
-        onScrollEndDrag={(event) => {
-          reportScroll(event);
-          commitOffset(event.nativeEvent.contentOffset.y);
-          onScrollingChange(false);
-        }}
-        onMomentumScrollBegin={() => onScrollingChange(true)}
-        onMomentumScrollEnd={(event) => {
-          reportScroll(event);
-          commitOffset(event.nativeEvent.contentOffset.y);
-          onScrollingChange(false);
-        }}
-        importantForAccessibility="no-hide-descendants"
-        accessibilityElementsHidden
-      >
-        {values.map((item, index) => (
-            <Pressable key={item} onPress={() => select(index)} style={s.item} accessible={false}>
-              <View style={kind === 'year' ? s.yearLabel : s.monthLabel}>
-                <WheelLabel index={index} scrollOffset={scrollOffset} text={format(item, false)} selectedText={format(item, true)} />
-              </View>
-            </Pressable>
-        ))}
-      </Animated.ScrollView>
+      {IS_WEB ? (
+        <Animated.ScrollView
+          ref={scrollRef}
+          style={s.scroll}
+          contentContainerStyle={s.items}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={ROW_HEIGHT}
+          scrollEventThrottle={16}
+          onContentSizeChange={() => {
+            if (initializedRef.current) return;
+            initializedRef.current = true;
+            scrollRef.current?.scrollTo({ y: selectedIndex * ROW_HEIGHT, animated: false });
+          }}
+          onScroll={reportScroll}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+        >
+          {items}
+        </Animated.ScrollView>
+      ) : (
+        <GestureDetector gesture={pan}>
+          <View style={s.viewport} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+            <Animated.View style={[s.items, trackStyle]}>{items}</Animated.View>
+          </View>
+        </GestureDetector>
+      )}
     </View>
   );
 }
@@ -161,6 +194,7 @@ const s = StyleSheet.create({
   yearColumn: { width: '42.424242%', height: WHEEL_HEIGHT },
   monthColumn: { flex: 1, height: WHEEL_HEIGHT },
   scroll: { flex: 1 },
+  viewport: { flex: 1, overflow: 'hidden' },
   items: { paddingVertical: EDGE_PADDING },
   item: { height: ROW_HEIGHT, justifyContent: 'center' },
   yearLabel: { width: '64.285714%', alignSelf: 'flex-end' },

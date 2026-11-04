@@ -2,6 +2,17 @@ export const MONTH_PICKER_ROW_HEIGHT = 36;
 export const MONTH_PICKER_VISIBLE_ROWS = 5;
 export const MONTH_PICKER_WIDTH = 280;
 export const MONTH_PICKER_HEIGHT = 248;
+export const MONTH_PICKER_SPRING = {
+  stiffness: 324,
+  damping: 36,
+  mass: 1,
+  overshootClamping: true,
+  energyThreshold: 0.0001,
+};
+
+const RELEASE_PROJECTION_SECONDS = 0.09;
+const MAX_RELEASE_ROWS = 2;
+const MAX_RELEASE_VELOCITY = MAX_RELEASE_ROWS * MONTH_PICKER_ROW_HEIGHT / RELEASE_PROJECTION_SECONDS;
 
 export type MonthPickerAnchor = { x: number; y: number; width: number; height: number };
 type Viewport = { width: number; height: number; topInset: number; bottomInset: number; leftInset: number; rightInset: number };
@@ -17,7 +28,21 @@ export function isStorageMonthAllowed(date: Date, today = new Date()): boolean {
 }
 
 export function monthPickerIndex(offset: number, count: number): number {
+  'worklet';
   return Math.max(0, Math.min(count - 1, Math.round(offset / MONTH_PICKER_ROW_HEIGHT)));
+}
+
+export function monthPickerRelease(offset: number, velocity: number, count: number) {
+  'worklet';
+  const boundedVelocity = Math.max(-MAX_RELEASE_VELOCITY, Math.min(MAX_RELEASE_VELOCITY, velocity));
+  const index = monthPickerIndex(offset + boundedVelocity * RELEASE_PROJECTION_SECONDS, count);
+  const distance = index * MONTH_PICKER_ROW_HEIGHT - offset;
+  // 가까운 칸으로 이동할 때도 초기 속도가 커서 중앙에서 갑자기 멈추지 않도록 제한합니다.
+  const approachLimit = Math.abs(distance) * Math.sqrt(MONTH_PICKER_SPRING.stiffness / MONTH_PICKER_SPRING.mass);
+  const springVelocity = Math.sign(distance) === Math.sign(boundedVelocity)
+    ? Math.sign(distance) * Math.min(Math.abs(boundedVelocity), approachLimit)
+    : 0;
+  return { index, springVelocity };
 }
 
 export function monthPickerPosition(anchor: MonthPickerAnchor, viewport: Viewport) {

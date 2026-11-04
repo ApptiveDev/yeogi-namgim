@@ -22,7 +22,7 @@ export function SettingsProfile({ profile, email, onEdit }: { profile: MyPageMod
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="프로필 편집"
-        accessibilityHint="닉네임을 수정합니다"
+        accessibilityHint="프로필 편집 화면을 엽니다"
         onPress={onEdit}
         style={({ pressed }) => [s.editTouchArea, pressed && s.pressed]}
       >

@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
@@ -45,7 +46,7 @@ export function StorageMonthPicker({ month, anchor, onConfirm, onClose }: Props)
 
   return (
     <Modal transparent visible animationType="none" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
-      <View style={s.overlay}>
+      <GestureHandlerRootView style={s.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="년월 선택 취소" />
         <Animated.View
           entering={ENTER_ANIMATION}
@@ -74,7 +75,7 @@ export function StorageMonthPicker({ month, anchor, onConfirm, onClose }: Props)
             </Pressable>
           </View>
         </Animated.View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
