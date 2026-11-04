@@ -59,7 +59,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   });
   const openRequestedCompose = useEffectEvent(() => {
     router.setParams({ compose: undefined });
-    if (!isComposeOpen) { map.clearMapSelection(); void openCompose(); }
+    if (!isComposeOpen) { map.clearMapSelection(); void openCompose(map.mapRef); }
   });
 
   useEffect(() => {
@@ -126,7 +126,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         </Text>
       </Pressable>}
 
-      {!isComposeOpen && !map.nearbyNotes && <BottomTabBar onAddPress={() => { map.clearMapSelection(); void openCompose(); }} />}
+      {!isComposeOpen && !map.nearbyNotes && <BottomTabBar onAddPress={() => { map.clearMapSelection(); void openCompose(map.mapRef); }} />}
 
       {isComposeOpen && (
         <NoteComposeSheet

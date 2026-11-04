@@ -8,6 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface NoteDraft { content: string }
 export const INITIAL_NOTE_DRAFT: NoteDraft = { content: '' };
+// Repeat at whole 18px cells so the exported grid joins without gaps.
+const GRID_TILE_WIDTH = 324;
+const GRID_TILE_HEIGHT = 378;
 const A = {
   grid: require('../../../assets/images/note-compose/grid.svg'),
   close: require('../../../assets/images/note-compose/close.svg'),
@@ -49,6 +52,7 @@ export function NoteComposeSheet({
   const [confirmedPlaceName, setConfirmedPlaceName] = useState<string | null>(null);
   const placeChanged = confirmedPlaceName !== null && placeName !== confirmedPlaceName;
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [paperSize, setPaperSize] = useState({ width: 0, height: 0 });
   const canSubmit = locationReady && Boolean(draft.content.trim()) && !isSubmitting;
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
@@ -74,7 +78,13 @@ export function NoteComposeSheet({
         <Text style={s.hint}>✦ 꾸미는 그대로 지도에 남겨져요</Text>
         <View style={s.paperArea}>
           <View style={s.paper}>
-            <Image source={A.grid} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} />
+            <View pointerEvents="none" style={s.grid} onLayout={(event) => setPaperSize(event.nativeEvent.layout)} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              {Array.from({ length: Math.ceil(paperSize.height / GRID_TILE_HEIGHT) }, (_, row) =>
+                Array.from({ length: Math.ceil(paperSize.width / GRID_TILE_WIDTH) }, (_, column) =>
+                  <View key={`${row}-${column}`} style={[s.gridTile, { left: column * GRID_TILE_WIDTH, top: row * GRID_TILE_HEIGHT }]}>
+                    <Image source={A.grid} style={s.gridImage} contentFit="fill" accessible={false} />
+                  </View>))}
+            </View>
             <TextInput accessibilityLabel="쪽지 내용" value={draft.content} onChangeText={(content) => onChange({ content })}
               placeholder="이 장소에 남길 이야기를 적어주세요." placeholderTextColor="#8C8577" multiline scrollEnabled maxLength={500}
               editable={!isSubmitting} textAlignVertical="top" selectionColor="#D6F65A" style={s.input} />
@@ -125,6 +135,9 @@ const s = StyleSheet.create({
   icon16: { width: 16, height: 16 }, icon20: { width: 20, height: 20 }, icon24: { width: 24, height: 24 },
   paperArea: { flex: 1, minHeight: 80, marginBottom: 20, marginHorizontal: 8 },
   paper: { flex: 1, backgroundColor: '#EEE6D3', transform: [{ rotate: '1.5deg' }], shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 9, elevation: 8 },
+  grid: { ...StyleSheet.absoluteFill, overflow: 'hidden' },
+  gridTile: { position: 'absolute', width: GRID_TILE_WIDTH, height: GRID_TILE_HEIGHT, overflow: 'hidden' },
+  gridImage: { width: 329.5, height: 392.5 },
   input: { flex: 1, paddingHorizontal: 22, paddingTop: 36, paddingBottom: 24, fontFamily: 'NanumPen', fontSize: 23, lineHeight: 31, color: '#1C1C1E' },
   count: { position: 'absolute', right: 12, bottom: 6, fontSize: 10, color: '#8C8577' },
   tape: { position: 'absolute', left: -3, top: -20, width: 86, height: 26, backgroundColor: '#3A6FD8', transform: [{ rotate: '-10deg' }] },

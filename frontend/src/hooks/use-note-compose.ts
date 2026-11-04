@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import { useCallback, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { Keyboard, type NativeSyntheticEvent } from 'react-native';
-import type { CameraRef, ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
+import type { CameraRef, MapRef, ViewState, ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
 
 import { createNote } from '@/api/notes';
 import { runMemberRequest } from '@/auth/member-session';
@@ -84,20 +84,27 @@ export function useNoteCompose({
     }
   };
 
-  const onComposeCameraIdle = useCallback((event: NativeSyntheticEvent<ViewStateChangeEvent>) => {
+  const openIfCameraReady = useCallback(({ center, zoom, bearing, pitch }: ViewState) => {
     const target = cameraTarget.current;
-    if (!target || event.nativeEvent.userInteraction) return;
-    const { center, zoom } = event.nativeEvent;
+    if (!target) return;
     if (Math.abs(center[0] - target.longitude) > 0.00001 || Math.abs(center[1] - target.latitude) > 0.00001
-      || Math.abs(zoom - DEFAULT_MAP_VIEW.zoom) > 0.02) return;
+      || Math.abs(zoom - DEFAULT_MAP_VIEW.zoom) > 0.02 || Math.abs(bearing) > 0.02 || Math.abs(pitch) > 0.02) return;
     cameraTarget.current = null;
     openingCompose.current = false;
     setIsComposeOpening(false);
     setIsComposeOpen(true);
   }, []);
 
-  const openCompose = async () => {
+  const onComposeCameraIdle = useCallback((event: NativeSyntheticEvent<ViewStateChangeEvent>) => {
+    if (!event.nativeEvent.userInteraction) openIfCameraReady(event.nativeEvent);
+  }, [openIfCameraReady]);
+
+  const openCompose = async (mapRef: RefObject<MapRef | null>) => {
     if (openingCompose.current || isComposeOpen) return;
+    if (!userCoordinates || !cameraRef.current || !mapRef.current) {
+      showToast('현재 위치와 지도를 확인한 뒤 다시 시도해 주세요.');
+      return;
+    }
     openingCompose.current = true;
     setIsComposeOpening(true);
     resumeFollowingAfterCloseRef.current = false;
@@ -109,7 +116,18 @@ export function useNoteCompose({
     setPlaceName('');
     setNeighborhood('');
     setComposeLocationLabel('현재 위치를 확인하고 있어요');
+    let cameraStarted = false;
     try {
+      const viewState = await mapRef.current.getViewState();
+      if (requestId !== composeRequest.current) return;
+      cameraTarget.current = userCoordinates;
+      openIfCameraReady(viewState);
+      if (cameraTarget.current) cameraRef.current.easeTo({
+        center: [userCoordinates.longitude, userCoordinates.latitude], zoom: DEFAULT_MAP_VIEW.zoom,
+        bearing: 0, pitch: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 },
+        duration: CAMERA_RETURN_DURATION, easing: 'ease',
+      });
+      cameraStarted = true;
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (requestId !== composeRequest.current) return;
       if (status !== 'granted') throw new Error('현재 위치에 쪽지를 남기려면 위치 권한을 허용해 주세요.');
@@ -120,13 +138,6 @@ export function useNoteCompose({
       setUserCoordinates(coords);
       setComposeCoordinates(coords);
       setComposeLocationLabel('장소명을 입력해 주세요');
-      if (!cameraRef.current) throw new Error('지도를 확인한 뒤 다시 시도해 주세요.');
-      cameraTarget.current = coords;
-      cameraRef.current.easeTo({
-        center: [coords.longitude, coords.latitude], zoom: DEFAULT_MAP_VIEW.zoom,
-        bearing: 0, pitch: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 },
-        duration: CAMERA_RETURN_DURATION, easing: 'ease',
-      });
       try {
         const [address] = await Location.reverseGeocodeAsync(coords);
         if (requestId !== composeRequest.current || !address) return;
@@ -138,9 +149,11 @@ export function useNoteCompose({
       }
     } catch (error) {
       if (requestId !== composeRequest.current) return;
-      openingCompose.current = false;
-      cameraTarget.current = null;
-      setIsComposeOpening(false);
+      if (!cameraStarted) {
+        openingCompose.current = false;
+        cameraTarget.current = null;
+        setIsComposeOpening(false);
+      }
       setComposeLocationLabel('현재 위치를 확인할 수 없어요');
       showToast(error instanceof Error ? error.message : '위치 서비스를 확인한 뒤 작성 화면을 다시 열어 주세요.');
     }
