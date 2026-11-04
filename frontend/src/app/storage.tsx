@@ -10,7 +10,7 @@ import { StorageEmptyState } from '@/components/storage/StorageEmptyState';
 import { StorageFilters } from '@/components/storage/StorageFilters';
 import { StorageHeader } from '@/components/storage/StorageHeader';
 import { StorageNoteCard } from '@/components/storage/StorageNoteCard';
-import { STORAGE_FILTERS, StorageColors as C } from '@/constants/storage';
+import { STORAGE_FILTERS, StorageColors as C, StorageFonts as F } from '@/constants/storage';
 import { resolveStorageNotes, STORAGE_COUNT_PREVIEW, STORAGE_NOTES_RESPONSE } from '@/data/storage-notes';
 import { useDeveloperSettings } from '@/hooks/use-developer-settings';
 import { useStorageNotes } from '@/hooks/use-storage-notes';
@@ -32,6 +32,7 @@ export default function StorageScreen() {
     'NotoSansKR-Regular': require('../../assets/fonts/NotoSansKR-Regular.otf'),
     'NotoSansKR-Medium': require('../../assets/fonts/NotoSansKR-Medium.otf'),
     'NotoSansKR-Bold': require('../../assets/fonts/NotoSansKR-Bold.otf'),
+    [F.interSemiBold]: require('../../assets/fonts/Inter-SemiBold.otf'),
   });
 
   useEffect(() => {

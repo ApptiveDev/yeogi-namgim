@@ -120,7 +120,7 @@ const s = StyleSheet.create({
   badge: { minWidth: 20, flexShrink: 0, height: 17, paddingHorizontal: 4, borderRadius: 8.5, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface },
   narrowBadge: { paddingHorizontal: 2 },
   activeBadge: { backgroundColor: 'rgba(255, 255, 255, 0.25)' },
-  count: { fontFamily: F.bold, color: '#2C2C2E', fontSize: 11, lineHeight: 15, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false },
+  count: { fontFamily: F.interSemiBold, color: '#2C2C2E', fontSize: 11, lineHeight: 15, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false },
   activeText: { color: C.surface },
   pressed: { opacity: 0.75 },
 });

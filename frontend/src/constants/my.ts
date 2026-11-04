@@ -15,10 +15,11 @@ export const MyFonts = {
   regular: 'NotoSansKR-Regular',
   medium: 'NotoSansKR-Medium',
   bold: 'NotoSansKR-Bold',
+  inter: 'Inter-Regular',
 } as const;
 
 export const MY_NOTE_STATS: readonly { id: MyNoteKind; label: string; maximum: number; filter: StorageFilter }[] = [
   { id: 'found', label: '찾은 노트', maximum: 999, filter: 'all' },
-  { id: 'written', label: '작성한 노트', maximum: 99, filter: 'mine' },
-  { id: 'saved', label: '저장한 노트', maximum: 99, filter: 'saved' },
+  { id: 'written', label: '작성한 노트', maximum: 999, filter: 'mine' },
+  { id: 'saved', label: '저장한 노트', maximum: 999, filter: 'saved' },
 ];

@@ -64,8 +64,8 @@ export function StorageCalendar({ month, today, selectedDate, markedDates, onCha
             <Pressable key={key} onPress={() => onSelectDate(date)} disabled={disabled} accessibilityRole="button" accessibilityLabel={`${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일${isToday ? ', 오늘' : ''}${hasNotes ? ', 노트 있음' : ''}`} accessibilityHint={selected ? '다시 누르면 날짜 선택을 해제합니다' : '이 날짜의 노트를 봅니다'} accessibilityState={{ selected, disabled }} style={s.dayCell}>
               <View style={[s.dayCircle, isToday && s.today, selected && s.selected]}>
                 <Text style={[s.day, date.getDay() === 0 && s.sunday, !inMonth && s.outsideMonth, isToday && s.todayText]}>{date.getDate()}</Text>
+                {hasNotes && <View style={s.dot} />}
               </View>
-              {hasNotes && <View style={s.dot} />}
             </Pressable>
           );
         })}
@@ -88,13 +88,13 @@ const s = StyleSheet.create({
   weekdays: { flexDirection: 'row', paddingVertical: 5 },
   weekday: { width: '14.285714%', textAlign: 'center', fontFamily: F.regular, color: C.muted, fontSize: 12, lineHeight: 22, includeFontPadding: false },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell: { width: '14.285714%', minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingBottom: 4 },
+  dayCell: { width: '14.285714%', minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   dayCircle: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
-  day: { width: '100%', fontFamily: F.bold, color: C.ink, fontSize: 16, lineHeight: 20, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false },
+  day: { width: '100%', fontFamily: F.interSemiBold, color: C.ink, fontSize: 15, lineHeight: 20, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false },
   sunday: { color: C.sunday },
   outsideMonth: { color: C.outsideMonth },
   today: { backgroundColor: C.lime, borderColor: C.ink },
   todayText: { color: C.ink },
   selected: { borderColor: C.blue },
-  dot: { position: 'absolute', bottom: 1, width: 5, height: 5, borderRadius: 3, backgroundColor: C.ink },
+  dot: { position: 'absolute', bottom: 0.5, width: 6, height: 6, borderRadius: 3, backgroundColor: C.ink },
 });

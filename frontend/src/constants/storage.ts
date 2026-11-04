@@ -17,6 +17,7 @@ export const StorageFonts = {
   regular: 'NotoSansKR-Regular',
   medium: 'NotoSansKR-Medium',
   bold: 'NotoSansKR-Bold',
+  interSemiBold: 'Inter-SemiBold',
 } as const;
 
 // 필터 라벨, 판별 기준, 빈 상태 문구를 한곳에서 변경할 수 있습니다.

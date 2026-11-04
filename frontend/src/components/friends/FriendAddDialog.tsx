@@ -5,7 +5,6 @@ import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, Pre
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FriendCodeInput } from '@/components/friends/FriendCodeInput';
-import { BackButton } from '@/components/navigation/BackButton';
 import { ComposeIcon } from '@/components/notes/ComposeIcon';
 import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
 import { createFriendInvitationFlow } from '@/state/friend-invitation';
