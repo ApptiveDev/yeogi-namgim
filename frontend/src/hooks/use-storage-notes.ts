@@ -1,47 +1,96 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { STORAGE_FILTERS } from '@/constants/storage';
 import type { StorageFilter, StorageFilterCounts, StorageNote } from '@/types/storage';
 import { dateKey, isSameMonth, shiftMonth, startOfMonth } from '@/utils/storage-calendar';
 import { isStorageMonthAllowed } from '@/utils/storage-month-picker';
 
-export function useStorageNotes(notes: readonly StorageNote[], filter: StorageFilter = 'all') {
-  const [month, setMonth] = useState(() => startOfMonth(new Date()));
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const activeFilter = STORAGE_FILTERS.find((item) => item.id === filter)!;
-  const monthNotes = notes.filter((note) => isSameMonth(new Date(note.createdAt), month));
-  // 배지 수는 표시 월 기준이며, 날짜를 선택해도 다른 필터의 전체 건수를 유지합니다.
-  const counts = Object.fromEntries(STORAGE_FILTERS.map((item) => [
-    item.id, monthNotes.filter(item.matches).length,
-  ])) as StorageFilterCounts;
-  const filteredNotes = monthNotes.filter(activeFilter.matches);
-  const markedDates = new Set(filteredNotes.map((note) => dateKey(new Date(note.createdAt))));
-  const visibleNotes = filteredNotes
-    .filter((note) => !selectedDate || dateKey(new Date(note.createdAt)) === selectedDate)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+type CalendarSelection = {
+  month: Date;
+  selectedDate: string | null;
+};
 
-  function changeMonth(offset: number) {
-    const next = shiftMonth(month, offset);
-    if (!isStorageMonthAllowed(next)) return;
-    setMonth(next);
-    setSelectedDate(null);
+const EMPTY_NOTES: readonly StorageNote[] = [];
+
+function getMonthNotes(notes: readonly StorageNote[], month: Date) {
+  const counts: StorageFilterCounts = { all: 0, saved: 0, mine: 0, friends: 0 };
+  const entries = [];
+
+  for (const note of notes) {
+    const date = new Date(note.createdAt);
+    if (!isSameMonth(date, month)) continue;
+
+    // 배지는 선택 날짜와 관계없이 표시 중인 달의 전체 건수를 보여줍니다.
+    for (const filter of STORAGE_FILTERS) {
+      if (filter.matches(note)) counts[filter.id]++;
+    }
+    entries.push({ note, dateKey: dateKey(date), timestamp: date.getTime() });
   }
 
-  function selectDate(date: Date) {
+  entries.sort((a, b) => b.timestamp - a.timestamp);
+  return { counts, entries };
+}
+
+export function useStorageNotes(notes: readonly StorageNote[], filter: StorageFilter = 'all') {
+  const [{ month, selectedDate }, setSelection] = useState<CalendarSelection>(() => ({
+    month: startOfMonth(new Date()),
+    selectedDate: null,
+  }));
+  const activeFilter = STORAGE_FILTERS.find((item) => item.id === filter) ?? STORAGE_FILTERS[0];
+  const { counts, entries } = useMemo(() => getMonthNotes(notes, month), [notes, month]);
+  const { markedDates, filteredNotes, notesByDate } = useMemo(() => {
+    const filteredNotes: StorageNote[] = [];
+    const notesByDate = new Map<string, StorageNote[]>();
+
+    for (const { note, dateKey } of entries) {
+      if (!activeFilter.matches(note)) continue;
+      filteredNotes.push(note);
+
+      const dayNotes = notesByDate.get(dateKey);
+      if (dayNotes) dayNotes.push(note);
+      else notesByDate.set(dateKey, [note]);
+    }
+
+    return { markedDates: new Set(notesByDate.keys()), filteredNotes, notesByDate };
+  }, [entries, activeFilter]);
+  const visibleNotes = selectedDate ? notesByDate.get(selectedDate) ?? EMPTY_NOTES : filteredNotes;
+
+  const changeMonth = useCallback((offset: number) => {
+    const today = new Date();
+    setSelection((current) => {
+      const nextMonth = shiftMonth(current.month, offset);
+      if (!isStorageMonthAllowed(nextMonth, today)) return current;
+      return { month: nextMonth, selectedDate: null };
+    });
+  }, []);
+
+  const selectDate = useCallback((date: Date) => {
     if (!isStorageMonthAllowed(date)) return;
     const key = dateKey(date);
-    if (!isSameMonth(date, month)) setMonth(startOfMonth(date));
-    setSelectedDate((current) => current === key ? null : key);
-  }
+    setSelection((current) => ({
+      month: isSameMonth(date, current.month) ? current.month : startOfMonth(date),
+      selectedDate: current.selectedDate === key ? null : key,
+    }));
+  }, []);
 
-  function selectMonth(date: Date) {
+  const selectMonth = useCallback((date: Date) => {
     if (!isStorageMonthAllowed(date)) return;
-    setMonth(startOfMonth(date));
-    setSelectedDate(null);
-  }
+    setSelection((current) => {
+      if (!isSameMonth(date, current.month)) return { month: startOfMonth(date), selectedDate: null };
+      return current.selectedDate === null ? current : { ...current, selectedDate: null };
+    });
+  }, []);
 
   return {
-    filter, month, selectedDate, selectDate, changeMonth, selectMonth,
-    counts, markedDates, visibleNotes, activeFilter,
+    filter,
+    activeFilter,
+    month,
+    selectedDate,
+    counts,
+    markedDates,
+    visibleNotes,
+    changeMonth,
+    selectDate,
+    selectMonth,
   };
 }

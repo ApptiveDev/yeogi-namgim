@@ -1,14 +1,31 @@
-import { useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { type NativeScrollEvent, type NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  cancelAnimation, Easing, type SharedValue, useAnimatedRef, useAnimatedStyle,
-  useReducedMotion, useScrollOffset, useSharedValue, withSpring, withTiming,
+  cancelAnimation,
+  type DerivedValue,
+  Easing,
+  useAnimatedRef,
+  useAnimatedStyle,
+  useDerivedValue,
+  useReducedMotion,
+  useScrollOffset,
+  useSharedValue,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
-import { MONTH_PICKER_ROW_HEIGHT as ROW_HEIGHT, MONTH_PICKER_SPRING, MONTH_PICKER_VISIBLE_ROWS, monthPickerIndex, monthPickerRelease } from '@/utils/storage-month-picker';
+import { FontFamilies } from '@/constants/fonts';
+import { StorageColors as C } from '@/constants/storage';
+import {
+  MONTH_PICKER_ROW_HEIGHT as ROW_HEIGHT,
+  MONTH_PICKER_SPRING,
+  MONTH_PICKER_WHEEL_HEIGHT,
+  MONTH_PICKER_WHEEL_PADDING,
+  monthPickerIndex,
+  monthPickerRelease,
+} from '@/utils/storage-month-picker';
 
 type Props = {
   label: string;
@@ -20,12 +37,18 @@ type Props = {
   onScrollingChange: (scrolling: boolean) => void;
 };
 
-const WHEEL_HEIGHT = ROW_HEIGHT * MONTH_PICKER_VISIBLE_ROWS;
-const EDGE_PADDING = (WHEEL_HEIGHT - ROW_HEIGHT) / 2;
 const IS_WEB = Platform.OS === 'web';
 const JUMP_ANIMATION = { duration: 240, easing: Easing.out(Easing.cubic) };
 
-export function MonthPickerWheel({ label, values, value, kind, format, onChange, onScrollingChange }: Props) {
+export const MonthPickerWheel = memo(function MonthPickerWheel({
+  label,
+  values,
+  value,
+  kind,
+  format,
+  onChange,
+  onScrollingChange,
+}: Props) {
   const scrollRef = useAnimatedRef<ScrollView>();
   const lastReportedRef = useRef(value);
   const selectedIndex = Math.max(0, values.indexOf(value));
@@ -33,12 +56,13 @@ export function MonthPickerWheel({ label, values, value, kind, format, onChange,
   const programmaticTargetRef = useRef<number | null>(null);
   const currentOffsetRef = useRef(selectedIndex * ROW_HEIGHT);
   const scrollOffset = useSharedValue(selectedIndex * ROW_HEIGHT);
+  const centeredIndex = useDerivedValue(() => Math.round(scrollOffset.get() / ROW_HEIGHT));
   const previousTranslationY = useSharedValue(0);
   const maxOffset = (values.length - 1) * ROW_HEIGHT;
   useScrollOffset(IS_WEB ? scrollRef : null, scrollOffset);
   const reducedMotion = useReducedMotion();
 
-  function scrollToIndex(index: number) {
+  const scrollToIndex = useCallback((index: number) => {
     const y = index * ROW_HEIGHT;
     if (!IS_WEB) {
       onScrollingChange(true);
@@ -51,14 +75,14 @@ export function MonthPickerWheel({ label, values, value, kind, format, onChange,
     programmaticTargetRef.current = animated ? y : null;
     onScrollingChange(animated);
     scrollRef.current?.scrollTo({ y, animated });
-  }
+  }, [onScrollingChange, reducedMotion, scrollOffset, scrollRef]);
 
   // 드래그로 보고한 값은 다시 스크롤하지 않아 관성 스크롤을 방해하지 않습니다.
   useEffect(() => {
     if (value === lastReportedRef.current) return;
     lastReportedRef.current = value;
     scrollToIndex(selectedIndex);
-  });
+  }, [scrollToIndex, selectedIndex, value]);
 
   function select(nextIndex: number) {
     const index = Math.max(0, Math.min(values.length - 1, nextIndex));
@@ -119,7 +143,7 @@ export function MonthPickerWheel({ label, values, value, kind, format, onChange,
   const items = values.map((item, index) => (
     <Pressable key={item} onPress={() => select(index)} style={s.item} accessible={false}>
       <View style={kind === 'year' ? s.yearLabel : s.monthLabel}>
-        <WheelLabel index={index} scrollOffset={scrollOffset} text={format(item, false)} selectedText={format(item, true)} />
+        <WheelLabel index={index} centeredIndex={centeredIndex} text={format(item, false)} selectedText={format(item, true)} />
       </View>
     </Pressable>
   ));
@@ -130,7 +154,12 @@ export function MonthPickerWheel({ label, values, value, kind, format, onChange,
       accessible
       accessibilityRole="adjustable"
       accessibilityLabel={label}
-      accessibilityValue={{ min: values[0], max: values[values.length - 1], now: value, text: kind === 'year' ? `${value}년` : `${value}월` }}
+      accessibilityValue={{
+        min: values[0],
+        max: values[values.length - 1],
+        now: value,
+        text: kind === 'year' ? `${value}년` : `${value}월`,
+      }}
       accessibilityActions={[{ name: 'increment', label: '다음 값' }, { name: 'decrement', label: '이전 값' }]}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === 'increment') select(selectedIndex + 1);
@@ -165,21 +194,28 @@ export function MonthPickerWheel({ label, values, value, kind, format, onChange,
       )}
     </View>
   );
-}
+});
 
-function WheelLabel({ index, scrollOffset, text, selectedText }: { index: number; scrollOffset: SharedValue<number>; text: string; selectedText: string }) {
+type WheelLabelProps = {
+  index: number;
+  centeredIndex: DerivedValue<number>;
+  text: string;
+  selectedText: string;
+};
+
+function WheelLabel({ index, centeredIndex, text, selectedText }: WheelLabelProps) {
   const animatedStyle = useAnimatedStyle(() => {
-    const distance = Math.abs(index - Math.round(scrollOffset.get() / ROW_HEIGHT));
+    const distance = Math.abs(index - centeredIndex.get());
     return {
       opacity: distance === 0 ? 1 : distance === 1 ? 0.5 : 0.22,
       transform: [{ scale: distance === 0 ? 1 : distance === 1 ? 15 / 18 : 13 / 18 }],
     };
   });
   const regularStyle = useAnimatedStyle(() => ({
-    opacity: index === Math.round(scrollOffset.get() / ROW_HEIGHT) ? 0 : 1,
+    opacity: index === centeredIndex.get() ? 0 : 1,
   }));
   const selectedStyle = useAnimatedStyle(() => ({
-    opacity: index === Math.round(scrollOffset.get() / ROW_HEIGHT) ? 1 : 0,
+    opacity: index === centeredIndex.get() ? 1 : 0,
   }));
   // 두 폰트는 미리 배치하고, 중앙 행이 바뀔 때 전환 효과 없이 즉시 교체합니다.
   return (
@@ -191,15 +227,15 @@ function WheelLabel({ index, scrollOffset, text, selectedText }: { index: number
 }
 
 const s = StyleSheet.create({
-  yearColumn: { width: '42.424242%', height: WHEEL_HEIGHT },
-  monthColumn: { flex: 1, height: WHEEL_HEIGHT },
+  yearColumn: { width: '42.424242%', height: MONTH_PICKER_WHEEL_HEIGHT },
+  monthColumn: { flex: 1, height: MONTH_PICKER_WHEEL_HEIGHT },
   scroll: { flex: 1 },
   viewport: { flex: 1, overflow: 'hidden' },
-  items: { paddingVertical: EDGE_PADDING },
+  items: { paddingVertical: MONTH_PICKER_WHEEL_PADDING },
   item: { height: ROW_HEIGHT, justifyContent: 'center' },
   yearLabel: { width: '64.285714%', alignSelf: 'flex-end' },
   monthLabel: { width: '92.105263%', alignSelf: 'flex-start' },
   labelFrame: { height: 24 },
-  text: { position: 'absolute', left: 0, right: 0, top: 0, fontFamily: F.medium, fontSize: 18, lineHeight: 24, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false, color: '#3A3A3C' },
-  selected: { fontFamily: F.display, color: C.ink },
+  text: { position: 'absolute', left: 0, right: 0, top: 0, fontFamily: FontFamilies.notoSansKrMedium, fontSize: 18, lineHeight: 24, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false, color: '#3A3A3C' },
+  selected: { fontFamily: FontFamilies.archivoBlack, color: C.ink },
 });

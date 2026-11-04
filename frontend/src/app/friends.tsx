@@ -1,7 +1,7 @@
 import { useFonts } from 'expo-font';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, AppState, FlatList, Pressable, StyleSheet, Text, View, type ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FriendActivityCard } from '@/components/friends/FriendActivityCard';
@@ -11,17 +11,55 @@ import { FriendsEmptyState } from '@/components/friends/FriendsEmptyState';
 import { FriendsHeader, FriendsTitle } from '@/components/friends/FriendsHeader';
 import { AccountLoadState } from '@/components/my/AccountLoadState';
 import BottomTabBar from '@/components/navigation/BottomTabBar';
-import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
-import { FRIENDS_RESPONSE, resolveFriendsData } from '@/data/friends';
+import { FontFamilies } from '@/constants/fonts';
+import { StorageColors as C } from '@/constants/storage';
+import { createFriendsMock } from '@/data/friends.mock';
 import { useDeveloperSettings } from '@/hooks/use-developer-settings';
 import { useFriends } from '@/hooks/use-friends';
+import type { FriendActivity, FriendProfile } from '@/types/friends';
+import { formatActivityTime } from '@/utils/friends';
 
 const FRIENDS_FONTS = {
-  ArchivoBlack: require('../../assets/fonts/ArchivoBlack-Regular.ttf'),
-  'NotoSansKR-Regular': require('../../assets/fonts/NotoSansKR-Regular.otf'),
-  'NotoSansKR-Medium': require('../../assets/fonts/NotoSansKR-Medium.otf'),
-  'NotoSansKR-Bold': require('../../assets/fonts/NotoSansKR-Bold.otf'),
+  [FontFamilies.archivoBlack]: require('../../assets/fonts/ArchivoBlack-Regular.ttf'),
+  [FontFamilies.notoSansKrRegular]: require('../../assets/fonts/NotoSansKR-Regular.otf'),
+  [FontFamilies.notoSansKrMedium]: require('../../assets/fonts/NotoSansKR-Medium.otf'),
+  [FontFamilies.notoSansKrBold]: require('../../assets/fonts/NotoSansKR-Bold.otf'),
 };
+const EMPTY_ACTIVITIES: readonly FriendActivity[] = [];
+
+const activityKey = (activity: FriendActivity) => activity.id;
+
+function openCompose() {
+  router.dismissTo({ pathname: '/', params: { compose: 'true' } });
+}
+
+function useActivityTime(activities: readonly FriendActivity[]) {
+  const [now, setNow] = useState(Date.now);
+
+  useFocusEffect(useCallback(() => {
+    if (activities.length === 0) return;
+
+    function refreshTime() {
+      const next = Date.now();
+      // 화면에 보이는 상대 시간 문구가 바뀌는 경우에만 목록을 갱신합니다.
+      setNow((previous) => activities.some(({ createdAtMs }) => (
+        formatActivityTime(createdAtMs, previous) !== formatActivityTime(createdAtMs, next)
+      )) ? next : previous);
+    }
+
+    refreshTime();
+    const timer = setInterval(refreshTime, 60_000);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshTime();
+    });
+    return () => {
+      clearInterval(timer);
+      subscription.remove();
+    };
+  }, [activities]));
+
+  return now;
+}
 
 export default function FriendsScreen() {
   const { mockDataEnabled, isReady } = useDeveloperSettings();
@@ -30,25 +68,27 @@ export default function FriendsScreen() {
 
 function FriendsContent({ mockDataEnabled, isReady }: { mockDataEnabled: boolean; isReady: boolean }) {
   const insets = useSafeAreaInsets();
-  const [showActualFriends, setShowActualFriends] = useState(false);
-  const showMock = mockDataEnabled && !showActualFriends;
-  const realFriends = useFriends(isReady && !showMock);
   const [fontsLoaded, fontError] = useFonts(FRIENDS_FONTS);
-  const preparing = (!fontsLoaded && !fontError) || !isReady;
-  const [mockCreatedAt] = useState(() => Date.now());
-  const [now, setNow] = useState(() => Date.now());
+  const [mockData] = useState(() => mockDataEnabled ? createFriendsMock(Date.now()) : null);
+  const [showActualFriends, setShowActualFriends] = useState(false);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [addMode, setAddMode] = useState<FriendAddMode | null>(null);
-  const friendsData = showMock
-    ? resolveFriendsData(FRIENDS_RESPONSE, true, mockCreatedAt)
-    : { friends: realFriends.friends, activities: [] };
-  const hasNoFriends = friendsData.friends.length === 0 && friendsData.activities.length === 0;
-  const showEmptyState = hasNoFriends && (showMock || realFriends.page >= 0);
-  const loadingFriends = !showMock && !realFriends.refreshing && (realFriends.loading || (realFriends.page < 0 && !realFriends.error));
-  const selectedFriend = friendsData.friends.find((friend) => friend.id === selectedFriendId);
-  const activities = friendsData.activities
-    .filter((activity) => !selectedFriend || activity.friend.id === selectedFriend.id)
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const preparing = !isReady || (!fontsLoaded && !fontError);
+  const activeMock = showActualFriends ? null : mockData;
+  const realFriends = useFriends(isReady && !activeMock);
+  const friends = activeMock?.friends ?? realFriends.friends;
+  const allActivities = activeMock?.activities ?? EMPTY_ACTIVITIES;
+  const selectedFriend = friends.find((friend) => friend.id === selectedFriendId);
+  const activeFriendId = selectedFriend?.id;
+  const activities = useMemo(() => activeFriendId
+    ? allActivities.filter((activity) => activity.friend.id === activeFriendId)
+    : allActivities, [activeFriendId, allActivities]);
+  const now = useActivityTime(preparing ? EMPTY_ACTIVITIES : activities);
+  const renderActivity = useCallback<ListRenderItem<FriendActivity>>(({ item }) => (
+    <FriendActivityCard activity={item} timeLabel={formatActivityTime(item.createdAtMs, now)} />
+  ), [now]);
+  const hasNoFriends = friends.length === 0 && allActivities.length === 0;
+  const showInvitation = hasNoFriends && (activeMock !== null || realFriends.hasLoaded);
 
   function openAddFriend(mode: FriendAddMode = 'options') {
     setSelectedFriendId(null);
@@ -58,73 +98,125 @@ function FriendsContent({ mockDataEnabled, isReady }: { mockDataEnabled: boolean
 
   function closeAddFriend(mode: FriendAddMode) {
     setAddMode(null);
-    if (!showMock && mode !== 'enter') realFriends.reload();
+    if (!activeMock && mode !== 'enter') realFriends.reload();
   }
 
-  useEffect(() => {
-    const refreshTime = () => setNow(Date.now());
-    const timer = setInterval(refreshTime, 60_000);
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') refreshTime();
-    });
-    return () => { clearInterval(timer); subscription.remove(); };
-  }, []);
+  function showExampleFriends() {
+    setShowActualFriends(false);
+    setSelectedFriendId(null);
+  }
 
   return (
     <View style={s.screen}>
       <View style={[s.content, { paddingTop: insets.top + 8 }]}>
         <FriendsTitle
           fontsLoaded={fontsLoaded}
-          onCreateCode={!preparing && showEmptyState ? () => openAddFriend('create') : undefined}
+          onCreateCode={!preparing && showInvitation ? () => openAddFriend('create') : undefined}
         />
       </View>
       {preparing ? (
-        <View style={s.loading}><ActivityIndicator color={C.blue} accessibilityLabel="친구 소식 준비 중" /></View>
+        <View style={s.loading}>
+          <ActivityIndicator color={C.blue} accessibilityLabel="친구 소식 준비 중" />
+        </View>
       ) : (
         <FlatList
           data={activities}
-          keyExtractor={(activity) => activity.id}
-          renderItem={({ item }) => <FriendActivityCard activity={item} now={now} />}
+          keyExtractor={activityKey}
+          renderItem={renderActivity}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             s.content,
-            showEmptyState && s.emptyContent,
-            { paddingTop: showEmptyState ? 0 : 16, paddingBottom: insets.bottom + (showEmptyState ? 134 : 94) },
+            showInvitation && s.emptyContent,
+            { paddingTop: showInvitation ? 0 : 16, paddingBottom: insets.bottom + (showInvitation ? 134 : 94) },
           ]}
-          ListHeaderComponent={<>
-            <FriendsHeader
-              friends={friendsData.friends}
-              selectedFriendId={selectedFriend?.id ?? null}
-              onSelectFriend={setSelectedFriendId}
-              onAddFriend={() => openAddFriend()}
-            />
-            {showMock ? <Text style={s.notice}>예시 친구를 보고 있어요.</Text> : mockDataEnabled ? <View>
-              <Text style={s.notice}>실제 친구 목록을 보고 있어요.</Text>
-              <Pressable accessibilityRole="button" onPress={() => { setShowActualFriends(false); setSelectedFriendId(null); }} style={[action.button, action.secondary, action.compact, s.more]}>
-                <Text style={[action.label, action.compactLabel]}>예시 친구 보기</Text>
-              </Pressable>
-            </View> : null}
-            {!showMock ? <>
-              <AccountLoadState loading={loadingFriends} error={realFriends.error} label="친구 목록" onRetry={realFriends.retry} />
-              {realFriends.hasNext && !realFriends.error ? <Pressable accessibilityRole="button" accessibilityLabel="친구 목록 더 보기" disabled={realFriends.loading} onPress={realFriends.loadMore} style={[action.button, action.secondary, action.compact, s.more]}>
-                <Text style={[action.label, action.compactLabel]}>친구 더 보기</Text>
-              </Pressable> : null}
-            </> : null}
-          </>}
-          ListEmptyComponent={showEmptyState ? <View style={s.invitation}>
-            <FriendsEmptyState onEnterCode={() => openAddFriend('enter')} />
-          </View> : hasNoFriends ? null : (
-            <View style={s.empty}>
-              <Text style={s.emptyTitle}>{!showMock ? '친구 쪽지 소식은 준비 중이에요' : selectedFriend ? '아직 남긴 쪽지가 없어요' : '아직 친구의 소식이 없어요'}</Text>
-              <Text style={s.emptyDescription}>
-                {!showMock ? '추가한 친구는 위 목록에서 확인할 수 있어요.' : selectedFriend ? `${selectedFriend.displayName}님이 쪽지를 남기면\n이곳에서 알려드릴게요.` : '친구들이 남긴 쪽지를\n이곳에서 만나보세요.'}
-              </Text>
+          ListHeaderComponent={(
+            <>
+              <FriendsHeader
+                friends={friends}
+                selectedFriend={selectedFriend}
+                onSelectFriend={setSelectedFriendId}
+                onAddFriend={() => openAddFriend()}
+              />
+              {activeMock ? (
+                <Text style={s.notice}>예시 친구를 보고 있어요.</Text>
+              ) : (
+                <ActualFriendsStatus
+                  friends={realFriends}
+                  onShowExamples={mockDataEnabled ? showExampleFriends : undefined}
+                />
+              )}
+            </>
+          )}
+          ListEmptyComponent={showInvitation ? (
+            <View style={s.invitation}>
+              <FriendsEmptyState onEnterCode={() => openAddFriend('enter')} />
             </View>
+          ) : hasNoFriends ? null : (
+            <EmptyActivityFeed showingExamples={activeMock !== null} selectedFriend={selectedFriend} />
           )}
         />
       )}
-      <BottomTabBar selectedTab="friends" onAddPress={() => router.dismissTo({ pathname: '/', params: { compose: 'true' } })} />
+      <BottomTabBar selectedTab="friends" onAddPress={openCompose} />
       {addMode ? <FriendAddDialog initialMode={addMode} onClose={closeAddFriend} /> : null}
+    </View>
+  );
+}
+
+function ActualFriendsStatus({ friends, onShowExamples }: {
+  friends: ReturnType<typeof useFriends>;
+  onShowExamples?: () => void;
+}) {
+  const loading = !friends.refreshing && (friends.loading || (!friends.hasLoaded && !friends.error));
+
+  return (
+    <>
+      {onShowExamples ? (
+        <View>
+          <Text style={s.notice}>실제 친구 목록을 보고 있어요.</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onShowExamples}
+            style={[action.button, action.secondary, action.compact, s.more]}
+          >
+            <Text style={[action.label, action.compactLabel]}>예시 친구 보기</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <AccountLoadState loading={loading} error={friends.error} label="친구 목록" onRetry={friends.retry} />
+      {friends.hasNext && !friends.error ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="친구 목록 더 보기"
+          disabled={friends.loading}
+          onPress={friends.loadMore}
+          style={[action.button, action.secondary, action.compact, s.more]}
+        >
+          <Text style={[action.label, action.compactLabel]}>친구 더 보기</Text>
+        </Pressable>
+      ) : null}
+    </>
+  );
+}
+
+function EmptyActivityFeed({ showingExamples, selectedFriend }: {
+  showingExamples: boolean;
+  selectedFriend: FriendProfile | undefined;
+}) {
+  const message = !showingExamples ? {
+    title: '친구 쪽지 소식은 준비 중이에요',
+    description: '추가한 친구는 위 목록에서 확인할 수 있어요.',
+  } : selectedFriend ? {
+    title: '아직 남긴 쪽지가 없어요',
+    description: `${selectedFriend.displayName}님이 쪽지를 남기면\n이곳에서 알려드릴게요.`,
+  } : {
+    title: '아직 친구의 소식이 없어요',
+    description: '친구들이 남긴 쪽지를\n이곳에서 만나보세요.',
+  };
+
+  return (
+    <View style={s.empty}>
+      <Text style={s.emptyTitle}>{message.title}</Text>
+      <Text style={s.emptyDescription}>{message.description}</Text>
     </View>
   );
 }
@@ -136,8 +228,8 @@ const s = StyleSheet.create({
   invitation: { flexGrow: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', backgroundColor: C.surface, borderRadius: 16, marginTop: 12, paddingHorizontal: 20, paddingVertical: 36, gap: 10 },
-  emptyTitle: { fontFamily: F.bold, fontSize: 16, lineHeight: 24, color: C.ink, textAlign: 'center' },
-  emptyDescription: { fontFamily: F.regular, fontSize: 13, lineHeight: 22, color: C.muted, textAlign: 'center' },
-  notice: { fontFamily: F.regular, fontSize: 12, lineHeight: 19, color: C.muted, marginTop: 4 },
+  emptyTitle: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 16, lineHeight: 24, color: C.ink, textAlign: 'center' },
+  emptyDescription: { fontFamily: FontFamilies.notoSansKrRegular, fontSize: 13, lineHeight: 22, color: C.muted, textAlign: 'center' },
+  notice: { fontFamily: FontFamilies.notoSansKrRegular, fontSize: 12, lineHeight: 19, color: C.muted, marginTop: 4 },
   more: { minHeight: 44, alignSelf: 'center', marginBottom: 12 },
 });

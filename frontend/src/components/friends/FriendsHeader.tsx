@@ -1,18 +1,24 @@
 import { Image } from 'expo-image';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { memo } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FriendAvatar } from '@/components/friends/FriendAvatar';
-import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
+import { FontFamilies } from '@/constants/fonts';
+import { StorageColors as C } from '@/constants/storage';
 import type { FriendProfile } from '@/types/friends';
 
 import { friendActionStyles as action } from './friendActionStyles';
 
 type Props = {
   friends: readonly FriendProfile[];
-  selectedFriendId: string | null;
+  selectedFriend: FriendProfile | undefined;
   onSelectFriend: (id: string | null) => void;
   onAddFriend: () => void;
 };
+
+const PROFILE_SIZE = 56;
+const PROFILE_GAP = 16;
+const friendKey = (friend: FriendProfile) => friend.id;
 
 export function FriendsTitle({ fontsLoaded, onCreateCode }: { fontsLoaded: boolean; onCreateCode?: () => void }) {
   return (
@@ -39,93 +45,121 @@ export function FriendsTitle({ fontsLoaded, onCreateCode }: { fontsLoaded: boole
   );
 }
 
-export function FriendsHeader({ friends, selectedFriendId, onSelectFriend, onAddFriend }: Props) {
-  const selectedFriend = friends.find((friend) => friend.id === selectedFriendId);
+export function FriendsHeader({ friends, selectedFriend, onSelectFriend, onAddFriend }: Props) {
+  const selectedFriendId = selectedFriend?.id;
 
   return (
     <View>
-      {friends.length > 0 ? <View style={s.stories}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          alwaysBounceHorizontal={false}
-          contentContainerStyle={s.profiles}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="친구 추가"
-            accessibilityHint="친구 추가 창을 엽니다"
-            onPress={onAddFriend}
-            style={({ pressed }) => [s.profile, pressed && s.pressed]}
-          >
-            <View style={[s.addCircle, action.secondary]}>
-              <Image
-                source={require('../../../assets/images/tabIcons/add.svg')}
-                style={s.addIcon}
-                contentFit="contain"
-                accessible={false}
-              />
-            </View>
-            <Text style={s.addLabel}>친구 추가</Text>
-          </Pressable>
-          {friends.map((friend) => {
-            const selected = friend.id === selectedFriendId;
-            return (
+      {friends.length > 0 ? (
+        <View style={s.stories}>
+          <FlatList
+            horizontal
+            data={friends}
+            extraData={selectedFriendId}
+            keyExtractor={friendKey}
+            showsHorizontalScrollIndicator={false}
+            alwaysBounceHorizontal={false}
+            contentContainerStyle={s.profiles}
+            ItemSeparatorComponent={ProfileSeparator}
+            ListHeaderComponentStyle={s.addProfile}
+            ListHeaderComponent={(
               <Pressable
-                key={friend.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${friend.displayName}님의 소식`}
-                accessibilityHint={selected ? '다시 누르면 모든 친구의 소식을 볼 수 있어요' : '이 친구가 남긴 쪽지 소식을 볼 수 있어요'}
-                accessibilityState={{ selected }}
-                onPress={() => onSelectFriend(selected ? null : friend.id)}
+                accessibilityLabel="친구 추가"
+                accessibilityHint="친구 추가 창을 엽니다"
+                onPress={onAddFriend}
                 style={({ pressed }) => [s.profile, pressed && s.pressed]}
               >
-                <View>
-                  <FriendAvatar friend={friend} size={56} selected={selected} />
-                  {friend.hasNewActivity ? <View style={s.activityDot} /> : null}
+                <View style={[s.addCircle, action.secondary]}>
+                  <Image
+                    source={require('../../../assets/images/tabIcons/add.svg')}
+                    style={s.addIcon}
+                    contentFit="contain"
+                    accessible={false}
+                  />
                 </View>
-                <Text numberOfLines={1} style={[s.name, selected && s.selectedName]}>{friend.displayName}</Text>
+                <Text style={s.addLabel}>친구 추가</Text>
               </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View> : null}
-      {selectedFriend ? <View style={s.feedHeading}>
-        <Text accessibilityRole="header" style={s.feedTitle}>
-          {selectedFriend.displayName}님의 소식
-        </Text>
-        <Pressable
-          onPress={() => onSelectFriend(null)}
-          accessibilityRole="button"
-          accessibilityLabel="모든 친구의 소식 보기"
-          style={s.reset}
-        >
-          <Text style={s.resetLabel}>전체 보기</Text>
-        </Pressable>
-      </View> : null}
+            )}
+            renderItem={({ item }) => (
+              <FriendProfileButton
+                friend={item}
+                selected={item.id === selectedFriendId}
+                onSelectFriend={onSelectFriend}
+              />
+            )}
+          />
+        </View>
+      ) : null}
+      {selectedFriend ? (
+        <View style={s.feedHeading}>
+          <Text accessibilityRole="header" style={s.feedTitle}>
+            {selectedFriend.displayName}님의 소식
+          </Text>
+          <Pressable
+            onPress={() => onSelectFriend(null)}
+            accessibilityRole="button"
+            accessibilityLabel="모든 친구의 소식 보기"
+            style={s.reset}
+          >
+            <Text style={s.resetLabel}>전체 보기</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
 
+function ProfileSeparator() {
+  return <View style={s.profileSeparator} />;
+}
+
+type ProfileButtonProps = {
+  friend: FriendProfile;
+  selected: boolean;
+  onSelectFriend: Props['onSelectFriend'];
+};
+
+const FriendProfileButton = memo(function FriendProfileButton({ friend, selected, onSelectFriend }: ProfileButtonProps) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${friend.displayName}님의 소식`}
+      accessibilityHint={selected ? '다시 누르면 모든 친구의 소식을 볼 수 있어요' : '이 친구가 남긴 쪽지 소식을 볼 수 있어요'}
+      accessibilityState={{ selected }}
+      onPress={() => onSelectFriend(selected ? null : friend.id)}
+      style={({ pressed }) => [s.profile, pressed && s.pressed]}
+    >
+      <View>
+        <FriendAvatar friend={friend} size={PROFILE_SIZE} selected={selected} />
+        {friend.hasNewActivity ? <View style={s.activityDot} /> : null}
+      </View>
+      <Text numberOfLines={1} style={[s.name, selected && s.selectedName]}>{friend.displayName}</Text>
+    </Pressable>
+  );
+});
+
 const s = StyleSheet.create({
   titleRow: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   title: { fontSize: 30, lineHeight: 36, color: C.ink, includeFontPadding: false, flexShrink: 1 },
-  displayFont: { fontFamily: F.display },
+  displayFont: { fontFamily: FontFamilies.archivoBlack },
   fallbackFont: { fontWeight: '900' },
   createCode: { minWidth: 90 },
   createCodeIcon: { width: 10, height: 10 },
-  addCircle: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  addCircle: { width: PROFILE_SIZE, height: PROFILE_SIZE, borderRadius: PROFILE_SIZE / 2, alignItems: 'center', justifyContent: 'center' },
   addIcon: { width: 28, height: 28 },
-  addLabel: { fontFamily: F.bold, fontSize: 12, lineHeight: 18, color: C.ink, includeFontPadding: false },
+  addLabel: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 12, lineHeight: 18, color: C.ink, includeFontPadding: false },
   stories: { marginRight: -24, paddingBottom: 4 },
-  profiles: { gap: 16, paddingRight: 24 },
-  profile: { width: 56, flexShrink: 0, alignItems: 'center', gap: 4 },
+  profiles: { paddingRight: 24 },
+  addProfile: { marginEnd: PROFILE_GAP },
+  profileSeparator: { width: PROFILE_GAP },
+  profile: { width: PROFILE_SIZE, flexShrink: 0, alignItems: 'center', gap: 4 },
   activityDot: { position: 'absolute', top: 0, right: 0, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: C.background, backgroundColor: '#F23527' },
-  name: { maxWidth: '100%', fontFamily: F.bold, fontSize: 12, lineHeight: 18, color: C.ink, includeFontPadding: false },
-  selectedName: { fontFamily: F.bold, color: C.blue },
+  name: { maxWidth: '100%', fontFamily: FontFamilies.notoSansKrBold, fontSize: 12, lineHeight: 18, color: C.ink, includeFontPadding: false },
+  selectedName: { fontFamily: FontFamilies.notoSansKrBold, color: C.blue },
   pressed: { opacity: 0.65 },
   feedHeading: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  feedTitle: { flex: 1, fontFamily: F.bold, fontSize: 14, lineHeight: 22, color: C.ink, includeFontPadding: false },
+  feedTitle: { flex: 1, fontFamily: FontFamilies.notoSansKrBold, fontSize: 14, lineHeight: 22, color: C.ink, includeFontPadding: false },
   reset: { minHeight: 44, justifyContent: 'center', paddingLeft: 8 },
-  resetLabel: { fontFamily: F.medium, fontSize: 12, color: C.blue },
+  resetLabel: { fontFamily: FontFamilies.notoSansKrMedium, fontSize: 12, color: C.blue },
 });

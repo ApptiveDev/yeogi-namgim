@@ -195,6 +195,63 @@ test('friend listing is paginated and empty responses stay empty', async () => {
   await assert.rejects(session.runMemberRequest(api.getFriends), (error) => error.status === 503);
 });
 
+test('friend list retries the failed page and reuses profiles when a page overlaps', async () => {
+  const source = fs.readFileSync(require.resolve('../src/hooks/use-friends.ts'), 'utf8');
+  const { outputText } = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  });
+  const hooks = [];
+  let cursor = 0;
+  const dependencies = {
+    'expo-router': { useFocusEffect() {} },
+    react: {
+      useSyncExternalStore: (_, snapshot) => snapshot(),
+      useCallback: (callback) => callback,
+      useRef: (initial) => (hooks[cursor++] ??= { current: initial }),
+      useState(initial) {
+        const index = cursor++;
+        if (!(index in hooks)) hooks[index] = initial();
+        return [hooks[index], (update) => { hooks[index] = update(hooks[index]); }];
+      },
+    },
+    '@/api/friends': api,
+    '@/auth/member-session': session,
+    '@/utils/friends': require('../src/utils/friends.ts'),
+  };
+  const exported = {};
+  new Function('require', 'exports', outputText)((id) => dependencies[id], exported);
+  const render = () => { cursor = 0; return exported.useFriends(true); };
+  const settle = () => new Promise(setImmediate);
+  const page = (friends, index, hasNext) => ok({ friends, page: index, size: 20, hasNext });
+
+  respond = () => page([friend], 0, true);
+  render().reload();
+  await settle();
+  const first = render();
+  assert.equal(first.hasLoaded, true);
+  first.reload();
+  await settle();
+  assert.equal(render().friends, first.friends);
+
+  respond = () => fail(503, 'UNAVAILABLE');
+  render().loadMore();
+  await settle();
+  const failed = render();
+  assert.ok(failed.error);
+  assert.equal(failed.friends, first.friends);
+
+  const other = { ...friend, friendId: 'other-friend', nickname: '새 친구' };
+  respond = () => page([friend, other], 1, false);
+  failed.retry();
+  await settle();
+  const loaded = render();
+  assert.deepEqual(calls.map(({ query }) => query.get('page')), ['0', '0', '1', '1']);
+  assert.deepEqual(loaded.friends.map(({ id }) => id), [friend.friendId, other.friendId]);
+  assert.equal(loaded.friends[0], first.friends[0]);
+  assert.equal(loaded.error, null);
+  assert.equal(loaded.hasNext, false);
+});
+
 test('malformed success payloads never report creation, preview or acceptance as complete', async () => {
   const flow = createFlow();
   respond = () => ok({ code: 'invalid', expiresAt: expiry() });

@@ -13,11 +13,3 @@ export const SettingsColors = {
   kakao: '#FEE500',
   blue: '#2350FF',
 } as const;
-
-export const SettingsFonts = {
-  display: 'ArchivoBlack',
-  regular: 'NotoSansKR-Regular',
-  medium: 'NotoSansKR-Medium',
-  bold: 'NotoSansKR-Bold',
-  inter: 'Inter-Regular',
-} as const;

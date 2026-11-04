@@ -10,7 +10,7 @@ export type FriendActivity = {
   id: string;
   friend: FriendProfile;
   locationLabel: string;
-  createdAt: string;
+  createdAtMs: number;
 };
 
 export type FriendsData = {

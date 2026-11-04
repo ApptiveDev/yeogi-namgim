@@ -21,8 +21,7 @@ export function friendErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : '친구 정보를 확인하지 못했어요. 다시 시도해 주세요.';
 }
 
-export function formatActivityTime(createdAt: string, now: number): string {
-  const createdAtMs = Date.parse(createdAt);
+export function formatActivityTime(createdAtMs: number, now: number): string {
   if (!Number.isFinite(createdAtMs)) return '';
 
   const minutes = Math.max(0, Math.floor((now - createdAtMs) / 60_000));

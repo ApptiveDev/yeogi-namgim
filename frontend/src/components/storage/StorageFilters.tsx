@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { type LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -8,7 +8,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { STORAGE_FILTERS, StorageColors as C, StorageFonts as F } from '@/constants/storage';
+import { FontFamilies } from '@/constants/fonts';
+import { STORAGE_FILTERS, StorageColors as C } from '@/constants/storage';
 import type { StorageFilter, StorageFilterCounts } from '@/types/storage';
 
 type Props = {
@@ -19,6 +20,7 @@ type Props = {
 
 type TabLayout = { x: number; width: number };
 type TabMeasurements = { slot?: TabLayout; content?: TabLayout };
+type TrackSize = 'regular' | 'compact' | 'narrow';
 
 const INDICATOR_EXTRA_PADDING = 2;
 
@@ -29,60 +31,79 @@ const INDICATOR_ANIMATION = {
 };
 
 export function StorageFilters({ selected, counts, onSelect }: Props) {
-  const [trackWidth, setTrackWidth] = useState(345);
-  const [layouts, setLayouts] = useState<Partial<Record<StorageFilter, TabMeasurements>>>({});
-  const initializedRef = useRef(false);
+  const [trackSize, setTrackSize] = useState<TrackSize>('regular');
+  const measurements = useRef<Partial<Record<StorageFilter, TabMeasurements>>>({});
+  const selectedTab = useRef(selected);
+  const indicatorTarget = useRef<TabLayout | null>(null);
   const indicatorX = useSharedValue(0);
   const indicatorWidth = useSharedValue(0);
-  const selectedLayout = layouts[selected];
-  const selectedX = selectedLayout?.slot && selectedLayout.content
-    ? selectedLayout.slot.x + selectedLayout.content.x - INDICATOR_EXTRA_PADDING
-    : undefined;
-  const selectedWidth = selectedLayout?.content
-    ? selectedLayout.content.width + INDICATOR_EXTRA_PADDING * 2
-    : undefined;
-  const compact = trackWidth < 338;
-  const narrow = trackWidth < 314;
+  const narrow = trackSize === 'narrow';
 
-  useEffect(() => {
-    if (selectedX === undefined || !selectedWidth) return;
+  const syncIndicator = useCallback((id: StorageFilter) => {
+    const layout = measurements.current[id];
+    if (!layout?.slot || !layout.content) return;
+
     // 실제 묶음 양옆에 2px씩 여유를 더하며, 탭 배치에는 영향을 주지 않습니다.
-    if (!initializedRef.current) {
-      indicatorX.set(selectedX);
-      indicatorWidth.set(selectedWidth);
-      initializedRef.current = true;
+    const x = layout.slot.x + layout.content.x - INDICATOR_EXTRA_PADDING;
+    const width = layout.content.width + INDICATOR_EXTRA_PADDING * 2;
+    const previous = indicatorTarget.current;
+    if (previous?.x === x && previous.width === width) return;
+
+    indicatorTarget.current = { x, width };
+    if (!previous) {
+      indicatorX.set(x);
+      indicatorWidth.set(width);
       return;
     }
-    indicatorX.set(withTiming(selectedX, INDICATOR_ANIMATION));
-    indicatorWidth.set(withTiming(selectedWidth, INDICATOR_ANIMATION));
-  }, [selectedX, selectedWidth, indicatorX, indicatorWidth]);
+    indicatorX.set(withTiming(x, INDICATOR_ANIMATION));
+    indicatorWidth.set(withTiming(width, INDICATOR_ANIMATION));
+  }, [indicatorX, indicatorWidth]);
 
-  const indicatorStyle = useAnimatedStyle(() => ({
-    width: indicatorWidth.get(),
-    opacity: indicatorWidth.get() > 0 ? 1 : 0,
-    transform: [{ translateX: indicatorX.get() }],
-  }));
+  useLayoutEffect(() => {
+    selectedTab.current = selected;
+    syncIndicator(selected);
+  }, [selected, syncIndicator]);
+
+  const indicatorStyle = useAnimatedStyle(() => {
+    const width = indicatorWidth.get();
+    return {
+      width,
+      opacity: width > 0 ? 1 : 0,
+      transform: [{ translateX: indicatorX.get() }],
+    };
+  });
+
+  function measureTrack(event: LayoutChangeEvent) {
+    const { width } = event.nativeEvent.layout;
+    if (width < 314) setTrackSize('narrow');
+    else if (width < 338) setTrackSize('compact');
+    else setTrackSize('regular');
+  }
 
   function measureTab(id: StorageFilter, part: keyof TabMeasurements, event: LayoutChangeEvent) {
     const { x, width } = event.nativeEvent.layout;
-    setLayouts((current) => current[id]?.[part]?.x === x && current[id]?.[part]?.width === width
-      ? current
-      : { ...current, [id]: { ...current[id], [part]: { x, width } } });
+    const layout = measurements.current[id];
+    const previous = layout?.[part];
+    if (previous?.x === x && previous.width === width) return;
+
+    measurements.current[id] = { ...layout, [part]: { x, width } };
+    if (id === selectedTab.current) syncIndicator(id);
   }
 
   return (
-    <View style={s.track} accessibilityRole="tablist" onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}>
+    <View style={s.track} accessibilityRole="tablist" onLayout={measureTrack}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.row}>
         <Animated.View pointerEvents="none" accessible={false} style={[s.indicator, indicatorStyle]} />
         {STORAGE_FILTERS.map(({ id, label }) => {
           const active = selected === id;
+          const count = counts[id];
           const maxCount = id === 'all' ? 999 : 99;
-          const countLabel = counts[id] > maxCount ? `${maxCount}+` : String(counts[id]);
+          const countLabel = count > maxCount ? `${maxCount}+` : String(count);
           return (
             <Pressable
               key={id}
               accessibilityRole="tab"
-              accessibilityLabel={`${label}, ${counts[id]}개`}
+              accessibilityLabel={`${label}, ${count}개`}
               accessibilityState={{ selected: active }}
               onLayout={(event) => measureTab(id, 'slot', event)}
               onPress={() => onSelect(id)}
@@ -90,7 +111,7 @@ export function StorageFilters({ selected, counts, onSelect }: Props) {
             >
               <View
                 onLayout={(event) => measureTab(id, 'content', event)}
-                style={[s.filterContent, compact && s.compactFilter, narrow && s.narrowFilter]}
+                style={[s.filterContent, trackSize === 'compact' && s.compactFilter, narrow && s.narrowFilter]}
               >
                 <Text numberOfLines={1} style={[s.label, active && s.activeText]}>{label}</Text>
                 <View style={[s.badge, narrow && s.narrowBadge, active && s.activeBadge]}>
@@ -116,11 +137,11 @@ const s = StyleSheet.create({
   compactFilter: { paddingLeft: 6, paddingRight: 2, gap: 3 },
   narrowFilter: { paddingLeft: 4, paddingRight: 1, gap: 1 },
   indicator: { position: 'absolute', top: 3, bottom: 3, left: 0, borderRadius: 999, backgroundColor: C.blue, boxShadow: '0 3px 8px rgba(35, 80, 255, 0.3)' },
-  label: { fontFamily: F.bold, fontSize: 13, lineHeight: 19, color: '#2C2C2E', textAlignVertical: 'center', includeFontPadding: false },
+  label: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 13, lineHeight: 19, color: '#2C2C2E', textAlignVertical: 'center', includeFontPadding: false },
   badge: { minWidth: 20, flexShrink: 0, height: 17, paddingHorizontal: 4, borderRadius: 8.5, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface },
   narrowBadge: { paddingHorizontal: 2 },
   activeBadge: { backgroundColor: 'rgba(255, 255, 255, 0.25)' },
-  count: { fontFamily: F.interSemiBold, color: '#2C2C2E', fontSize: 11, lineHeight: 15, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false },
+  count: { fontFamily: FontFamilies.interSemiBold, color: '#2C2C2E', fontSize: 11, lineHeight: 15, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false },
   activeText: { color: C.surface },
   pressed: { opacity: 0.75 },
 });

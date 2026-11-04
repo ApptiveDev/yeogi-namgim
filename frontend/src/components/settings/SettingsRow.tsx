@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { SettingsColors as C, SettingsFonts as F } from '@/constants/settings';
+import { FontFamilies } from '@/constants/fonts';
+import { SettingsColors as C } from '@/constants/settings';
 
 type Props = {
   label: string;
@@ -41,12 +42,12 @@ const s = StyleSheet.create({
   row: { minHeight: 46, paddingHorizontal: 18, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
   withDescription: { minHeight: 60, paddingVertical: 10 },
   copy: { flex: 1, minWidth: 0, gap: 2 },
-  label: { fontFamily: F.bold, fontSize: 14, lineHeight: 20, color: C.ink, includeFontPadding: false },
-  description: { fontFamily: F.medium, fontSize: 12, lineHeight: 18, color: C.muted, includeFontPadding: false },
+  label: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 14, lineHeight: 20, color: C.ink, includeFontPadding: false },
+  description: { fontFamily: FontFamilies.notoSansKrMedium, fontSize: 12, lineHeight: 18, color: C.muted, includeFontPadding: false },
   chevron: { width: 6, height: 6, marginRight: 3, borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: C.muted, transform: [{ rotate: '45deg' }] },
   pressed: { backgroundColor: C.background },
   disabled: { opacity: 0.6 },
   badge: { minHeight: 22, paddingVertical: 2, paddingHorizontal: 10, borderRadius: 11, backgroundColor: C.neutral, justifyContent: 'center' },
   kakao: { backgroundColor: C.kakao },
-  badgeText: { fontFamily: F.bold, fontSize: 11, lineHeight: 18, color: C.ink, includeFontPadding: false },
+  badgeText: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 11, lineHeight: 18, color: C.ink, includeFontPadding: false },
 });

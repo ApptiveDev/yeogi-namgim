@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { MyColors as C, MyFonts as F } from '@/constants/my';
+import { FontFamilies } from '@/constants/fonts';
+import { MyColors as C } from '@/constants/my';
 
 const STICKER_PREVIEWS = [
   require('../../../assets/images/my/sparkle.png'),
@@ -43,15 +44,15 @@ export function MyComingSoonSections() {
 const s = StyleSheet.create({
   quest: { marginTop: 12, padding: 14, paddingBottom: 12, borderRadius: 24, backgroundColor: C.blue },
   sectionHeader: { minHeight: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  heading: { fontFamily: F.display, fontSize: 15, lineHeight: 20, color: C.ink, includeFontPadding: false },
+  heading: { fontFamily: FontFamilies.archivoBlack, fontSize: 15, lineHeight: 20, color: C.ink, includeFontPadding: false },
   white: { color: C.surface },
   questBadge: { minHeight: 24, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 2, backgroundColor: '#13205A', justifyContent: 'center' },
-  badgeText: { fontFamily: F.bold, fontSize: 11, lineHeight: 18, color: C.surface, includeFontPadding: false },
+  badgeText: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 11, lineHeight: 18, color: C.surface, includeFontPadding: false },
   questContent: { minHeight: 84, padding: 12, marginTop: 6, borderRadius: 18, backgroundColor: C.surface, flexDirection: 'row', alignItems: 'center', gap: 12 },
   camera: { width: 70, height: 60 },
   questCopy: { flex: 1, gap: 4 },
-  questTitle: { fontFamily: F.bold, fontSize: 13, lineHeight: 19, color: C.ink, includeFontPadding: false },
-  description: { fontFamily: F.regular, fontSize: 11, lineHeight: 17, color: C.muted, includeFontPadding: false },
+  questTitle: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 13, lineHeight: 19, color: C.ink, includeFontPadding: false },
+  description: { fontFamily: FontFamilies.notoSansKrRegular, fontSize: 11, lineHeight: 17, color: C.muted, includeFontPadding: false },
   stickers: { marginTop: 12 },
   stickerBadge: { minHeight: 24, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 2, backgroundColor: '#1C1C1E', justifyContent: 'center' },
   stickerTray: { minHeight: 64, marginTop: 4, paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', borderRadius: 20, backgroundColor: C.surface },

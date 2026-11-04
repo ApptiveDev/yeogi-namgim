@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
+import { FontFamilies } from '@/constants/fonts';
+import { StorageColors as C } from '@/constants/storage';
 
 type Props = {
   title: string;
@@ -35,10 +36,10 @@ const s = StyleSheet.create({
   shortLine: { width: '60%' },
   plusCircle: { position: 'absolute', right: 3, bottom: 3, width: 30, height: 30, borderRadius: 15, backgroundColor: C.lime, alignItems: 'center', justifyContent: 'center' },
   plus: { fontSize: 25, lineHeight: 29, color: C.ink },
-  title: { fontFamily: F.bold, fontSize: 16, color: C.ink, textAlign: 'center', marginBottom: 8 },
-  description: { fontFamily: F.regular, fontSize: 12, lineHeight: 21, textAlign: 'center', color: C.muted },
+  title: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 16, color: C.ink, textAlign: 'center', marginBottom: 8 },
+  description: { fontFamily: FontFamilies.notoSansKrRegular, fontSize: 12, lineHeight: 21, textAlign: 'center', color: C.muted },
   button: { minHeight: 44, marginTop: 18, borderRadius: 24, paddingHorizontal: 22, backgroundColor: C.ink, flexDirection: 'row', alignItems: 'center', gap: 16 },
-  buttonText: { fontFamily: F.bold, fontSize: 12, color: C.surface },
+  buttonText: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 12, color: C.surface },
   buttonArrow: { fontSize: 20, color: C.lime },
   pressed: { opacity: 0.75 },
 });

@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Animated, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, TextInput, View, type TextInputSelectionChangeEvent } from 'react-native';
 
-import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
+import { FontFamilies } from '@/constants/fonts';
+import { StorageColors as C } from '@/constants/storage';
 
 const CODE_LENGTH = 6;
+const CODE_CELLS = Array.from({ length: CODE_LENGTH }, (_, index) => index);
 const CELL_GAP = 6;
 const MEASURE_TEXT = '0'.repeat(CODE_LENGTH);
+const IS_WEB = Platform.OS === 'web';
 
 export function FriendCodeInput() {
   const [value, setValue] = useState('');
@@ -35,6 +38,21 @@ export function FriendCodeInput() {
     setPressedFilledCell(x >= 0 && x < value.length * cellPitch);
   }
 
+  function changeCode(text: string) {
+    setPressedFilledCell(false);
+    setValue(text.replace(/[^A-Za-z0-9]/g, ''));
+  }
+
+  function changeSelection(event: TextInputSelectionChangeEvent) {
+    const { start, end } = event.nativeEvent.selection;
+    setSelection((current) => current.start === start && current.end === end ? current : { start, end });
+  }
+
+  function blurInput() {
+    setFocused(false);
+    setPressedFilledCell(false);
+  }
+
   useEffect(() => {
     if (emptyCaretCell < 0) return;
 
@@ -43,7 +61,7 @@ export function FriendCodeInput() {
       toValue: 0,
       duration: 1000,
       easing: (progress) => progress < 0.5 ? 0 : 1,
-      useNativeDriver: Platform.OS !== 'web',
+      useNativeDriver: !IS_WEB,
       isInteraction: false,
     }));
     blink.start();
@@ -66,18 +84,12 @@ export function FriendCodeInput() {
         selectionColor={C.blue}
         maxLength={CODE_LENGTH}
         value={value}
-        onChangeText={(text) => {
-          setPressedFilledCell(false);
-          setValue(text.replace(/[^A-Za-z0-9]/g, ''));
-        }}
-        onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
-        onPointerDown={Platform.OS === 'web' ? (event) => markPressedCell(event.nativeEvent.offsetX) : undefined}
-        onPressIn={Platform.OS !== 'web' ? (event) => markPressedCell(event.nativeEvent.locationX) : undefined}
+        onChangeText={changeCode}
+        onSelectionChange={changeSelection}
+        onPointerDown={IS_WEB ? (event) => markPressedCell(event.nativeEvent.offsetX) : undefined}
+        onPressIn={IS_WEB ? undefined : (event) => markPressedCell(event.nativeEvent.locationX)}
         onFocus={() => setFocused(true)}
-        onBlur={() => {
-          setFocused(false);
-          setPressedFilledCell(false);
-        }}
+        onBlur={blurInput}
         returnKeyType="done"
         style={[s.inputFont, s.input, { left: inputLeft, width: inputWidth, letterSpacing }]}
       />
@@ -86,7 +98,7 @@ export function FriendCodeInput() {
           onLayout={(event) => setGlyphWidth(event.nativeEvent.layout.width / CODE_LENGTH)}>
           {MEASURE_TEXT}
         </Text>
-        {Array.from({ length: CODE_LENGTH }, (_, index) => {
+        {CODE_CELLS.map((index) => {
           const character = displayCode[index];
           const selected = focused && index >= selection.start && index < selection.end;
           return (
@@ -116,7 +128,7 @@ const s = StyleSheet.create({
   },
   filled: { borderColor: C.ink, backgroundColor: C.surface },
   active: { borderWidth: 2, borderColor: C.blue },
-  character: { fontFamily: F.display, fontSize: 20, lineHeight: 26, color: C.ink, includeFontPadding: false },
+  character: { fontFamily: FontFamilies.archivoBlack, fontSize: 20, lineHeight: 26, color: C.ink, includeFontPadding: false },
   caret: { width: 2, height: 22, backgroundColor: C.blue },
   inputFont: { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 20, includeFontPadding: false },
   measure: { position: 'absolute', top: 0, left: 0, opacity: 0 },

@@ -5,21 +5,31 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { updateMemberProfile, type MemberProfile } from '@/api/auth';
-import { runMemberRequest } from '@/auth/member-session';
+import type { MemberProfile } from '@/api/auth';
 import { AccountLoadState } from '@/components/my/AccountLoadState';
 import { BackButton } from '@/components/navigation/BackButton';
 import { ProfileVisibilityPicker } from '@/components/settings/ProfileVisibilityPicker';
-import { SettingsColors as C, SettingsFonts as F } from '@/constants/settings';
+import { FontFamilies } from '@/constants/fonts';
+import { SettingsColors as C } from '@/constants/settings';
 import { StorageColors } from '@/constants/storage';
 import { useMemberAccount } from '@/hooks/use-member-account';
+import { saveMemberNickname } from '@/state/member-account';
 import { validateNickname } from '@/utils/auth-validation';
 
 const PROFILE_FONTS = {
-  [F.regular]: require('../../assets/fonts/NotoSansKR-Regular.otf'),
-  [F.medium]: require('../../assets/fonts/NotoSansKR-Medium.otf'),
-  [F.bold]: require('../../assets/fonts/NotoSansKR-Bold.otf'),
-  [F.inter]: require('../../assets/fonts/Inter-Regular.otf'),
+  [FontFamilies.notoSansKrRegular]: require('../../assets/fonts/NotoSansKR-Regular.otf'),
+  [FontFamilies.notoSansKrMedium]: require('../../assets/fonts/NotoSansKR-Medium.otf'),
+  [FontFamilies.notoSansKrBold]: require('../../assets/fonts/NotoSansKR-Bold.otf'),
+  [FontFamilies.interRegular]: require('../../assets/fonts/Inter-Regular.otf'),
+};
+const EDITOR_SCREEN_OPTIONS = {
+  headerShown: false,
+  statusBarStyle: 'dark',
+  contentStyle: { backgroundColor: C.background },
+} as const;
+const EDITOR_GESTURES = {
+  idle: { gestureEnabled: true },
+  saving: { gestureEnabled: false },
 };
 const NICKNAME_LIMIT = 12;
 const BIO_LIMIT = 40;
@@ -37,10 +47,82 @@ function closeEditor() {
   else router.replace('/settings');
 }
 
+function ProfilePhoto() {
+  return (
+    <View style={s.photo}>
+      <View>
+        <View style={s.avatarFrame}>
+          <Image source={require('../../assets/images/settings-profile-avatar.svg')} style={s.avatar} contentFit="cover" accessible={false} />
+        </View>
+        <View pointerEvents="none" style={s.cameraBadge}>
+          <Image source={require('../../assets/images/profile-edit-camera.svg')} style={s.cameraIcon} contentFit="contain" accessible={false} />
+        </View>
+      </View>
+      <View accessible accessibilityRole="button" accessibilityState={{ disabled: true }} accessibilityLabel="사진 변경, 준비 중" style={s.photoButton}>
+        <Text style={s.photoButtonText}>사진 변경</Text>
+      </View>
+    </View>
+  );
+}
+
+function HandlePreviewField({ disabled }: { disabled: boolean }) {
+  const [handle, setHandle] = useState('');
+
+  return (
+    <View style={s.field}>
+      <Text style={s.label}>아이디</Text>
+      <View style={[s.fieldBox, s.handleBox]}>
+        <Text accessibilityElementsHidden importantForAccessibility="no" style={s.handlePrefix}>@</Text>
+        <TextInput
+          {...INPUT_APPEARANCE}
+          accessibilityLabel="아이디"
+          accessibilityHint="아이디 저장은 준비 중입니다"
+          value={handle}
+          onChangeText={setHandle}
+          editable={!disabled}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="done"
+          style={s.input}
+        />
+      </View>
+    </View>
+  );
+}
+
+function BioPreviewField({ disabled }: { disabled: boolean }) {
+  const [bio, setBio] = useState('');
+
+  return (
+    <View style={s.field}>
+      <Text style={s.label}>한 줄 소개</Text>
+      <View style={[s.fieldBox, s.bioBox]}>
+        <View style={s.bioEntry}>
+          {bio === '' ? (
+            <Text aria-hidden numberOfLines={2} style={s.bioPlaceholder}>한 줄 소개를 입력해 주세요</Text>
+          ) : null}
+          <TextInput
+            {...INPUT_APPEARANCE}
+            accessibilityLabel="한 줄 소개 미리보기"
+            value={bio}
+            onChangeText={setBio}
+            editable={!disabled}
+            maxLength={BIO_LIMIT}
+            multiline
+            numberOfLines={2}
+            returnKeyType="done"
+            submitBehavior="blurAndSubmit"
+            style={[s.input, s.bioInput]}
+          />
+        </View>
+        <Text style={[s.counter, s.bioCounter]}>{bio.length}/{BIO_LIMIT}</Text>
+      </View>
+    </View>
+  );
+}
+
 function ProfileForm({ profile }: { profile: MemberProfile }) {
   const [nickname, setNickname] = useState(profile.nickname);
-  const [userHandle, setUserHandle] = useState('');
-  const [bio, setBio] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const saving = useRef(false);
@@ -59,7 +141,7 @@ function ProfileForm({ profile }: { profile: MemberProfile }) {
     setError(null);
   }
 
-  async function save() {
+  function save() {
     if (saving.current) return;
     const validation = nicknameLength > NICKNAME_LIMIT
       ? `닉네임은 ${NICKNAME_LIMIT}자까지 입력할 수 있어요.`
@@ -69,70 +151,44 @@ function ProfileForm({ profile }: { profile: MemberProfile }) {
     setIsSaving(true);
     setError(null);
     Keyboard.dismiss();
-    try {
-      await runMemberRequest((token) => updateMemberProfile(nickname, token));
-      if (mounted.current) closeEditor();
-    } catch (failure) {
-      if (mounted.current) setError(failure instanceof Error ? failure.message : '닉네임을 저장하지 못했어요.');
-    } finally {
-      saving.current = false;
-      if (mounted.current) setIsSaving(false);
-    }
+    void saveMemberNickname(nickname)
+      .then(() => { if (mounted.current) closeEditor(); })
+      .catch((failure: unknown) => {
+        if (mounted.current) setError(failure instanceof Error ? failure.message : '닉네임을 저장하지 못했어요.');
+      })
+      .finally(() => {
+        saving.current = false;
+        if (mounted.current) setIsSaving(false);
+      });
   }
 
   return (
     <View style={s.form}>
-      <Stack.Screen options={{ gestureEnabled: !isSaving }} />
-      <View style={s.photo}>
-        <View>
-          <View style={s.avatarFrame}>
-            <Image source={require('../../assets/images/settings-profile-avatar.svg')} style={s.avatar} contentFit="cover" accessible={false} />
-          </View>
-          <View pointerEvents="none" style={s.cameraBadge}>
-            <Image source={require('../../assets/images/profile-edit-camera.svg')} style={s.cameraIcon} contentFit="contain" accessible={false} />
-          </View>
-        </View>
-        <View accessible accessibilityRole="button" accessibilityState={{ disabled: true }} accessibilityLabel="사진 변경, 준비 중" style={s.photoButton}>
-          <Text style={s.photoButtonText}>사진 변경</Text>
-        </View>
-      </View>
+      <Stack.Screen options={isSaving ? EDITOR_GESTURES.saving : EDITOR_GESTURES.idle} />
+      <ProfilePhoto />
 
       <View style={s.field}>
         <Text style={s.label}>닉네임</Text>
         <View style={s.fieldBox}>
-          <TextInput {...INPUT_APPEARANCE} accessibilityLabel="닉네임 변경" value={nickname} onChangeText={changeNickname}
-            editable={!isSaving} autoCapitalize="none" autoCorrect={false} returnKeyType="done"
+          <TextInput
+            {...INPUT_APPEARANCE}
+            accessibilityLabel="닉네임 변경"
+            value={nickname}
+            onChangeText={changeNickname}
+            editable={!isSaving}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="done"
             maxLength={nicknameInputLimit}
-            onSubmitEditing={() => { void save(); }} style={[s.input, s.nickname]} />
+            onSubmitEditing={save}
+            style={[s.input, s.nickname]}
+          />
           <Text style={[s.counter, nicknameLength > NICKNAME_LIMIT && s.error]}>{nicknameLength}/{NICKNAME_LIMIT}</Text>
         </View>
       </View>
 
-      <View style={s.field}>
-        <Text style={s.label}>아이디</Text>
-        <View style={[s.fieldBox, s.handleBox]}>
-          <Text accessibilityElementsHidden importantForAccessibility="no" style={s.handlePrefix}>@</Text>
-          <TextInput {...INPUT_APPEARANCE} accessibilityLabel="아이디" accessibilityHint="아이디 저장은 준비 중입니다"
-            value={userHandle} onChangeText={setUserHandle} editable={!isSaving} autoCapitalize="none"
-            autoCorrect={false} returnKeyType="done" style={s.input} />
-        </View>
-      </View>
-
-      <View style={s.field}>
-        <Text style={s.label}>한 줄 소개</Text>
-        <View style={[s.fieldBox, s.bioBox]}>
-          <View style={s.bioEntry}>
-            {bio === '' ? (
-              <Text aria-hidden numberOfLines={2} style={s.bioPlaceholder}>한 줄 소개를 입력해 주세요</Text>
-            ) : null}
-            <TextInput {...INPUT_APPEARANCE} accessibilityLabel="한 줄 소개 미리보기" value={bio}
-              onChangeText={setBio}
-              editable={!isSaving} maxLength={BIO_LIMIT} multiline numberOfLines={2}
-              returnKeyType="done" submitBehavior="blurAndSubmit" style={[s.input, s.bioInput]} />
-          </View>
-          <Text style={[s.counter, s.bioCounter]}>{bio.length}/{BIO_LIMIT}</Text>
-        </View>
-      </View>
+      <HandlePreviewField disabled={isSaving} />
+      <BioPreviewField disabled={isSaving} />
 
       <View style={s.field}>
         <Text style={s.label}>공개 범위</Text>
@@ -149,7 +205,7 @@ function ProfileForm({ profile }: { profile: MemberProfile }) {
       <View style={s.footer}>
         {error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: isSaving, busy: isSaving }}
-          disabled={isSaving} onPress={() => { void save(); }} style={({ pressed }) => [s.button, (pressed || isSaving) && s.dimmed]}>
+          disabled={isSaving} onPress={save} style={({ pressed }) => [s.button, (pressed || isSaving) && s.dimmed]}>
           <Text style={s.buttonText}>{isSaving ? '저장 중…' : '저장하기'}</Text>
         </Pressable>
       </View>
@@ -159,19 +215,19 @@ function ProfileForm({ profile }: { profile: MemberProfile }) {
 
 export default function ProfileEditScreen() {
   const insets = useSafeAreaInsets();
-  const account = useMemberAccount();
+  const { profile, reload } = useMemberAccount();
   const [fontsLoaded, fontError] = useFonts(PROFILE_FONTS);
   return (
     <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <Stack.Screen options={{ headerShown: false, statusBarStyle: 'dark', contentStyle: { backgroundColor: C.background } }} />
+      <Stack.Screen options={EDITOR_SCREEN_OPTIONS} />
       <View style={[s.container, s.header, { paddingTop: insets.top + 10 }]}>
         <BackButton accessibilityLabel="설정으로 돌아가기" onPress={closeEditor} />
         <Text accessibilityRole="header" style={[s.title, !fontsLoaded && s.fallbackTitle]}>프로필 편집</Text>
       </View>
       {fontsLoaded || fontError ? (
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.container, s.content, { paddingBottom: insets.bottom + 24 }]}>
-          <AccountLoadState {...account.profile} label="회원 프로필" onRetry={account.reload} />
-          {account.profile.data ? <ProfileForm key={account.profile.owner} profile={account.profile.data} /> : null}
+          <AccountLoadState loading={profile.loading} error={profile.error} label="회원 프로필" onRetry={reload} />
+          {profile.data ? <ProfileForm key={profile.owner} profile={profile.data} /> : null}
         </ScrollView>
       ) : (
         <ActivityIndicator style={s.loading} color={C.ink} accessibilityLabel="프로필 편집 화면 준비 중" />
@@ -184,7 +240,7 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.background },
   container: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 24 },
   header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 12 },
-  title: { flex: 1, marginRight: 44, textAlign: 'center', fontFamily: F.bold, fontSize: 18, lineHeight: 26, color: C.ink, includeFontPadding: false },
+  title: { flex: 1, marginRight: 44, textAlign: 'center', fontFamily: FontFamilies.notoSansKrBold, fontSize: 18, lineHeight: 26, color: C.ink, includeFontPadding: false },
   fallbackTitle: { fontFamily: undefined, fontWeight: 'bold' },
   content: { flexGrow: 1, paddingTop: 12 },
   loading: { marginTop: 12 },
@@ -195,32 +251,32 @@ const s = StyleSheet.create({
   cameraBadge: { position: 'absolute', right: 0, bottom: 0, width: 34, height: 34, borderRadius: 17, borderWidth: 3, borderColor: C.surface, backgroundColor: C.lime, alignItems: 'center', justifyContent: 'center' },
   cameraIcon: { width: 20, height: 20 },
   photoButton: { minHeight: 32, justifyContent: 'center' },
-  photoButtonText: { color: C.blue, fontFamily: F.bold, fontSize: 13, lineHeight: 20, includeFontPadding: false },
+  photoButtonText: { color: C.blue, fontFamily: FontFamilies.notoSansKrBold, fontSize: 13, lineHeight: 20, includeFontPadding: false },
   field: { gap: 6 },
-  label: { color: C.section, fontFamily: F.regular, fontSize: 12, fontWeight: 700, includeFontPadding: false, marginLeft: 8 },
+  label: { color: C.section, fontFamily: FontFamilies.notoSansKrRegular, fontSize: 12, fontWeight: 700, includeFontPadding: false, marginLeft: 8 },
   fieldBox: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, backgroundColor: C.surface, paddingHorizontal: 16, boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.04)' },
   handleBox: { gap: 0 },
-  handlePrefix: { color: C.ink, fontFamily: F.inter, fontSize: 15, includeFontPadding: false },
+  handlePrefix: { color: C.ink, fontFamily: FontFamilies.interRegular, fontSize: 15, includeFontPadding: false },
   bioBox: { height: 72, flexDirection: 'column', alignItems: 'stretch', gap: 0, paddingTop: 8, paddingBottom: 8 },
   input: {
     flex: 1, minWidth: 0, height: '100%', paddingHorizontal: 0, paddingVertical: 0,
-    fontFamily: F.regular, fontSize: 15, color: C.ink, textAlignVertical: 'center', includeFontPadding: false,
+    fontFamily: FontFamilies.notoSansKrRegular, fontSize: 15, color: C.ink, textAlignVertical: 'center', includeFontPadding: false,
     ...Platform.select({ web: { caretColor: StorageColors.blue } }),
   },
-  nickname: { fontFamily: F.bold },
+  nickname: { fontFamily: FontFamilies.notoSansKrBold },
   bioEntry: { height: 40 },
   bioInput: { fontSize: 14, lineHeight: 20, textAlign: 'left', textAlignVertical: 'top' },
   bioPlaceholder: {
     position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none',
-    fontFamily: F.regular, fontSize: 14, lineHeight: 20, textAlign: 'left', includeFontPadding: false, color: '#626267',
+    fontFamily: FontFamilies.notoSansKrRegular, fontSize: 14, lineHeight: 20, textAlign: 'left', includeFontPadding: false, color: '#8E8E93',
   },
-  counter: { color: C.section, fontFamily: F.inter, fontSize: 12, lineHeight: 18, fontWeight:500 },
+  counter: { color: C.section, fontFamily: FontFamilies.interRegular, fontSize: 12, lineHeight: 18, fontWeight:500 },
   bioCounter: { alignSelf: 'flex-end', marginTop: 'auto', lineHeight: 14, includeFontPadding: false },
-  email: { flex: 1, fontFamily: F.regular, fontSize: 15, lineHeight: 22, color: C.ink },
-  description: { color: '#626267', fontFamily: F.regular, fontSize: 12, lineHeight: 18 },
+  email: { flex: 1, fontFamily: FontFamilies.notoSansKrRegular, fontSize: 15, lineHeight: 22, color: C.ink },
+  description: { color: '#626267', fontFamily: FontFamilies.notoSansKrRegular, fontSize: 12, lineHeight: 18 },
   footer: { marginTop: 'auto', paddingTop: 8, gap: 8 },
-  error: { color: '#B42318', fontFamily: F.regular, fontSize: 13, lineHeight: 20 },
+  error: { color: '#B42318', fontFamily: FontFamilies.notoSansKrRegular, fontSize: 13, lineHeight: 20 },
   button: { minHeight: 52, borderRadius: 999, backgroundColor: C.lime, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
-  buttonText: { color: C.ink, fontFamily: F.bold, fontSize: 16, lineHeight: 24, includeFontPadding: false },
+  buttonText: { color: C.ink, fontFamily: FontFamilies.notoSansKrBold, fontSize: 16, lineHeight: 24, includeFontPadding: false },
   dimmed: { opacity: 0.6 },
 });
