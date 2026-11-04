@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { Alert, AppState, type NativeSyntheticEvent } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
@@ -11,6 +11,7 @@ import { getMemberSessionKey } from '@/auth/member-session';
 import type { NoteMapItem, NoteMapPoint } from '@/components/notes/NoteMapLayer';
 import { CAMERA_RETURN_DURATION, DEFAULT_MAP_VIEW, NOTE_READ_RADIUS_METERS, USER_RADIUS_METERS } from '@/constants/home-map';
 import { useNoteMarkers } from '@/hooks/use-note-markers';
+import { subscribeBookmarkChanges } from '@/state/note-bookmarks';
 import { getDistanceMeters } from '@/utils/distance';
 import { createLocationCircle } from '@/utils/location-circle';
 
@@ -52,6 +53,7 @@ export function useHomeMap({
   isFollowingUser, setIsFollowingUser, cameraRef, resumeFollowingAfterClose: resumeFollowingAfterCloseRef,
   notesRefreshKey, sheetHeight, nearbySheetHeight, height, width, insets,
 }: Options) {
+  const openingDetail = useRef(false);
   const mapRef = useRef<MapRef>(null);
   const noteSourceRef = useRef<GeoJSONSourceRef>(null);
   const pointPressGeneration = useRef(0);
@@ -67,6 +69,14 @@ export function useHomeMap({
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [selection, setSelection] = useState<{ owner: number; notes: NoteMapItem[]; value: NoteMapSelection } | null>(null);
   const [nearby, setNearby] = useState<{ request: NearbyRequest; value: NearbyNoteList } | null>(null);
+  useEffect(() => subscribeBookmarkChanges(({ owner, noteId, isSaved }) => {
+    if (owner !== getMemberSessionKey()) return;
+    setNearby((previous) => previous?.request.owner === owner ? {
+      ...previous,
+      value: { ...previous.value, notes: previous.value.notes.map((note) =>
+        note.noteId === noteId ? { ...note, isSaved } : note) },
+    } : previous);
+  }), []);
   const { notes, error: notesError, initialLoading: notesInitialLoading, retry: retryNotes } = useNoteMarkers(bounds, notesRefreshKey);
   const userPoint = useMemo<GeoJSON.Point | null>(() => userCoordinates ? {
     type: 'Point',
@@ -142,7 +152,10 @@ export function useHomeMap({
     return () => { pointPressGeneration.current += 1; };
   }, [isComposeOpen, mapNotes]);
 
-  useFocusEffect(useCallback(() => () => clearMapSelection(), [clearMapSelection]));
+  useFocusEffect(useCallback(() => {
+    openingDetail.current = false;
+    return () => { if (!openingDetail.current) clearMapSelection(); };
+  }, [clearMapSelection]));
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (next) => {
       if (next !== 'active') clearMapSelection();
@@ -345,6 +358,11 @@ export function useHomeMap({
       && (selection.notes === mapNotes || nearby?.request.key === selection.value.key) ? selection.value : null,
     nearbyNotes: !isComposeOpen && nearby?.request.owner === getMemberSessionKey() ? nearby.value : null,
     retryNearbyNotes: () => { if (nearby) void fetchNearbyNotes(nearby.request); },
+    openNoteDetail: (note: MapNotePreview) => {
+      if (openingDetail.current) return;
+      openingDetail.current = true;
+      router.push({ pathname: '/note/[noteId]', params: { noteId: note.noteId, skipLocation: String(note.isMine || note.isSaved) } });
+    },
     clearMapSelection,
     handleRegionWillChange, handleRegionDidChange, updateMapBounds, moveToCurrentLocation,
   };

@@ -1,7 +1,7 @@
 import { useFonts } from 'expo-font';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CameraRef } from '@maplibre/maplibre-react-native';
 
@@ -24,6 +24,7 @@ export default function HomeScreen() {
 }
 
 function HomeContent({ onRetry }: { onRetry: () => void }) {
+  const isReadingNote = usePathname().startsWith('/note/');
   const { compose } = useLocalSearchParams<{ compose?: string }>();
   const [homeReady, setHomeReady] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
@@ -82,13 +83,14 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.container} pointerEvents={homeReady ? 'auto' : 'none'} accessibilityElementsHidden={!homeReady} importantForAccessibility={homeReady ? 'auto' : 'no-hide-descendants'}>
+      <View style={styles.container} pointerEvents={homeReady && !isReadingNote ? 'auto' : 'none'} accessibilityElementsHidden={!homeReady || isReadingNote} importantForAccessibility={homeReady && !isReadingNote ? 'auto' : 'no-hide-descendants'}>
       {userCoordinates && <HomeMap
         map={map}
         initialCenter={[userCoordinates.longitude, userCoordinates.latitude]}
         cameraRef={cameraRef}
         isComposeOpen={isComposeOpen}
       />}
+      <View style={[StyleSheet.absoluteFill, isReadingNote && { opacity: 0 }]} pointerEvents={isReadingNote ? 'none' : 'box-none'}>
       <MapSelector
         isComposeOpen={isComposeOpen}
         isMapMenuOpen={isMapMenuOpen}
@@ -144,7 +146,8 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
       />
       <NoteLockedDialog selection={map.selectedMapPoint} onClose={map.clearMapSelection} />
       {map.nearbyNotes && <NearbyNotesSheet key={map.nearbyNotes.key} list={map.nearbyNotes} height={nearbySheetHeight}
-        onClose={map.clearMapSelection} onRetry={map.retryNearbyNotes} />}
+        onClose={map.clearMapSelection} onRetry={map.retryNearbyNotes} onOpen={map.openNoteDetail} />}
+      </View>
       </View>
       {!homeReady && (
         <StartupScreen
