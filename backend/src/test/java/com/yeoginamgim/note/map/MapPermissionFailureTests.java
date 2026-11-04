@@ -59,7 +59,8 @@ class MapPermissionFailureTests {
 		when(repository.findById(id)).thenReturn(Optional.of(Note.createMember(id, author, "비밀", 35, 129,
 			Instant.now(), NoteVisibility.PUBLIC, null, null, null)));
 		when(access.evaluate(any(), any(), any())).thenReturn(Map.of(id, new NoteAccessResult(null, 10.0)));
-		var service = new NoteOpenService(repository, actors, new FixedWindowRateLimiter(), access);
+		var service = new NoteOpenService(repository, actors, new FixedWindowRateLimiter(), access,
+			mock(com.yeoginamgim.note.discovery.DatabaseNoteDiscoveryService.class), mock(BookmarkQueryService.class));
 		assertThatThrownBy(() -> service.open("member", id, null)).isInstanceOf(NoteNotFoundException.class);
 	}
 

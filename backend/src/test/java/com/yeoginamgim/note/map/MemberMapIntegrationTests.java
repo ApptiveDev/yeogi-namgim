@@ -36,7 +36,7 @@ class MemberMapIntegrationTests extends MemberMapTestSupport {
 			assertThat(marker.has("preview")).isFalse();
 			assertThat(marker.has("authorUserId")).isFalse();
 			assertThat(marker.get("isSaved").asBoolean()).isFalse();
-			assertThat(marker.get("isRead").isNull()).isTrue();
+			assertThat(marker.get("isRead").asBoolean()).isFalse();
 		}
 		for (var card : data.get("openableNotes")) assertThat(card.get("authorNickname").isNull()).isTrue();
 	}

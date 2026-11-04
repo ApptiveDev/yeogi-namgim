@@ -5,8 +5,9 @@ import java.util.UUID;
 import com.yeoginamgim.note.domain.NoteVisibility;
 
 public record NoteOpenResponse(UUID noteId, String content, boolean isMine, Instant createdAt,
-	NoteVisibility visibility, String color, String placeName, String neighborhood) {
+	NoteVisibility visibility, String color, String placeName, String neighborhood,
+	boolean isSaved, boolean isRead) {
 	public NoteOpenResponse(UUID noteId, String content, boolean isMine, Instant createdAt) {
-		this(noteId, content, isMine, createdAt, NoteVisibility.PUBLIC, null, null, null);
+		this(noteId, content, isMine, createdAt, NoteVisibility.PUBLIC, null, null, null, false, false);
 	}
 }

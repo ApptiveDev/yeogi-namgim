@@ -14,6 +14,6 @@
 
 `GET /api/v1/users/me/bookmarks?page=0&size=20`은 현재 공개 범위에서 볼 수 있는 저장 쪽지를 `savedAt DESC, noteId DESC`로 반환한다. `page`는 0~10000, `size`는 1~100이며 기본값은 각각 0, 20이다. 응답은 `notes`, `page`, `size`, `hasNext`다. 위치가 없어 잠긴 카드는 미리보기와 장소 정보를 반환하지 않는다.
 
-지도 `GET /api/v1/notes`의 `isSaved`와 `SAVED` 필터는 실제 저장 데이터를 사용한다. 저장 건수는 `BookmarkQueryService.countSavedNotes()`로 조회하며, 현재 공개 범위에서 노출 가능한 기록만 센다. 지도 `isRead`는 읽음 기능 연결 전까지 `null`이다.
+지도 `GET /api/v1/notes`의 `isSaved`와 `SAVED` 필터는 실제 저장 데이터를 사용한다. 저장 건수는 `BookmarkQueryService.countSavedNotes()`로 조회하며, 현재 공개 범위에서 노출 가능한 기록만 센다. 지도 `isRead`는 [읽음·발견 API](DISCOVERY_API.md)의 실제 데이터로 표시한다.
 
 Flyway `V11__create_note_bookmarks.sql`은 `(user_id, note_id)` 기본 키와 저장 시각을 둔다. 회원이나 쪽지를 삭제하면 저장 행도 삭제된다. 위치 정확도와 측정 시각의 수치 기준은 미확정이므로 임의의 제한값을 적용하지 않는다.

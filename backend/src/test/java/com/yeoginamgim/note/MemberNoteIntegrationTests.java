@@ -178,6 +178,7 @@ class MemberNoteIntegrationTests {
 	@Test
 	void opensOwnPrivateNoteWithoutLocationOrAtAnyDistance() throws Exception {
 		UUID noteId = id(create(tokens.accessToken(), request("PRIVATE")).andExpect(status().isCreated()));
+		notes.flush();
 		for (String body : List.of("{}", "{\"latitude\":-35,\"longitude\":-129}")) {
 			open(tokens.accessToken(), noteId, body).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.content").value("현재 위치의 기록"))
