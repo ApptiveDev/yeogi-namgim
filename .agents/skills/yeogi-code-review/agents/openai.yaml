@@ -1,0 +1,4 @@
+interface:
+  display_name: "여기남김 코드 리뷰"
+  short_description: "최신 main과 계약을 대조하는 여기남김 PR 리뷰"
+  default_prompt: "$yeogi-code-review를 사용해 요청한 PR을 최신 main과 저장소 계약에 대조하여 리뷰해 주세요."
