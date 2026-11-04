@@ -59,6 +59,9 @@ export type NoteCreateRequest = {
   content: string;
   latitude: number;
   longitude: number;
+  visibility: 'PUBLIC' | 'FRIENDS' | 'PRIVATE';
+  placeName?: string;
+  neighborhood?: string;
 };
 
 export type NoteCreateResponse = {
