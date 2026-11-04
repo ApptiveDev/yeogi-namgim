@@ -1,5 +1,5 @@
 import { useState, type RefObject } from 'react';
-import { Camera, GeoJSONSource, Layer, Map, Marker, type CameraRef } from '@maplibre/maplibre-react-native';
+import { Camera, GeoJSONSource, Images, Layer, Map, Marker, type CameraRef } from '@maplibre/maplibre-react-native';
 
 import { ComposeMapDimmer } from '@/components/notes/ComposeMapDimmer';
 import { NoteMapLayer } from '@/components/notes/NoteMapLayer';
@@ -11,6 +11,10 @@ import { styles } from '@/styles/home.styles';
 import { localizedMapStyle } from '@/styles/map-style';
 
 const BASE_MAP_TOP_LAYER = localizedMapStyle.layers.at(-1)?.id;
+const USER_LOCATION_IMAGES = {
+  'user-location-halo': require('../../../assets/images/user-location-halo.png'),
+  'user-location-dot': require('../../../assets/images/user-location-dot.png'),
+};
 
 type Props = {
   map: ReturnType<typeof useHomeMap>;
@@ -56,6 +60,7 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen }: Props)
           ref={cameraRef}
           initialViewState={initialViewState}
         />
+        <Images images={USER_LOCATION_IMAGES} />
 
         {/* 유저 주변 원 */}
         {userCircle && (
@@ -83,30 +88,44 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen }: Props)
           </GeoJSONSource>
         )}
 
+        {userPoint && <GeoJSONSource id="user-location" data={userPoint}>
+          <Layer
+            id="user-location-halo"
+            type="symbol"
+            afterId={userCircle ? 'user-radius-outline' : BASE_MAP_TOP_LAYER}
+            layout={{
+              'icon-image': 'user-location-halo',
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
+              'icon-pitch-alignment': 'viewport',
+              'icon-rotation-alignment': 'viewport',
+            }}
+          />
+          <Layer
+            id="user-location-marker"
+            type="symbol"
+            afterId="user-location-halo"
+            layout={{
+              'icon-image': 'user-location-dot',
+              // The exported shadow adds 4px above and 8px below the 20px dot.
+              'icon-offset': [0, 2],
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
+              'icon-pitch-alignment': 'viewport',
+              'icon-rotation-alignment': 'viewport',
+            }}
+          />
+        </GeoJSONSource>}
+
         <NoteMapLayer
           notes={mapNotes}
           sourceRef={map.noteSourceRef}
-          afterId={userCircle ? 'user-radius-outline' : BASE_MAP_TOP_LAYER}
+          afterId={userPoint ? 'user-location-marker' : userCircle ? 'user-radius-outline' : BASE_MAP_TOP_LAYER}
           onPointPress={(point) => { void map.handleNotePointPress(point); }}
         />
         <ComposeMapDimmer visible={isComposeOpen} />
         <NotePlacementPreviewImages />
 
-        {/* 유저 위치 표기 마커 */}
-        {userPoint && <GeoJSONSource id="user-location" data={userPoint}>
-          <Layer
-            id="user-location-marker"
-            type="circle"
-            beforeId="compose-map-dim"
-            paint={{
-              'circle-radius': 6,
-              'circle-color': '#3B2A20',
-              'circle-stroke-color': '#FFFFFF',
-              'circle-stroke-width': 3,
-              'circle-pitch-alignment': 'map',
-            }}
-          />
-        </GeoJSONSource>}
         {isComposeOpen && composePoint && (
           <GeoJSONSource id="note-placement" data={composePoint}>
             <NotePlacementPreview />
