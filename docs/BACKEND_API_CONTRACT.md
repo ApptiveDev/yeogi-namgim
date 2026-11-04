@@ -7,8 +7,6 @@
 
 최신 정정·기존 구현 점검은 [최종 정책](FINAL_POLICY_AND_AUDIT.md)을 우선한다. 이 문서는 백엔드 공동 개발의 공통 계약이다. 이메일 회원 인증과 `CurrentUserProvider`는 [이메일 인증 API](EMAIL_AUTH_API.md)에서 구현 상태와 사용법을 확인한다. 회원 쪽지 작성·내 쪽지 조회·본인 열람과 구조 분리는 [회원 쪽지 API](MEMBER_NOTE_API.md)에서 구현 상태를 확인한다. 친구 초대·관계·목록 및 친구 조회 계약은 [친구 API](FRIEND_API.md)를 따른다. 회원 지도 조회·필터와 공통 열람 판정은 [회원 지도 API](MEMBER_MAP_API.md)를 따른다. 실제 저장·읽음 데이터 소스 및 쓰기는 후속 구현 대상이다. 계약을 변경하면 호출하는 쪽과 테스트 대역도 함께 갱신한다.
 
-마이페이지는 기존 `GET /api/v1/users/me` 프로필과 `GET /api/v1/users/me/stats` 통계를 사용한다. 작성·친구 수 및 저장 소스 연결 규칙은 [마이페이지 통계 API](MEMBER_STATS_API.md)를 따른다.
-
 ## 2026-10-31 회의 반영: 회원 전용 · 150m
 
 - 비회원 기능은 종료했다. 쪽지 작성·지도·열람은 활성 회원 Access Token으로만 요청한다. 기존 비회원 토큰은 `401 UNAUTHORIZED`다.

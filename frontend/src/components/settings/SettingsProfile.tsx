@@ -1,14 +1,13 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SettingsColors as C, SettingsFonts as F } from '@/constants/settings';
 import type { MyPageModel } from '@/types/my';
 
-export function SettingsProfile({ profile }: { profile: MyPageModel }) {
+export function SettingsProfile({ profile, email, onEdit }: { profile: MyPageModel; email: string; onEdit: () => void }) {
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
   const avatarUrl = profile.avatarUrl !== failedAvatarUrl ? profile.avatarUrl : null;
-  const tag = profile.tag ? `@${profile.tag.replace(/^@+/, '')}` : null;
 
   return (
     <View style={s.card}>
@@ -18,13 +17,13 @@ export function SettingsProfile({ profile }: { profile: MyPageModel }) {
       </View>
       <View style={s.identity}>
         <Text numberOfLines={1} style={s.name}>{profile.displayName}</Text>
-        <Text numberOfLines={1} style={s.metadata}>{[tag, profile.loginType].filter(Boolean).join(' · ')}</Text>
+        <Text numberOfLines={1} style={s.metadata}>{email}</Text>
       </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="프로필 편집"
-        accessibilityHint="준비 중 안내를 확인합니다"
-        onPress={() => Alert.alert('프로필 편집', '준비 중인 기능이에요.')}
+        accessibilityHint="프로필 편집 화면을 엽니다"
+        onPress={onEdit}
         style={({ pressed }) => [s.editTouchArea, pressed && s.pressed]}
       >
         <View style={s.editBadge}><Text style={s.editText}>편집</Text></View>

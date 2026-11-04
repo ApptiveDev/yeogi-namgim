@@ -35,8 +35,8 @@ class MemberMapIntegrationTests extends MemberMapTestSupport {
 			assertThat(marker.has("content")).isFalse();
 			assertThat(marker.has("preview")).isFalse();
 			assertThat(marker.has("authorUserId")).isFalse();
-			assertThat(marker.get("isSaved").isNull()).isTrue();
-			assertThat(marker.get("isRead").isNull()).isTrue();
+			assertThat(marker.get("isSaved").asBoolean()).isFalse();
+			assertThat(marker.get("isRead").asBoolean()).isFalse();
 		}
 		for (var card : data.get("openableNotes")) assertThat(card.get("authorNickname").isNull()).isTrue();
 	}
@@ -140,9 +140,10 @@ class MemberMapIntegrationTests extends MemberMapTestSupport {
 	}
 
 	@Test
-	void savedFilterReportsUnconnectedSourceRatherThanPretendingEmpty() throws Exception {
-		map("SAVED", true).andExpect(status().isServiceUnavailable())
-			.andExpect(jsonPath("$.error.code").value("MAP_DATA_UNAVAILABLE"));
+	void savedFilterReturnsAnEmptyPageWhenNothingIsSaved() throws Exception {
+		map("SAVED", true).andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.notes.length()").value(0))
+			.andExpect(jsonPath("$.data.hasNext").value(false));
 	}
 
 	@Test

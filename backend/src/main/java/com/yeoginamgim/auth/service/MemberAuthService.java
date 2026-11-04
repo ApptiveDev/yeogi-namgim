@@ -62,8 +62,9 @@ public class MemberAuthService {
 	@Transactional
 	public TokenPair login(LoginRequest request) {
 		var member = members.findByEmail(request.email());
-		boolean matches = passwords.matches(request.password(), member.map(Member::getPasswordHash).orElse(dummyHash));
-		if (member.isEmpty() || !matches) throw AuthException.unauthorized();
+		String passwordHash = member.map(Member::getPasswordHash).orElse(null);
+		boolean matches = passwords.matches(request.password(), passwordHash == null ? dummyHash : passwordHash);
+		if (member.isEmpty() || passwordHash == null || !matches) throw AuthException.unauthorized();
 		return sessions.open(member.orElseThrow().getId());
 	}
 

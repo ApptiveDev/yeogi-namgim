@@ -13,6 +13,8 @@ import com.yeoginamgim.note.repository.NoteRepository;
 import com.yeoginamgim.note.access.NoteAccessService;
 import com.yeoginamgim.note.access.NoteAccessTarget;
 import com.yeoginamgim.note.access.NoteAccessStatus;
+import com.yeoginamgim.note.discovery.DatabaseNoteDiscoveryService;
+import com.yeoginamgim.bookmark.service.BookmarkQueryService;
 
 /** Entry point for the opening/bookmark owner to extend member access and discovery policies. */
 @Service
@@ -21,16 +23,20 @@ public class NoteOpenService {
 	private final NoteActorProvider actors;
 	private final FixedWindowRateLimiter rateLimiter;
 	private final NoteAccessService access;
+	private final DatabaseNoteDiscoveryService discoveries;
+	private final BookmarkQueryService bookmarks;
 
 	public NoteOpenService(NoteRepository notes, NoteActorProvider actors, FixedWindowRateLimiter rateLimiter,
-		NoteAccessService access) {
+		NoteAccessService access, DatabaseNoteDiscoveryService discoveries, BookmarkQueryService bookmarks) {
 		this.notes = notes;
 		this.actors = actors;
 		this.rateLimiter = rateLimiter;
 		this.access = access;
+		this.discoveries = discoveries;
+		this.bookmarks = bookmarks;
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public NoteOpenResponse open(String token, UUID noteId, NoteOpenRequest request) {
 		var actor = actors.identify(token);
 		rateLimiter.check("member-note-open", actor.id(), 60);
@@ -43,11 +49,13 @@ public class NoteOpenService {
 		if (decision.status() == NoteAccessStatus.LOCATION_REQUIRED) throw new NoteLocationRequiredException();
 		if (decision.status() == NoteAccessStatus.LOCKED) throw new NoteLockedException();
 		if (decision.status() != NoteAccessStatus.OPENABLE) throw new NoteNotFoundException();
-		return response(note, actor.id().equals(note.getAuthorUserId()));
+		discoveries.recordOpen(actor.id(), noteId);
+		boolean saved = bookmarks.findSavedAt(actor.id(), java.util.Set.of(noteId)).containsKey(noteId);
+		return response(note, actor.id().equals(note.getAuthorUserId()), saved);
 	}
 
-	private NoteOpenResponse response(Note note, boolean isMine) {
+	private NoteOpenResponse response(Note note, boolean isMine, boolean isSaved) {
 		return new NoteOpenResponse(note.getId(), note.getContent(), isMine, note.getCreatedAt(),
-			note.getVisibility(), note.getColor(), note.getPlaceName(), note.getNeighborhood());
+			note.getVisibility(), note.getColor(), note.getPlaceName(), note.getNeighborhood(), isSaved, true);
 	}
 }

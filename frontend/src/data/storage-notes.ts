@@ -11,3 +11,9 @@ export function resolveStorageNotes(response: readonly StorageNote[] | null | un
 
 // 필터 배지 확인용 임시 건수. null로 바꾸면 실제 목록에서 계산한 건수를 사용합니다.
 export const STORAGE_COUNT_PREVIEW: StorageFilterCounts | null = null;
+// {
+//   all: 1000,
+//   saved: 100,
+//   mine: 100,
+//   friends: 100
+// }; //직접 값 테스트

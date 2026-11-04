@@ -7,15 +7,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import appConfig from '../../app.json';
 import { signOut } from '@/auth/member-session';
 import { authErrorMessage } from '@/api/auth';
+import { BackButton } from '@/components/navigation/BackButton';
 import { SettingsBadge, SettingsRow } from '@/components/settings/SettingsRow';
 import { SettingsProfile } from '@/components/settings/SettingsProfile';
+import { AccountLoadState } from '@/components/my/AccountLoadState';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsSwitch } from '@/components/settings/SettingsSwitch';
 import { SettingsColors as C, SettingsFonts as F } from '@/constants/settings';
-import { MY_PAGE_RESPONSE } from '@/data/my-page';
 import { useDeveloperSettings } from '@/hooks/use-developer-settings';
 import { useLocationPermission } from '@/hooks/use-location-permission';
-import { resolveMyPageData } from '@/utils/my-page';
+import { useMemberAccount } from '@/hooks/use-member-account';
+import { memberToMyPage } from '@/utils/my-page';
 
 function showComingSoon(label: string) {
   Alert.alert(label, '준비 중인 기능이에요.');
@@ -30,7 +32,8 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const developer = useDeveloperSettings();
   const location = useLocationPermission();
-  const profile = resolveMyPageData(MY_PAGE_RESPONSE, developer.mockDataEnabled);
+  const account = useMemberAccount();
+  const profile = account.profile.data ? memberToMyPage(account.profile.data) : null;
   const [notifications, setNotifications] = useState({ nearby: true, friends: true, marketing: false });
   const [isSigningOut, setIsSigningOut] = useState(false);
   async function handleSignOut() {
@@ -54,11 +57,10 @@ export default function SettingsScreen() {
         <View style={s.loading}><ActivityIndicator color={C.section} accessibilityLabel="설정 화면 준비 중" /></View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 24 }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="뒤로" onPress={goBack} style={({ pressed }) => [s.back, pressed && s.pressed]}>
-            <View style={s.backChevron} />
-          </Pressable>
+          <BackButton accessibilityLabel="마이페이지로 돌아가기" onPress={goBack} />
           <Text accessibilityRole="header" accessibilityLabel="설정" style={s.title}>SETTINGS</Text>
-          <SettingsProfile profile={profile} />
+          <AccountLoadState {...account.profile} label="회원 프로필" onRetry={account.reload} />
+          {profile && account.profile.data ? <SettingsProfile profile={profile} email={account.profile.data.email} onEdit={() => router.push('/profile-edit')} /> : null}
 
           <SettingsSection title="알림">
             <SettingsRow label="근처 쪽지 알림" description="반경 200m 안에 쪽지가 생기면 알려줘요" trailing={<SettingsSwitch label="근처 쪽지 알림" value={notifications.nearby} onValueChange={(nearby) => setNotifications((current) => ({ ...current, nearby }))} />} />
@@ -88,7 +90,7 @@ export default function SettingsScreen() {
           <SettingsSection title="개발자 도구">
             <SettingsRow
               label="목업 데이터 사용"
-              description="MY와 보관함에 예시 데이터를 표시해요"
+              description="보관함과 친구 화면에 예시 데이터를 표시해요"
               trailing={<SettingsSwitch label="목업 데이터 사용" value={developer.mockDataEnabled} disabled={!developer.isReady || developer.isSaving} onValueChange={(enabled) => { void developer.setMockDataEnabled(enabled); }} />}
             />
           </SettingsSection>
@@ -110,8 +112,6 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.background },
   content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 24 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  back: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.neutral, alignItems: 'center', justifyContent: 'center' },
-  backChevron: { width: 8, height: 8, marginLeft: 3, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: C.ink, transform: [{ rotate: '45deg' }] },
   pressed: { opacity: 0.65 },
   title: { marginTop: 12, color: C.ink, fontFamily: F.display, fontSize: 30, lineHeight: 38, includeFontPadding: false },
   error: { marginTop: 8, marginHorizontal: 8, fontFamily: F.regular, fontSize: 11, lineHeight: 17, color: C.destructive },

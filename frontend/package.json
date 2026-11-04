@@ -6,6 +6,7 @@
     "@expo/ui": "~57.0.20",
     "@maplibre/maplibre-react-native": "^11.4.0",
     "expo": "~57.0.25",
+    "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.19",
     "expo-dev-client": "~57.0.19",
     "expo-device": "~57.0.2",
@@ -40,6 +41,8 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "test:friends": "node --test tests/friends.test.cjs",
+    "test:member": "node --test tests/member.test.cjs",
     "test:auth": "node --test tests/auth.test.cjs",
     "start": "expo start",
     "android": "expo run:android",

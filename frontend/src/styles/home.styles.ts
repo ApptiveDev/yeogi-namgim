@@ -9,6 +9,35 @@ export const styles = StyleSheet.create({
         flex: 1,
     },
 
+    notesStatus: {
+        position: 'absolute',
+        left: 24,
+        right: 24,
+        padding: 12,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        zIndex: 5,
+    },
+
+    notesStatusText: {
+        color: '#3B2A20',
+        fontSize: 14,
+        textAlign: 'center',
+    },
+
+    notesRetryButton: {
+        minHeight: 44,
+        paddingHorizontal: 16,
+        justifyContent: 'center',
+    },
+
+    notesRetryText: {
+        color: '#2350FF',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+
     mapSelectorContainer: {
         position: 'absolute',
         left: '50%',

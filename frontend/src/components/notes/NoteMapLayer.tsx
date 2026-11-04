@@ -1,100 +1,119 @@
-import { GeoJSONSource, Images, Layer } from '@maplibre/maplibre-react-native';
+import { GeoJSONSource, Layer, type GeoJSONSourceRef } from '@maplibre/maplibre-react-native';
+import type { ExpressionSpecification, GeoJSONSourceSpecification } from '@maplibre/maplibre-gl-style-spec';
 import type { FeatureCollection, Point } from 'geojson';
-import { memo, useMemo } from 'react';
-
-import {
-  NOTE_MARKER_ASSETS,
-  NOTE_MARKER_BOTTOM_PADDING,
-  type NoteMarkerState,
-} from './note-marker-assets';
+import { memo, useMemo, type Ref } from 'react';
 
 export interface NoteMapItem {
   id: string;
   latitude: number;
   longitude: number;
-  state: NoteMarkerState;
+  isWithinRadius?: boolean;
+}
+
+export interface NoteMapPoint {
+  center: [longitude: number, latitude: number];
+  count: number;
+  clusterId?: number;
+  noteId?: string;
 }
 
 export interface NoteMapLayerProps {
   notes: readonly NoteMapItem[];
-  onNotePress?: (note: NoteMapItem) => void;
+  onPointPress?: (point: NoteMapPoint) => void;
+  sourceRef?: Ref<GeoJSONSourceRef>;
   /** Unique per mounted layer when displaying multiple collections. */
   id?: string;
-  /** When false, colliding pins are hidden to keep a crowded map readable. */
-  allowOverlap?: boolean;
   afterId?: string;
 }
 
-const PRIORITY: Record<NoteMarkerState, number> = {
-  owned: 0,
-  available: 1,
-  read: 2,
-  locked: 3,
+const COUNT: ExpressionSpecification = ['coalesce', ['get', 'point_count'], 1];
+// The stroke is drawn outside circle-radius; include it in the 44/52/64px diameter.
+const RADIUS: ExpressionSpecification = ['step', COUNT, 19, 100, 23, 10000, 29];
+const INSIDE: ExpressionSpecification = ['>', ['coalesce', ['get', 'insideCount'], 0], 0];
+const CLUSTER_PROPERTIES: GeoJSONSourceSpecification['clusterProperties'] = {
+  insideCount: ['+', ['get', 'insideCount']],
 };
 
-/** Add inside Map. Uses one source and one symbol layer for the whole collection. */
+/** One clustered source; isolated notes use the same numbered circle as clusters. */
 export const NoteMapLayer = memo(function NoteMapLayer({
   notes,
-  onNotePress,
+  onPointPress,
+  sourceRef,
   id = 'notes',
-  allowOverlap = false,
   afterId,
 }: NoteMapLayerProps) {
-  const imagePrefix = `${id}-marker`;
-  const images = useMemo(() => ({
-    [`${imagePrefix}-locked`]: NOTE_MARKER_ASSETS.locked,
-    [`${imagePrefix}-available`]: NOTE_MARKER_ASSETS.available,
-    [`${imagePrefix}-owned`]: NOTE_MARKER_ASSETS.owned,
-    [`${imagePrefix}-read`]: NOTE_MARKER_ASSETS.read,
-  }), [imagePrefix]);
-
   const data = useMemo<FeatureCollection<Point>>(() => ({
     type: 'FeatureCollection',
     features: notes.map((note) => ({
       type: 'Feature',
       id: note.id,
       geometry: { type: 'Point', coordinates: [note.longitude, note.latitude] },
-      properties: {
-        noteId: note.id,
-        icon: `${imagePrefix}-${note.state}`,
-        priority: PRIORITY[note.state],
-      },
+      properties: { noteId: note.id, insideCount: note.isWithinRadius ? 1 : 0 },
     })),
-  }), [notes, imagePrefix]);
+  }), [notes]);
 
-  const notesById = useMemo(() => new Map(notes.map((note) => [note.id, note])), [notes]);
+  const noteIds = useMemo(() => new Set(notes.map((note) => note.id)), [notes]);
 
   return (
-    <>
-      <Images images={images} />
-      <GeoJSONSource
-        id={`${id}-source`}
-        data={data}
-        onPress={onNotePress ? (event) => {
-          const noteId = event.nativeEvent.features[0]?.properties?.noteId;
-          const note = typeof noteId === 'string' ? notesById.get(noteId) : undefined;
-          if (note) {
-            event.stopPropagation();
-            onNotePress(note);
-          }
-        } : undefined}
-      >
-        <Layer
-          id={`${id}-symbols`}
-          type="symbol"
-          afterId={afterId}
-          layout={{
-            'icon-image': ['get', 'icon'],
-            'icon-anchor': 'bottom',
-            'icon-offset': [0, NOTE_MARKER_BOTTOM_PADDING],
-            'icon-size': 1,
-            'icon-allow-overlap': allowOverlap,      
-            'icon-pitch-alignment': 'viewport',
-            'icon-rotation-alignment': 'viewport',
-            'symbol-sort-key': ['get', 'priority'],
-          }}
-        />
-      </GeoJSONSource>
-    </>
+    <GeoJSONSource
+      ref={sourceRef}
+      id={`${id}-source`}
+      data={data}
+      cluster
+      clusterRadius={50}
+      clusterMinPoints={2}
+      clusterProperties={CLUSTER_PROPERTIES}
+      maxzoom={24}
+      clusterMaxZoom={24}
+      onPress={onPointPress ? (event) => {
+        const feature = event.nativeEvent.features.find((item) => item.geometry.type === 'Point');
+        if (!feature || feature.geometry.type !== 'Point') return;
+        const [longitude, latitude] = feature.geometry.coordinates;
+        if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
+        const properties = feature.properties;
+        const isCluster = properties?.cluster === true;
+        if (isCluster) {
+          if (!Number.isInteger(properties.cluster_id) || properties.cluster_id < 0
+            || !Number.isSafeInteger(properties.point_count) || properties.point_count < 2) return;
+        } else if (typeof properties?.noteId !== 'string' || !noteIds.has(properties.noteId)) return;
+
+        event.stopPropagation();
+        onPointPress({
+          center: [longitude, latitude],
+          count: isCluster ? properties.point_count : 1,
+          ...(isCluster ? { clusterId: properties.cluster_id } : { noteId: properties.noteId }),
+        });
+      } : undefined}
+    >
+      <Layer
+        id={`${id}-circles`}
+        type="circle"
+        afterId={afterId}
+        paint={{
+          'circle-radius': ['+', RADIUS, ['case', INSIDE, 0.5, 0]],
+          'circle-color': ['case', INSIDE, '#D6F65A', '#2350FF'],
+          'circle-stroke-color': ['case', INSIDE, '#0E0E0E', '#FFFFFF'],
+          'circle-stroke-width': ['case', INSIDE, 2.5, 3],
+          'circle-pitch-alignment': 'viewport',
+          'circle-pitch-scale': 'viewport',
+        }}
+      />
+      <Layer
+        id={`${id}-symbols`}
+        type="symbol"
+        afterId={`${id}-circles`}
+        layout={{
+          'text-field': ['to-string', COUNT],
+          'text-font': ['Noto Sans Bold'],
+          'text-size': 16,
+          'text-anchor': 'center',
+          'text-allow-overlap': true,
+          'text-ignore-placement': true,
+          'text-pitch-alignment': 'viewport',
+          'text-rotation-alignment': 'viewport',
+        }}
+        paint={{ 'text-color': ['case', INSIDE, '#0E0E0E', '#FFFFFF'] }}
+      />
+    </GeoJSONSource>
   );
 });

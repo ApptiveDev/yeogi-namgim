@@ -1,8 +1,8 @@
 import { Images, Layer } from '@maplibre/maplibre-react-native';
-import { NOTE_MARKER_ASSETS, NOTE_MARKER_BOTTOM_PADDING } from './note-marker-assets';
+import { NOTE_MARKER_IMAGE, NOTE_MARKER_BOTTOM_PADDING } from './note-marker-assets';
 
 const PLACEMENT_IMAGES = {
-  'note-placement-preview': NOTE_MARKER_ASSETS.owned,
+  'note-placement-preview': NOTE_MARKER_IMAGE,
 };
 
 /** Register once as a child of Map. */

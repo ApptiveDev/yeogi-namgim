@@ -1,36 +1,40 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ComposeIcon } from '@/components/notes/ComposeIcon';
 import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
 
-export function FriendsEmptyState() {
+import { friendActionStyles as action } from './friendActionStyles';
+
+export function FriendsEmptyState({ onEnterCode }: { onEnterCode: () => void }) {
   return (
     <View style={s.container}>
       <View style={s.copy}>
+        <View style={s.illustration} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <View style={s.friendSlot}><ComposeIcon name="plus" size={24} color="#C7C7CC" /></View>
+          <View style={s.friendSlot}><ComposeIcon name="plus" size={24} color="#C7C7CC" /></View>
+          <View style={s.friendSlot}><ComposeIcon name="plus" size={24} color="#C7C7CC" /></View>
+          <Image source={require('../../../assets/images/my/cat.png')} style={s.cat} contentFit="contain" accessible={false} />
+        </View>
         <Text accessibilityRole="header" style={s.title}>아직 친구가 없어요</Text>
-        <Text style={s.description}>{'친구를 초대하면 친구가 남긴\n쪽지 소식이 여기에 떠요'}</Text>
+        <Text style={s.description}>{'친구를 초대하면\n친구가 남긴 쪽지 소식이 여기 떠요'}</Text>
       </View>
       <View style={s.actions}>
         <Pressable
-          disabled
           accessibilityRole="button"
-          accessibilityLabel="초대링크 보내기"
-          accessibilityHint="준비 중인 기능이에요"
           accessibilityState={{ disabled: true }}
-          style={[s.button, s.inviteButton]}
+          disabled
+          style={[action.button, action.primary]}
         >
-          <Text style={s.buttonLabel}>초대링크 보내기</Text>
           <Image source={require('../../../assets/images/friends-link.svg')} style={s.linkIcon} contentFit="contain" accessible={false} />
+          <Text style={[action.label, action.iconLabel]}>초대 링크 보내기</Text>
         </Pressable>
         <Pressable
-          disabled
           accessibilityRole="button"
-          accessibilityLabel="친구 태그 입력"
-          accessibilityHint="준비 중인 기능이에요"
-          accessibilityState={{ disabled: true }}
-          style={[s.button, s.tagButton]}
+          onPress={onEnterCode}
+          style={[action.button, action.secondary]}
         >
-          <Text style={s.buttonLabel}>친구 태그 입력</Text>
+          <Text style={action.label}>코드로 추가하기</Text>
         </Pressable>
       </View>
     </View>
@@ -39,13 +43,12 @@ export function FriendsEmptyState() {
 
 const s = StyleSheet.create({
   container: { flexGrow: 1 },
-  copy: { flexGrow: 1, minHeight: 240, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 4, paddingVertical: 40 },
+  copy: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 4, paddingBottom: 56 },
+  illustration: { flexDirection: 'row', gap: 16, paddingTop: 27, marginBottom: 20 },
+  friendSlot: { width: 60, height: 60, borderRadius: 30, borderWidth: 2, borderStyle: 'dashed', borderColor: '#C7C7CC', backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
+  cat: { position: 'absolute', top: 4, right: -1, width: 46, height: 46, transform: [{ rotate: '12deg' }] },
   title: { fontFamily: F.bold, fontSize: 20, lineHeight: 30, color: C.ink, textAlign: 'center', includeFontPadding: false },
-  description: { fontFamily: F.regular, fontSize: 14, lineHeight: 24, color: C.muted, textAlign: 'center', includeFontPadding: false },
-  actions: { gap: 12, paddingTop: 24 },
-  button: { minHeight: 54, borderRadius: 999, paddingHorizontal: 24, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  inviteButton: { backgroundColor: C.lime },
-  tagButton: { backgroundColor: C.surface },
-  buttonLabel: { fontFamily: F.bold, fontSize: 15, lineHeight: 24, color: C.ink, textAlign: 'center', includeFontPadding: false },
+  description: { fontFamily: F.regular, fontSize: 13, lineHeight: 20, color: '#8E8E93', textAlign: 'center', includeFontPadding: false },
+  actions: { width: '100%', maxWidth: 346, alignSelf: 'center', gap: 12 },
   linkIcon: { width: 20, height: 20, flexShrink: 0 },
 });

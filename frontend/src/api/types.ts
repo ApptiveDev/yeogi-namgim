@@ -33,6 +33,25 @@ export type NoteMarker = {
 
 export type NoteMarkersResponse = {
   notes: NoteMarker[];
+  openableNotes?: MapNotePreview[];
+  page: number;
+  size: number;
+  hasNext: boolean;
+};
+
+export type MapNoteLocation = { latitude: number; longitude: number };
+
+export type MapNotePreview = {
+  noteId: string;
+  preview: string;
+  distanceMeters: number | null;
+  isMine: boolean;
+  color: string | null;
+  visibility: 'PUBLIC' | 'FRIENDS' | 'PRIVATE';
+  placeName: string | null;
+  neighborhood: string | null;
+  createdAt: string;
+  authorNickname: string | null;
 };
 
 export type NoteCreateRequest = {
@@ -43,17 +62,5 @@ export type NoteCreateRequest = {
 
 export type NoteCreateResponse = {
   noteId: string;
-  createdAt: string;
-};
-
-export type NoteOpenRequest = {
-  latitude: number;
-  longitude: number;
-};
-
-export type NoteOpenResponse = {
-  noteId: string;
-  content: string;
-  isMine: boolean;
   createdAt: string;
 };
