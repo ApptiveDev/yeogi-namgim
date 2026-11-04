@@ -11,11 +11,11 @@ export function validateCode(value: string): string | undefined {
   if (value.length !== 6 || /[^0-9]/.test(value)) return '숫자 6자리 인증번호를 입력해 주세요.';
 }
 
-export function validateNickname(value: string): string | undefined {
+export function validateNickname(value: string, maxLength = 20): string | undefined {
   const nickname = value.trim();
   const length = Array.from(nickname).length;
-  if (length < 2 || length > 20 || /[\u0000-\u001f\u007f]/.test(nickname)) {
-    return '닉네임은 제어 문자 없이 2~20자로 입력해 주세요.';
+  if (length < 2 || length > maxLength || /[\u0000-\u001f\u007f]/.test(nickname)) {
+    return `닉네임은 제어 문자 없이 2~${maxLength}자로 입력해 주세요.`;
   }
 }
 

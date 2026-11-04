@@ -11,6 +11,7 @@ export const SettingsColors = {
   switchOff: '#D8D8D5',
   destructive: '#E84B3C',
   kakao: '#FEE500',
+  blue: '#2350FF',
 } as const;
 
 export const SettingsFonts = {
@@ -18,4 +19,5 @@ export const SettingsFonts = {
   regular: 'NotoSansKR-Regular',
   medium: 'NotoSansKR-Medium',
   bold: 'NotoSansKR-Bold',
+  inter: 'Inter-Regular',
 } as const;

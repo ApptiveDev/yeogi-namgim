@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import appConfig from '../../app.json';
 import { signOut } from '@/auth/member-session';
 import { authErrorMessage } from '@/api/auth';
+import { BackButton } from '@/components/navigation/BackButton';
 import { SettingsBadge, SettingsRow } from '@/components/settings/SettingsRow';
 import { SettingsProfile } from '@/components/settings/SettingsProfile';
 import { AccountLoadState } from '@/components/my/AccountLoadState';
@@ -56,9 +57,7 @@ export default function SettingsScreen() {
         <View style={s.loading}><ActivityIndicator color={C.section} accessibilityLabel="설정 화면 준비 중" /></View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 24 }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="뒤로" onPress={goBack} style={({ pressed }) => [s.back, pressed && s.pressed]}>
-            <View style={s.backChevron} />
-          </Pressable>
+          <BackButton accessibilityLabel="마이페이지로 돌아가기" onPress={goBack} />
           <Text accessibilityRole="header" accessibilityLabel="설정" style={s.title}>SETTINGS</Text>
           <AccountLoadState {...account.profile} label="회원 프로필" onRetry={account.reload} />
           {profile && account.profile.data ? <SettingsProfile profile={profile} email={account.profile.data.email} onEdit={() => router.push('/profile-edit')} /> : null}
@@ -113,8 +112,6 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.background },
   content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 24 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  back: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.neutral, alignItems: 'center', justifyContent: 'center' },
-  backChevron: { width: 8, height: 8, marginLeft: 3, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: C.ink, transform: [{ rotate: '45deg' }] },
   pressed: { opacity: 0.65 },
   title: { marginTop: 12, color: C.ink, fontFamily: F.display, fontSize: 30, lineHeight: 38, includeFontPadding: false },
   error: { marginTop: 8, marginHorizontal: 8, fontFamily: F.regular, fontSize: 11, lineHeight: 17, color: C.destructive },

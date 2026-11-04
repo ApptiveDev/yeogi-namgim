@@ -5,6 +5,7 @@ import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, Pre
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FriendCodeInput } from '@/components/friends/FriendCodeInput';
+import { BackButton } from '@/components/navigation/BackButton';
 import { ComposeIcon } from '@/components/notes/ComposeIcon';
 import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
 import { createFriendInvitationFlow } from '@/state/friend-invitation';
@@ -114,6 +115,11 @@ export function FriendAddDialog({ onClose, initialMode = 'options' }: Props) {
           style={[s.layout, { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 16) }]}>
           <View style={[s.dialog, enteringCode && s.enterDialog]} accessibilityViewIsModal onAccessibilityEscape={closeDialog}>
             <View style={[s.header, enteringCode && s.enterHeader]}>
+              {mode === 'create' ? (
+                <View style={s.headerBack}>
+                  <BackButton accessibilityLabel="친구 추가 방법 선택으로 돌아가기" disabled={busy} onPress={() => changeMode('options')} />
+                </View>
+              ) : null}
               <Text accessibilityRole="header" style={[s.title, enteringCode && s.enterTitle]}>{enteringCode ? '친구 코드 입력' : mode === 'create' ? '내 초대 코드' : '친구 추가'}</Text>
               {!enteringCode ? <Pressable onPress={closeDialog} disabled={sharing} accessibilityRole="button" accessibilityLabel="친구 추가 창 닫기" accessibilityState={{ disabled: sharing }} style={s.close}>
                 <ComposeIcon name="close" size={20} />
@@ -173,9 +179,6 @@ export function FriendAddDialog({ onClose, initialMode = 'options' }: Props) {
               </>}
               {state.busy ? <ActivityIndicator color={C.blue} style={s.status} accessibilityLabel="초대 코드 발급 중" /> : null}
               {state.error || actionError ? <Text accessibilityRole="alert" style={s.error}>{state.error || actionError}</Text> : null}
-              {mode === 'create' ? <Pressable disabled={busy} accessibilityRole="button" onPress={() => changeMode('options')} style={s.back}>
-                <Text style={s.backLabel}>다른 방법으로 추가</Text>
-              </Pressable> : null}
             </ScrollView>
             {enteringCode ? <Image
               source={require('../../../assets/images/my/smiley.png')}
@@ -199,6 +202,7 @@ const s = StyleSheet.create({
   enterDialog: { borderRadius: 28, backgroundColor: C.surface, overflow: 'visible' },
   enterOffset: { flexGrow: 1, flexBasis: 0, maxHeight: 48 },
   header: { minHeight: 72, flexDirection: 'row', alignItems: 'center', paddingLeft: 24, paddingRight: 12 },
+  headerBack: { marginRight: 12 },
   enterHeader: { minHeight: 0, paddingTop: 24, paddingBottom: 6, paddingRight: 24 },
   title: { flex: 1, fontFamily: F.bold, fontSize: 22, lineHeight: 32, color: C.ink, includeFontPadding: false },
   enterTitle: { fontSize: 20, lineHeight: 30 },
@@ -223,7 +227,5 @@ const s = StyleSheet.create({
   copied: { color: C.blue },
   error: { color: '#B42318', fontFamily: F.regular, fontSize: 13, lineHeight: 21, textAlign: 'center' },
   status: { marginVertical: 4 },
-  back: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  backLabel: { fontFamily: F.medium, fontSize: 12, color: C.ink },
   disabled: { opacity: 0.45 },
 });

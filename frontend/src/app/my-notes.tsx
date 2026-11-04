@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MyNote } from '@/api/member';
 import { AccountLoadState } from '@/components/my/AccountLoadState';
+import { BackButton } from '@/components/navigation/BackButton';
 import { MyColors as C } from '@/constants/my';
 import { useMyNotes } from '@/hooks/use-my-notes';
 
@@ -29,10 +30,8 @@ export default function MyNotesScreen() {
         contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24 }]}
         refreshing={notes.loading && notes.page < 0} onRefresh={notes.refresh}
         ListHeaderComponent={<>
-          <Pressable accessibilityRole="button" accessibilityLabel="마이페이지로 돌아가기" style={s.back}
-            onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/my'); }}>
-            <Text style={s.backText}>〈 뒤로</Text>
-          </Pressable>
+          <BackButton accessibilityLabel="마이페이지로 돌아가기"
+            onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/my'); }} />
           <Text accessibilityRole="header" style={s.title}>내가 작성한 쪽지</Text>
         </>}
         ListEmptyComponent={!notes.loading && !notes.error ? <Text style={s.empty}>아직 작성한 쪽지가 없어요.</Text> : null}
@@ -40,7 +39,7 @@ export default function MyNotesScreen() {
           <AccountLoadState loading={notes.loading} error={notes.error} onRetry={notes.retry} label="작성한 쪽지" />
           {notes.hasNext && !notes.loading && !notes.error ? (
             <Pressable accessibilityRole="button" accessibilityLabel="작성한 쪽지 더 보기" onPress={notes.loadMore} style={s.more}>
-              <Text style={s.backText}>더 보기</Text>
+              <Text style={s.moreText}>더 보기</Text>
             </Pressable>
           ) : null}
         </>}
@@ -52,8 +51,7 @@ export default function MyNotesScreen() {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.background },
   content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 24 },
-  back: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center', paddingRight: 16 },
-  backText: { color: C.ink, fontSize: 15 },
+  moreText: { color: C.ink, fontSize: 15 },
   title: { fontSize: 26, fontWeight: 'bold', color: C.ink, marginVertical: 16 },
   card: { backgroundColor: C.surface, borderRadius: 18, padding: 18, marginBottom: 12, gap: 10 },
   metadata: { color: C.muted, fontSize: 12, lineHeight: 18 },
