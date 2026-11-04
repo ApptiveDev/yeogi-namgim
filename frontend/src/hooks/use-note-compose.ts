@@ -20,7 +20,7 @@ type Options = {
 };
 
 export function useNoteCompose({
-  userCoordinates, setUserCoordinates, cameraRef, resumeFollowingAfterClose,
+  userCoordinates, setUserCoordinates, cameraRef, resumeFollowingAfterClose: resumeFollowingAfterCloseRef,
   setIsFollowingUser, setIsMapMenuOpen, setNotesRefreshKey, setIsCreatedDialogVisible,
 }: Options) {
   const composeRequest = useRef(0);
@@ -39,7 +39,7 @@ export function useNoteCompose({
     // Keep tracking off until the camera has finished returning, so it cannot
     // override the animated zoom and viewport padding reset.
     const coordinates = userCoordinates ?? composeCoordinates;
-    resumeFollowingAfterClose.current = Boolean(coordinates);
+    resumeFollowingAfterCloseRef.current = Boolean(coordinates);
     if (coordinates) {
       cameraRef.current?.easeTo({
         center: [coordinates.longitude, coordinates.latitude],
@@ -55,7 +55,7 @@ export function useNoteCompose({
         easing: 'ease',
       });
     }
-  }, [userCoordinates, composeCoordinates, cameraRef, resumeFollowingAfterClose]);
+  }, [userCoordinates, composeCoordinates, cameraRef, resumeFollowingAfterCloseRef]);
 
   const submitNote = async (submittedDraft: NoteDraft) => {
     const content = submittedDraft.content.trim();
@@ -93,7 +93,7 @@ export function useNoteCompose({
   };
 
   const openCompose = async () => {
-    resumeFollowingAfterClose.current = false;
+    resumeFollowingAfterCloseRef.current = false;
     const requestId = ++composeRequest.current;
     setIsMapMenuOpen(false);
     setIsComposeOpen(true);

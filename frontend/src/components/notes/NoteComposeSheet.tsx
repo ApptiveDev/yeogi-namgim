@@ -37,7 +37,7 @@ export function NoteComposeSheet({
   height, draft, locationLabel, locationReady, onChange, onClose, onSubmit, isSubmitting = false,
 }: NoteComposeSheetProps) {
   const insets = useSafeAreaInsets();
-  const translateY = useRef(new Animated.Value(height)).current;
+  const [translateY] = useState(() => new Animated.Value(height));
   const closing = useRef(false);
   const [keyboardTop, setKeyboardTop] = useState<number | null>(null);
   const selectedVisibility = VISIBILITY_OPTIONS.find((option) => option.value === draft.visibility)!;
