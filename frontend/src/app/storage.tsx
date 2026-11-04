@@ -16,7 +16,7 @@ import { useDeveloperSettings } from '@/hooks/use-developer-settings';
 import { useStorageNotes } from '@/hooks/use-storage-notes';
 
 function openCompose() {
-  router.navigate({ pathname: '/', params: { compose: 'true' } });
+  router.dismissTo({ pathname: '/', params: { compose: 'true' } });
 }
 
 export default function StorageScreen() {
@@ -58,7 +58,7 @@ export default function StorageScreen() {
           ListHeaderComponent={<>
             <StorageHeader />
             <StorageFilters selected={storage.filter} counts={(mockDataEnabled ? STORAGE_COUNT_PREVIEW : null) ?? storage.counts} onSelect={(nextFilter) => router.setParams({ filter: nextFilter })} />
-            <StorageCalendar month={storage.month} today={today} selectedDate={storage.selectedDate} markedDates={storage.markedDates} onChangeMonth={storage.changeMonth} onSelectDate={storage.selectDate} onToday={storage.goToToday} />
+            <StorageCalendar month={storage.month} today={today} selectedDate={storage.selectedDate} markedDates={storage.markedDates} onChangeMonth={storage.changeMonth} onSelectDate={storage.selectDate} onSelectMonth={storage.selectMonth} />
           </>}
           ListEmptyComponent={<StorageEmptyState
             title={storage.selectedDate ? '이날의 노트가 없어요' : storage.activeFilter.emptyTitle}

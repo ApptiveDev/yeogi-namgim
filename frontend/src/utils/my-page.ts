@@ -1,9 +1,23 @@
 import { MY_PAGE_EMPTY } from '../data/my-page';
 import { MY_PAGE_MOCK } from '../data/my-page.mock';
 import type { MyPageModel, MyPageResponse } from '../types/my';
+import type { MemberProfile } from '../api/auth';
+import type { MemberStats } from '../api/member';
 
-function normalizeCount(count: number) {
+function normalizeCount(count: number | null) {
+  if (count === null) return null;
   return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+}
+
+export function memberToMyPage(profile: MemberProfile, stats: MemberStats | null = null): MyPageModel {
+  return {
+    displayName: profile.nickname,
+    avatarUrl: null,
+    tag: null,
+    bio: '',
+    loginType: '',
+    noteCounts: { found: null, written: stats?.writtenNoteCount ?? null, saved: stats?.savedNoteCount ?? null },
+  };
 }
 
 export function resolveMyPageData(response: MyPageResponse | null | undefined, useMockData = true): MyPageModel {
@@ -22,7 +36,8 @@ export function resolveMyPageData(response: MyPageResponse | null | undefined, u
   };
 }
 
-export function formatMyNoteCount(count: number, maximum: number) {
+export function formatMyNoteCount(count: number | null, maximum: number) {
   const value = normalizeCount(count);
+  if (value === null) return '—';
   return value > maximum ? `${maximum}+` : String(value);
 }

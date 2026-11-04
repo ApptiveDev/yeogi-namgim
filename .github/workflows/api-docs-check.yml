@@ -1,0 +1,47 @@
+name: API docs
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  api-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check API documentation changes
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            const paths = files.map(file => file.filename);
+            const backendCodeChanged = paths.some(path =>
+              /^backend\/src\/main\/java\/.*\.java$/.test(path) ||
+              /^backend\/src\/main\/resources\/db\/migration\/.*\.sql$/.test(path)
+            );
+            if (!backendCodeChanged) {
+              core.info('No backend production Java or Flyway changes.');
+              return;
+            }
+            const apiDocChanged = paths.some(path =>
+              /^docs\/[A-Z0-9_]+_API\.md$/.test(path) ||
+              path === 'docs/BACKEND_API_CONTRACT.md'
+            );
+            if (!apiDocChanged) {
+              const body = context.payload.pull_request.body || '';
+              const explanation = body.match(/^API_DOCS_NOT_REQUIRED:[ \t]+(\S[^\r\n]*)$/m);
+              if (explanation) {
+                core.info('API contract unchanged according to PR explanation. Reviewer should verify: ' + explanation[1]);
+                return;
+              }
+              core.setFailed('Backend production code or Flyway changed without an API document update. Add docs/*_API.md or docs/BACKEND_API_CONTRACT.md, or explain an unchanged external contract with API_DOCS_NOT_REQUIRED: reason in the PR body.');
+              return;
+            }
+            core.info('Backend API code and an API contract document changed. Review the document content in the PR.');

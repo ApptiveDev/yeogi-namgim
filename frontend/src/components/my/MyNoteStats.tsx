@@ -8,13 +8,15 @@ import { formatMyNoteCount } from '@/utils/my-page';
 export function MyNoteStats({ counts }: { counts: MyPageModel['noteCounts'] }) {
   return (
     <View style={s.stats}>
-      {MY_NOTE_STATS.map(({ id, label, maximum, filter }, index) => (
+      {MY_NOTE_STATS.map(({ id, label, maximum }, index) => (
         <Pressable
           key={id}
           accessibilityRole="button"
-          accessibilityLabel={`${label} ${counts[id]}개`}
-          accessibilityHint="보관함의 해당 필터로 이동합니다"
-          onPress={() => router.navigate({ pathname: '/storage', params: { filter } })}
+          accessibilityLabel={`${label} ${counts[id] === null ? '집계 정보 없음' : `${counts[id]}개`}`}
+          accessibilityHint={id === 'written' ? '내가 작성한 쪽지 목록으로 이동합니다' : '집계를 준비하고 있어요'}
+          disabled={id !== 'written'}
+          accessibilityState={{ disabled: id !== 'written' }}
+          onPress={() => router.push('/my-notes')}
           style={({ pressed }) => [s.stat, index > 0 && s.divider, pressed && s.pressed]}
         >
           <Text style={s.count}>{formatMyNoteCount(counts[id], maximum)}</Text>
