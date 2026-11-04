@@ -359,9 +359,11 @@ export function useHomeMap({
     nearbyNotes: !isComposeOpen && nearby?.request.owner === getMemberSessionKey() ? nearby.value : null,
     retryNearbyNotes: () => { if (nearby) void fetchNearbyNotes(nearby.request); },
     openNoteDetail: (note: MapNotePreview) => {
-      if (openingDetail.current) return;
+      const request = nearby?.request;
+      if (openingDetail.current || !request || request.owner !== getMemberSessionKey()) return;
       openingDetail.current = true;
-      router.push({ pathname: '/note/[noteId]', params: { noteId: note.noteId, skipLocation: String(note.isMine || note.isSaved) } });
+      router.push({ pathname: '/note/[noteId]', params: { noteId: note.noteId, skipLocation: String(note.isMine || note.isSaved),
+        latitude: String(request.location.latitude), longitude: String(request.location.longitude) } });
     },
     clearMapSelection,
     handleRegionWillChange, handleRegionDidChange, updateMapBounds, moveToCurrentLocation,

@@ -1,34 +1,21 @@
-import * as Location from 'expo-location';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 
 import { ApiError } from '@/api/client';
 import { changeBookmark } from '@/api/note-detail';
-import type { NoteLocationInput, NoteOpenResponse } from '@/api/types';
+import type { MapNoteLocation, NoteOpenResponse } from '@/api/types';
 import { getMemberSessionKey, runMemberRequest } from '@/auth/member-session';
 import { showToast } from '@/components/ui/toast';
 import { loadNoteDetail } from '@/data/note-detail';
 import { publishBookmarkChange } from '@/state/note-bookmarks';
 
-async function locate(): Promise<NoteLocationInput> {
-  let permission = await Location.getForegroundPermissionsAsync();
-  if (!permission.granted && permission.canAskAgain) permission = await Location.requestForegroundPermissionsAsync();
-  if (!permission.granted) throw new Error('위치 권한을 허용한 뒤 다시 시도해 주세요.');
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const position = await Promise.race([
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
-      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('현재 위치를 확인하지 못했어요. 위치 서비스를 확인해 주세요.')), 10000); }),
-    ]);
-    const { latitude, longitude, accuracy } = position.coords;
-    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-      throw new Error('현재 위치를 확인하지 못했어요. 다시 시도해 주세요.');
-    }
-    return { latitude, longitude,
-      ...(accuracy !== null && Number.isFinite(accuracy) && accuracy >= 0 && { accuracyMeters: accuracy }),
-      ...(Number.isFinite(position.timestamp) && { measuredAt: new Date(position.timestamp).toISOString() }),
-    };
-  } finally { clearTimeout(timer); }
+function listLocation(latitude?: number, longitude?: number): MapNoteLocation {
+  if (typeof latitude !== 'number' || typeof longitude !== 'number'
+    || !Number.isFinite(latitude) || latitude < -90 || latitude > 90
+    || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw new Error('목록에서 쪽지를 다시 열어 주세요.');
+  }
+  return { latitude, longitude };
 }
 
 function message(error: unknown) {
@@ -42,7 +29,7 @@ function message(error: unknown) {
 
 type State = { id: string; owner: number; note: NoteOpenResponse | null; loading: boolean; saving: boolean };
 
-export function useNoteDetail(noteId: string, skipLocation = false) {
+export function useNoteDetail(noteId: string, skipLocation = false, latitude?: number, longitude?: number) {
   const generation = useRef(0);
   const focused = useRef(false);
   const busy = useRef(false);
@@ -55,7 +42,7 @@ export function useNoteDetail(noteId: string, skipLocation = false) {
     setState({ id: noteId, owner, note: null, loading: true, saving: false });
     try {
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(noteId)) throw new Error('올바른 쪽지 주소가 아니에요.');
-      const note = await loadNoteDetail(noteId, skipLocation, locate, active);
+      const note = await loadNoteDetail(noteId, skipLocation ? null : listLocation(latitude, longitude), active);
       if (active() && note) setState({ id: noteId, owner, note, loading: false, saving: false });
     } catch (error) {
       if (active()) {
@@ -63,7 +50,7 @@ export function useNoteDetail(noteId: string, skipLocation = false) {
         showToast(`${message(error)} 닫고 다시 열어 주세요.`);
       }
     }
-  }, [noteId, owner, skipLocation]);
+  }, [noteId, owner, skipLocation, latitude, longitude]);
 
   useFocusEffect(useCallback(() => {
     focused.current = true;
@@ -79,7 +66,7 @@ export function useNoteDetail(noteId: string, skipLocation = false) {
     const current = generation.current;
     const active = () => focused.current && current === generation.current && owner === getMemberSessionKey();
     try {
-      const location = note.isSaved ? null : await locate();
+      const location = note.isSaved ? null : listLocation(latitude, longitude);
       if (owner !== getMemberSessionKey()) return;
       const saved = await runMemberRequest((token) => changeBookmark(noteId, !note.isSaved, location, token));
       if (owner === getMemberSessionKey()) {

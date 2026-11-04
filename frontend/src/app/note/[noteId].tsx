@@ -17,8 +17,10 @@ const ASSETS = {
 };
 
 export default function NoteDetailScreen() {
-  const params = useLocalSearchParams<{ noteId?: string | string[]; skipLocation?: string }>();
-  const detail = useNoteDetail(typeof params.noteId === 'string' ? params.noteId : '', params.skipLocation === 'true');
+  const params = useLocalSearchParams<{ noteId?: string | string[]; skipLocation?: string; latitude?: string; longitude?: string }>();
+  const latitude = typeof params.latitude === 'string' && params.latitude.trim() ? Number(params.latitude) : undefined;
+  const longitude = typeof params.longitude === 'string' && params.longitude.trim() ? Number(params.longitude) : undefined;
+  const detail = useNoteDetail(typeof params.noteId === 'string' ? params.noteId : '', params.skipLocation === 'true', latitude, longitude);
   const insets = useSafeAreaInsets();
   const focused = useIsFocused();
   const [fontsLoaded, fontError] = useFonts({
