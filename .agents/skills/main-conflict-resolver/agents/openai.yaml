@@ -1,0 +1,6 @@
+interface:
+  display_name: "main 충돌 해결"
+  short_description: "명시적으로 요청된 브랜치의 최신 main 충돌 해결"
+  default_prompt: "Use $main-conflict-resolver to resolve the authorized branch conflicts against the latest origin/main and verify the integrated result."
+policy:
+  allow_implicit_invocation: false

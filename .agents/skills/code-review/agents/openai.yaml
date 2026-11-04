@@ -1,0 +1,4 @@
+interface:
+  display_name: "코드 리뷰"
+  short_description: "최신 main과 계약을 대조하는 여기남김 PR 리뷰"
+  default_prompt: "Use $code-review to review the requested PRs against the latest main branch and repository contracts."

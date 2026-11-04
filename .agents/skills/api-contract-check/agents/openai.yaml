@@ -1,0 +1,4 @@
+interface:
+  display_name: "API 계약 검사"
+  short_description: "백엔드·문서·프론트엔드 API 계약 일치 검사"
+  default_prompt: "Use $api-contract-check to verify the changed API contract across backend implementation, documentation, migrations, and frontend consumers."

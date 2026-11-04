@@ -1,9 +1,9 @@
 ---
-name: yeogi-code-review
-description: "ApptiveDev/yeogi-namgim의 Pull Request를 최신 main과 저장소 계약에 대조해 리뷰합니다. 이 저장소에서 PR 리뷰, 특정 작성자의 열린 PR 일괄 리뷰, main 변경 후 재리뷰, 머지 준비 상태 확인을 요청할 때 사용하며, 사용자가 수정까지 요청하지 않았다면 코드 구현에는 사용하지 않습니다."
+name: code-review
+description: "ApptiveDev/yeogi-namgim의 Pull Request를 최신 main과 저장소 계약에 대조해 리뷰합니다. 이 저장소에서 PR 리뷰, 특정 작성자의 열린 PR 일괄 리뷰, main 변경 후 재리뷰를 요청할 때 사용하며, 수정 구현이나 단순 머지 준비 확인에는 사용하지 않습니다."
 ---
 
-# Yeogi Code Review
+# Code Review
 
 Produce an evidence-based review of the requested PRs without changing their branches.
 
