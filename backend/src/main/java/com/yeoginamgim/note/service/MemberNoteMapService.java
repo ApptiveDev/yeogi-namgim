@@ -22,6 +22,8 @@ import com.yeoginamgim.note.access.NoteAccessStatus;
 import com.yeoginamgim.note.discovery.NoteDiscoveryQueryService;
 import com.yeoginamgim.note.domain.NoteMapFilter;
 import com.yeoginamgim.note.dto.MemberMapResponse;
+import com.yeoginamgim.note.dto.NoteMapClusterRequest;
+import com.yeoginamgim.note.dto.MemberMapClusterResponse;
 import com.yeoginamgim.note.dto.MemberMapResponse.Card;
 import com.yeoginamgim.note.dto.MemberMapResponse.Marker;
 import com.yeoginamgim.note.dto.NoteMapBoundsRequest;
@@ -93,6 +95,16 @@ public class MemberNoteMapService {
 			}
 		}
 		return new MemberMapResponse(markers, cards, query.page(), query.size(), hasNext);
+	}
+
+	@Transactional(readOnly = true)
+	public MemberMapClusterResponse findClusters(UUID userId, NoteMapClusterRequest query) {
+		// The current bookmark contract provides pages, not a complete aggregate source.
+		// Never return a partial count or treat an unavailable source as an empty map.
+		if (query.filter() == NoteMapFilter.SAVED) throw new MapDataUnavailableException();
+		var clusters = notes.findClusters(userId, query);
+		long totalCount = clusters.stream().mapToLong(MemberMapClusterResponse.Cluster::count).sum();
+		return new MemberMapClusterResponse(clusters, totalCount, query.gridSize());
 	}
 
 	private String preview(String content) {
