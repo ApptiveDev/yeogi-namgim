@@ -9,7 +9,7 @@ import { signOut } from '@/auth/member-session';
 import { authErrorMessage } from '@/api/auth';
 import { BackButton } from '@/components/navigation/BackButton';
 import { SettingsBadge, SettingsRow } from '@/components/settings/SettingsRow';
-import { SettingsProfile } from '@/components/settings/SettingsProfile';
+import { SettingsProfile, SettingsProfilePlaceholder } from '@/components/settings/SettingsProfile';
 import { AccountLoadState } from '@/components/my/AccountLoadState';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsSwitch } from '@/components/settings/SettingsSwitch';
@@ -33,7 +33,7 @@ export default function SettingsScreen() {
   const developer = useDeveloperSettings();
   const location = useLocationPermission();
   const account = useMemberAccount();
-  const profile = account.profile.data ? memberToMyPage(account.profile.data) : null;
+  const profile = account.profile.data;
   const [notifications, setNotifications] = useState({ nearby: true, friends: true, marketing: false });
   const [isSigningOut, setIsSigningOut] = useState(false);
   async function handleSignOut() {
@@ -59,8 +59,13 @@ export default function SettingsScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 24 }]}>
           <BackButton accessibilityLabel="마이페이지로 돌아가기" onPress={goBack} />
           <Text accessibilityRole="header" accessibilityLabel="설정" style={s.title}>SETTINGS</Text>
-          <AccountLoadState {...account.profile} label="회원 프로필" onRetry={account.reload} />
-          {profile && account.profile.data ? <SettingsProfile profile={profile} email={account.profile.data.email} onEdit={() => router.push('/profile-edit')} /> : null}
+          {profile ? (
+            <SettingsProfile profile={memberToMyPage(profile)} email={profile.email} onEdit={() => router.push('/profile-edit')} />
+          ) : account.profile.loading ? (
+            <SettingsProfilePlaceholder />
+          ) : (
+            <AccountLoadState {...account.profile} label="회원 프로필" onRetry={account.reload} />
+          )}
 
           <SettingsSection title="알림">
             <SettingsRow label="근처 쪽지 알림" description="반경 200m 안에 쪽지가 생기면 알려줘요" trailing={<SettingsSwitch label="근처 쪽지 알림" value={notifications.nearby} onValueChange={(nearby) => setNotifications((current) => ({ ...current, nearby }))} />} />

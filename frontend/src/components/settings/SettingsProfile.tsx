@@ -32,6 +32,21 @@ export function SettingsProfile({ profile, email, onEdit }: { profile: MyPageMod
   );
 }
 
+export function SettingsProfilePlaceholder() {
+  return (
+    <View style={s.card} accessible accessibilityLabel="회원 프로필 불러오는 중" accessibilityState={{ busy: true }}>
+      <View style={[s.avatar, s.placeholder]} />
+      <View style={s.identity}>
+        <View style={[s.placeholder, s.placeholderName]} />
+        <View style={[s.placeholder, s.placeholderEmail]} />
+      </View>
+      <View style={s.editTouchArea}>
+        <View style={[s.editBadge, s.placeholder]} />
+      </View>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   card: { minHeight: 68, marginTop: 14, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 20, backgroundColor: C.surface, flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 42, height: 42, borderRadius: 21, overflow: 'hidden', flexShrink: 0 },
@@ -41,5 +56,8 @@ const s = StyleSheet.create({
   editTouchArea: { width: 46, minHeight: 44, justifyContent: 'center', flexShrink: 0 },
   editBadge: { minHeight: 26, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 13, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
   editText: { fontFamily: F.bold, fontSize: 13, lineHeight: 20, color: C.ink, includeFontPadding: false },
+  placeholder: { backgroundColor: C.neutral },
+  placeholderName: { width: '55%', maxWidth: 96, height: 12, borderRadius: 6 },
+  placeholderEmail: { width: '85%', maxWidth: 148, height: 8, borderRadius: 4 },
   pressed: { opacity: 0.65 },
 });
