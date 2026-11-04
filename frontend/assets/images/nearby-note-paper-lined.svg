@@ -1,0 +1,17 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="48" height="52" viewBox="0 0 48 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Paper Thumb" clip-path="url(#clip0_0_119)">
+<path id="Vector" d="M42 0H6C2.68629 0 0 2.68629 0 6V46C0 49.3137 2.68629 52 6 52H42C45.3137 52 48 49.3137 48 46V6C48 2.68629 45.3137 0 42 0Z" fill="#F6F1E6"/>
+<path id="Vector_2" d="M0 10H48" stroke-width="0.8" stroke="#9DB6E0"/>
+<path id="Vector_3" d="M0 18H48" stroke-width="0.8" stroke="#9DB6E0"/>
+<path id="Vector_4" d="M0 26H48" stroke-width="0.8" stroke="#9DB6E0"/>
+<path id="Vector_5" d="M0 34H48" stroke-width="0.8" stroke="#9DB6E0"/>
+<path id="Vector_6" d="M0 42H48" stroke-width="0.8" stroke="#9DB6E0"/>
+<path id="Vector_7" d="M0 50H48" stroke-width="0.8" stroke="#9DB6E0"/>
+<path id="Vector_8" d="M8 18C13 16 18 19 23 17C28 15 31 18 36 16M8 27C14 25 19 28 25 26M8 36C12 35 16 37 20 36" stroke-width="1.4" stroke-linecap="round" stroke="#1C1C1E"/>
+</g>
+<defs>
+<clipPath id="clip0_0_119">
+<rect width="48" height="52" fill="white"/>
+</clipPath>
+</defs>
+</svg>

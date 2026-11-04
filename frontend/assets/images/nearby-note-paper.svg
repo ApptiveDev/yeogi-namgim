@@ -1,0 +1,17 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="48" height="52" viewBox="0 0 48 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Paper Thumb" clip-path="url(#clip0_0_199)">
+<path id="Vector" d="M42 0H6C2.68629 0 0 2.68629 0 6V46C0 49.3137 2.68629 52 6 52H42C45.3137 52 48 49.3137 48 46V6C48 2.68629 45.3137 0 42 0Z" fill="#EEE6D3"/>
+<path id="Vector_2" d="M8 0V8M8 8V52M8 8H0M8 8H48" stroke-width="0.8" stroke="#D8CDB4"/>
+<path id="Vector_3" d="M16 0V16M16 16V52M16 16H0M16 16H48" stroke-width="0.8" stroke="#D8CDB4"/>
+<path id="Vector_4" d="M24 0V24M24 24V52M24 24H0M24 24H48" stroke-width="0.8" stroke="#D8CDB4"/>
+<path id="Vector_5" d="M32 0V32M32 32V52M32 32H0M32 32H48" stroke-width="0.8" stroke="#D8CDB4"/>
+<path id="Vector_6" d="M40 0V40M40 40V52M40 40H0M40 40H48" stroke-width="0.8" stroke="#D8CDB4"/>
+<path id="Vector_7" d="M48 0V48M48 48V52M48 48H0" stroke-width="0.8" stroke="#D8CDB4"/>
+<path id="Vector_8" d="M8 18C13 16 18 19 23 17C28 15 31 18 36 16M8 27C14 25 19 28 25 26M8 36C12 35 16 37 20 36" stroke-width="1.4" stroke-linecap="round" stroke="#1C1C1E"/>
+</g>
+<defs>
+<clipPath id="clip0_0_199">
+<rect width="48" height="52" fill="white"/>
+</clipPath>
+</defs>
+</svg>

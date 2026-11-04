@@ -1,6 +1,8 @@
 import { apiRequest } from './client';
 import type {
   MapBounds,
+  MapNoteLocation,
+  MapNotePreview,
   NoteMarkersResponse,
   NoteCreateRequest,
   NoteCreateResponse,
@@ -24,7 +26,7 @@ export async function createNote(request: NoteCreateRequest, token: string): Pro
 
 export const MAP_NOTES_PAGE_SIZE = 500;
 
-export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0): Promise<NoteMarkersResponse> {
+export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0, location?: MapNoteLocation): Promise<NoteMarkersResponse> {
   const query = new URLSearchParams({
     minLatitude: String(bounds.minLatitude),
     minLongitude: String(bounds.minLongitude),
@@ -33,6 +35,11 @@ export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0)
     page: String(page),
     size: String(MAP_NOTES_PAGE_SIZE),
   });
+
+  if (location) {
+    query.set('latitude', String(location.latitude));
+    query.set('longitude', String(location.longitude));
+  }
 
   const data = await apiRequest<NoteMarkersResponse>(
     `/api/v1/notes?${query.toString()}`,
@@ -53,10 +60,33 @@ export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0)
     throw new Error('쪽지 목록 응답이 올바르지 않습니다.');
   }
 
+  let openableNotes: MapNotePreview[] | undefined;
+  if (location) {
+    const markers = new Map(data.notes.map((note) => [note.noteId, note]));
+    const ids = new Set<string>();
+    const nullableString = (value: unknown) => value === null || typeof value === 'string';
+    if (!Array.isArray(data.openableNotes) || data.openableNotes.some((note) => {
+      if (!note || typeof note.noteId !== 'string' || !markers.has(note.noteId) || ids.has(note.noteId)
+        || typeof note.preview !== 'string' || typeof note.isMine !== 'boolean'
+        || markers.get(note.noteId)?.isMine !== note.isMine
+        || (note.distanceMeters !== null && (!Number.isFinite(note.distanceMeters) || note.distanceMeters < 0))
+        || !['PUBLIC', 'FRIENDS', 'PRIVATE'].includes(note.visibility)
+        || !nullableString(note.color) || !nullableString(note.placeName) || !nullableString(note.neighborhood)
+        || !nullableString(note.authorNickname) || typeof note.createdAt !== 'string' || !Number.isFinite(Date.parse(note.createdAt))) return true;
+      ids.add(note.noteId);
+      return false;
+    })) {
+      throw new Error('쪽지 미리보기 응답이 올바르지 않습니다.');
+    }
+    openableNotes = data.openableNotes.map(({ noteId, preview, distanceMeters, isMine, color, visibility, placeName, neighborhood, createdAt, authorNickname }) =>
+      ({ noteId, preview, distanceMeters, isMine, color, visibility, placeName, neighborhood, createdAt, authorNickname }));
+  }
+
   return {
     notes: data.notes.map(({ noteId, latitude, longitude, isMine }) => ({ noteId, latitude, longitude, isMine })),
     page: data.page,
     size: data.size,
     hasNext: data.hasNext,
+    ...(openableNotes && { openableNotes }),
   };
 }

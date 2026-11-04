@@ -12,6 +12,7 @@ import { MapSelector } from '@/components/home/MapSelector';
 import { NoteComposeSheet } from '@/components/notes/NoteComposeSheet';
 import { NoteCreatedDialog } from '@/components/notes/NoteCreatedDialog';
 import { NoteLockedDialog } from '@/components/notes/NoteLockedDialog';
+import { NearbyNotesSheet } from '@/components/notes/NearbyNotesSheet';
 import { useHomeMap } from '@/hooks/use-home-map';
 import { useNoteCompose } from '@/hooks/use-note-compose';
 import { useUserLocation } from '@/hooks/use-user-location';
@@ -33,9 +34,13 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   const resumeFollowingAfterClose = useRef(false);
   const [isCreatedDialogVisible, setIsCreatedDialogVisible] = useState(false);
   const sheetHeight = Math.min(540, height * 0.66, height - insets.top - 140);
+  const nearbySheetHeight = Math.min(height * 506 / 852, height - insets.top - 140);
   const [fontsLoaded, fontError] = useFonts({
     'Pretendard-Bold': require('../../assets/fonts/Pretendard-Bold.ttf'),
     'Pretendard-Regular': require('../../assets/fonts/Pretendard-Regular.ttf'),
+    'NotoSansKR-Regular': require('../../assets/fonts/NotoSansKR-Regular.otf'),
+    'NotoSansKR-Medium': require('../../assets/fonts/NotoSansKR-Medium.otf'),
+    'NotoSansKR-Bold': require('../../assets/fonts/NotoSansKR-Bold.otf'),
   });
   const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
   const [isFollowingUser, setIsFollowingUser] =
@@ -51,7 +56,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   const map = useHomeMap({
     userCoordinates, composeCoordinates, isComposeOpen,
     isFollowingUser, setIsFollowingUser, cameraRef, resumeFollowingAfterClose,
-    notesRefreshKey, sheetHeight, height, width, insets,
+    notesRefreshKey, sheetHeight, nearbySheetHeight, height, width, insets,
   });
   const openRequestedCompose = useEffectEvent(() => {
     router.setParams({ compose: undefined });
@@ -106,7 +111,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         </View>
       )}
 
-      {!isComposeOpen && <Pressable
+      {!isComposeOpen && !map.nearbyNotes && <Pressable
         style={[
           styles.locationButton,
           isFollowingUser &&
@@ -119,7 +124,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         </Text>
       </Pressable>}
 
-      {!isComposeOpen && <BottomTabBar onAddPress={() => { map.clearMapSelection(); void openCompose(); }} />}
+      {!isComposeOpen && !map.nearbyNotes && <BottomTabBar onAddPress={() => { map.clearMapSelection(); void openCompose(); }} />}
 
       {isComposeOpen && (
         <NoteComposeSheet
@@ -138,6 +143,8 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         onConfirm={() => setIsCreatedDialogVisible(false)}
       />
       <NoteLockedDialog selection={map.selectedMapPoint} onClose={map.clearMapSelection} />
+      {map.nearbyNotes && <NearbyNotesSheet key={map.nearbyNotes.key} list={map.nearbyNotes} height={nearbySheetHeight}
+        onClose={map.clearMapSelection} onRetry={map.retryNearbyNotes} />}
       </View>
       {!homeReady && (
         <StartupScreen
