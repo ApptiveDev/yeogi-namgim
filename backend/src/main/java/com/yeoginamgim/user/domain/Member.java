@@ -16,7 +16,7 @@ public class Member {
 	private UUID id;
 	@Column(nullable = false, unique = true, length = 254)
 	private String email;
-	@Column(name = "password_hash", nullable = false, length = 100)
+	@Column(name = "password_hash", length = 100)
 	private String passwordHash;
 	@Column(nullable = false, length = 20)
 	private String nickname;
