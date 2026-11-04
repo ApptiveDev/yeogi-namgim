@@ -115,11 +115,6 @@ export function FriendAddDialog({ onClose, initialMode = 'options' }: Props) {
           style={[s.layout, { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 16) }]}>
           <View style={[s.dialog, enteringCode && s.enterDialog]} accessibilityViewIsModal onAccessibilityEscape={closeDialog}>
             <View style={[s.header, enteringCode && s.enterHeader]}>
-              {mode === 'create' ? (
-                <View style={s.headerBack}>
-                  <BackButton accessibilityLabel="친구 추가 방법 선택으로 돌아가기" disabled={busy} onPress={() => changeMode('options')} />
-                </View>
-              ) : null}
               <Text accessibilityRole="header" style={[s.title, enteringCode && s.enterTitle]}>{enteringCode ? '친구 코드 입력' : mode === 'create' ? '내 초대 코드' : '친구 추가'}</Text>
               {!enteringCode ? <Pressable onPress={closeDialog} disabled={sharing} accessibilityRole="button" accessibilityLabel="친구 추가 창 닫기" accessibilityState={{ disabled: sharing }} style={s.close}>
                 <ComposeIcon name="close" size={20} />

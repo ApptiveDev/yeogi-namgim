@@ -45,22 +45,25 @@ function ProfileForm({ profile }: { profile: MemberProfile }) {
   const [isSaving, setIsSaving] = useState(false);
   const saving = useRef(false);
   const mounted = useRef(true);
-  const nicknameLength = Array.from(nickname).length;
+  // Match the native maxLength unit, including for characters such as emoji.
+  const nicknameLength = nickname.length;
+  // Existing longer nicknames can be shortened without truncating them on load.
+  const nicknameInputLimit = Math.max(NICKNAME_LIMIT, nicknameLength);
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
   }, []);
 
   function changeNickname(value: string) {
-    // 이전에 저장된 긴 닉네임은 표시하고, 12자에 맞춰 줄일 수 있게 합니다.
-    if (Array.from(value).length > Math.max(nicknameLength, NICKNAME_LIMIT)) return;
     setNickname(value);
     setError(null);
   }
 
   async function save() {
     if (saving.current) return;
-    const validation = validateNickname(nickname, NICKNAME_LIMIT);
+    const validation = nicknameLength > NICKNAME_LIMIT
+      ? `닉네임은 ${NICKNAME_LIMIT}자까지 입력할 수 있어요.`
+      : validateNickname(nickname, NICKNAME_LIMIT);
     if (validation) { setError(validation); return; }
     saving.current = true;
     setIsSaving(true);
@@ -99,7 +102,7 @@ function ProfileForm({ profile }: { profile: MemberProfile }) {
         <View style={s.fieldBox}>
           <TextInput {...INPUT_APPEARANCE} accessibilityLabel="닉네임 변경" value={nickname} onChangeText={changeNickname}
             editable={!isSaving} autoCapitalize="none" autoCorrect={false} returnKeyType="done"
-            maxLength={Math.max(NICKNAME_LIMIT * 2, nickname.length)}
+            maxLength={nicknameInputLimit}
             onSubmitEditing={() => { void save(); }} style={[s.input, s.nickname]} />
           <Text style={[s.counter, nicknameLength > NICKNAME_LIMIT && s.error]}>{nicknameLength}/{NICKNAME_LIMIT}</Text>
         </View>
@@ -123,11 +126,11 @@ function ProfileForm({ profile }: { profile: MemberProfile }) {
               <Text aria-hidden numberOfLines={2} style={s.bioPlaceholder}>한 줄 소개를 입력해 주세요</Text>
             ) : null}
             <TextInput {...INPUT_APPEARANCE} accessibilityLabel="한 줄 소개 미리보기" value={bio}
-              onChangeText={(value) => { if (Array.from(value).length <= BIO_LIMIT) setBio(value); }}
-              editable={!isSaving} maxLength={BIO_LIMIT * 2} multiline numberOfLines={2}
+              onChangeText={setBio}
+              editable={!isSaving} maxLength={BIO_LIMIT} multiline numberOfLines={2}
               returnKeyType="done" submitBehavior="blurAndSubmit" style={[s.input, s.bioInput]} />
           </View>
-          <Text style={[s.counter, s.bioCounter]}>{Array.from(bio).length}/{BIO_LIMIT}</Text>
+          <Text style={[s.counter, s.bioCounter]}>{bio.length}/{BIO_LIMIT}</Text>
         </View>
       </View>
 
