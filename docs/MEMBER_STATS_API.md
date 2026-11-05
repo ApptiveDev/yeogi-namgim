@@ -19,7 +19,7 @@
   "data": {
     "writtenNoteCount": 12,
     "friendCount": 3,
-    "savedNoteCount": null
+    "savedNoteCount": 0
   }
 }
 ```
