@@ -15,14 +15,14 @@ public class FriendInvitationCodeCodec {
 	private final SecureRandom random = new SecureRandom();
 
 	public String issue() {
-		StringBuilder code = new StringBuilder(16);
-		for (int i = 0; i < 16; i++) code.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
+		StringBuilder code = new StringBuilder(6);
+		for (int i = 0; i < 6; i++) code.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
 		return code.toString();
 	}
 
 	public String hash(String code) {
 		String normalized = code == null ? "" : code.strip().toUpperCase(Locale.ROOT);
-		if (!normalized.matches("[A-HJ-NP-Z2-9]{16}")) throw FriendException.invalidInvitation();
+		if (!normalized.matches("[A-HJ-NP-Z2-9]{6}|[A-HJ-NP-Z2-9]{16}")) throw FriendException.invalidInvitation();
 		try {
 			return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
 				.digest(normalized.getBytes(StandardCharsets.US_ASCII)));

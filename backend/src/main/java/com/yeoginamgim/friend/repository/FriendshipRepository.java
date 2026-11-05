@@ -33,6 +33,13 @@ public class FriendshipRepository {
 			""", first, second, first, second, Timestamp.from(now)) == 1;
 	}
 
+	public void remove(UUID first, UUID second) {
+		jdbc.update("""
+			DELETE FROM app.friendships
+			WHERE user_low = LEAST(?::uuid, ?::uuid) AND user_high = GREATEST(?::uuid, ?::uuid)
+			""", first, second, first, second);
+	}
+
 	public Set<UUID> findFriendIds(UUID userId, Set<UUID> candidates) {
 		if (candidates.isEmpty()) return Set.of();
 		return new HashSet<>(named.query("""

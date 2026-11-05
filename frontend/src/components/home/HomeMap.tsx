@@ -1,7 +1,7 @@
 import { useState, type RefObject } from 'react';
-import { Camera, GeoJSONSource, Images, Layer, Map, Marker, type CameraRef } from '@maplibre/maplibre-react-native';
+import type { NativeSyntheticEvent } from 'react-native';
+import { Camera, GeoJSONSource, Images, Layer, Map, Marker, type CameraRef, type ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
 
-import { ComposeMapDimmer } from '@/components/notes/ComposeMapDimmer';
 import { NoteMapLayer } from '@/components/notes/NoteMapLayer';
 import { NoteSelectionHighlight } from '@/components/notes/NoteSelectionHighlight';
 import { NotePlacementPreview, NotePlacementPreviewImages } from '@/components/notes/NotePlacementPreview';
@@ -21,9 +21,10 @@ type Props = {
   initialCenter: [number, number];
   cameraRef: RefObject<CameraRef | null>;
   isComposeOpen: boolean;
+  onComposeCameraIdle: (event: NativeSyntheticEvent<ViewStateChangeEvent>) => void;
 };
 
-export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen }: Props) {
+export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen, onComposeCameraIdle }: Props) {
   const {
     mapRef, setIsMapReady, userPoint, composePoint, userCircle, mapNotes,
     handleRegionWillChange, handleRegionDidChange, updateMapBounds,
@@ -53,6 +54,7 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen }: Props)
         onDidFailLoadingMap={() => map.setMapError('지도를 불러오지 못했어요. 연결을 확인하고 다시 시도해 주세요.')}
         onRegionDidChange={(event) => {
           handleRegionDidChange(event);
+          onComposeCameraIdle(event);
           void updateMapBounds();
         }}
       >
@@ -123,7 +125,6 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen }: Props)
           afterId={userPoint ? 'user-location-marker' : userCircle ? 'user-radius-outline' : BASE_MAP_TOP_LAYER}
           onPointPress={(point) => { void map.handleNotePointPress(point); }}
         />
-        <ComposeMapDimmer visible={isComposeOpen} />
         <NotePlacementPreviewImages />
 
         {isComposeOpen && composePoint && (

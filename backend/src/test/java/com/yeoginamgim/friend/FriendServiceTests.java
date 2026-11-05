@@ -34,7 +34,7 @@ class FriendServiceTests {
 			Clock.fixed(now, ZoneOffset.UTC));
 		String code = codes.issue();
 		when(invitations.find(codes.hash(code), true)).thenReturn(Optional.of(
-			new FriendInvitationRepository.Invitation(UUID.randomUUID(), inviterId, "친구", now, null)));
+			new FriendInvitationRepository.Invitation(UUID.randomUUID(), inviterId, "친구", now, null, true)));
 		assertThatThrownBy(() -> service.accept(UUID.randomUUID(), code)).isInstanceOf(FriendException.class)
 			.satisfies(error -> assertThat(((FriendException)error).getCode()).isEqualTo("FRIEND_INVITATION_INVALID"));
 		verifyNoInteractions(relationships);

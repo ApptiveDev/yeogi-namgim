@@ -38,9 +38,9 @@
 
 - [ ] 내 프로필 닉네임 수정: `PATCH /api/v1/users/me` — [#81](https://github.com/ApptiveDev/yeogi-namgim/issues/81), [PR #83](https://github.com/ApptiveDev/yeogi-namgim/pull/83)
 - [ ] 작성 쪽지·친구·저장 수: `GET /api/v1/users/me/stats` — [#79](https://github.com/ApptiveDev/yeogi-namgim/issues/79), [PR #80](https://github.com/ApptiveDev/yeogi-namgim/pull/80). 저장 수 조회 서비스가 없으면 응답값은 `null`이다.
-- [ ] 카카오 로그인: `POST /api/v1/auth/kakao` — **계획**
-- [ ] 기존 계정의 카카오 연결: `POST /api/v1/users/me/auth-accounts/kakao` — **제안**, 계정 연결 방식과 경로 확정 필요
-- [ ] 회원 탈퇴: `DELETE /api/v1/users/me` — **계획**, 작성 쪽지·연관 데이터 처리 정책 확정 필요
+- [ ] 카카오 로그인: `POST /api/v1/auth/kakao` — **PR 작업 중**, #102
+- [ ] 기존 계정의 카카오 연결: `POST /api/v1/users/me/auth-accounts/kakao` — **PR 작업 중**, #102
+- [ ] 회원 탈퇴: `DELETE /api/v1/users/me` — **PR 작업 중**, #103. 작성 쪽지는 익명으로 보존한다.
 
 ## 백엔드 B — 열람·위치·저장·보관함·알림
 
@@ -66,9 +66,13 @@
 - [ ] 회원 알림·푸시 정책 및 API — **계획**, 기획과 인증·공개 범위 계약 확정 후 경로 결정
 - [ ] 탈퇴 시 저장·발견·알림 데이터 정리 — **계획**, A의 회원 탈퇴 API와 함께 검증
 
+## 서버 지도 클러스터 추가 작업
+
+- `GET /api/v1/notes/clusters`: 2026-11-03 요청에 따른 백엔드 구현. 화면 범위의 노출 가능한 쪽지를 전부 집계해 대표 좌표·개수·전체 수를 반환한다. 1만 개 제한은 없다. `ALL/FRIENDS/MINE` 지원, `SAVED` 집계 소스는 후속 연결 대상이다. 프론트 연동·배포·main 병합 완료를 뜻하지 않는다. [요청·응답과 연결 방법](MEMBER_MAP_API.md#서버-클러스터-조회--2026-11-03).
+
 ## 아직 확정하지 않은 API
 
-지도 클러스터, 물방울별 쪽지 목록, `GET /health`, `GET /app-config`는 제공된 작업 계획의 **제안**이다. 구현 여부·경로·담당을 확정하기 전에는 체크리스트의 완료 항목으로 올리지 않는다. 친구 필터의 공개 쪽지 포함, 친구 관계 변경 후 저장본 접근, 보관함 분류, 카카오 계정 연결 방식도 해당 기능 이슈에서 결정한다.
+물방울별 쪽지 목록, `GET /health`, `GET /app-config`는 제공된 작업 계획의 **제안**이다. 구현 여부·경로·담당을 확정하기 전에는 체크리스트의 완료 항목으로 올리지 않는다. 친구 필터의 공개 쪽지 포함, 친구 관계 변경 후 저장본 접근, 보관함 분류, 카카오 계정 연결 방식도 해당 기능 이슈에서 결정한다.
 
 ## 갱신 방법
 

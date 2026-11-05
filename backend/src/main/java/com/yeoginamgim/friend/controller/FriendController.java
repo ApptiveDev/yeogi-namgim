@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,6 +48,15 @@ public class FriendController {
 			.body(ApiResponse.success(friends.createInvitation(userId)));
 	}
 
+	@GetMapping("/invitations/current")
+	public ResponseEntity<ApiResponse<InvitationCreated>> current() {
+		UUID userId = currentUser.requireUserId();
+		return friends.currentInvitation(userId)
+			.map(invitation -> ResponseEntity.ok().cacheControl(CacheControl.noStore())
+				.body(ApiResponse.success(invitation)))
+			.orElseGet(() -> ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build());
+	}
+
 	@GetMapping("/invitations/{code}")
 	public ResponseEntity<ApiResponse<InvitationPreview>> preview(@PathVariable String code) {
 		UUID userId = currentUser.requireUserId();
@@ -61,6 +71,13 @@ public class FriendController {
 		limiter.check("friend-invitation-accept", userId, 30);
 		return ResponseEntity.ok().cacheControl(CacheControl.noStore())
 			.body(ApiResponse.success(friends.accept(userId, code)));
+	}
+
+	@DeleteMapping("/{friendId}")
+	public ResponseEntity<ApiResponse<java.util.Map<String, Boolean>>> remove(@PathVariable UUID friendId) {
+		friends.removeFriend(currentUser.requireUserId(), friendId);
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+			.body(ApiResponse.success(java.util.Map.of("removed", true)));
 	}
 
 	@GetMapping
