@@ -1,48 +1,79 @@
 import { router, Stack } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View, type ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MyNote } from '@/api/member';
 import { AccountLoadState } from '@/components/my/AccountLoadState';
 import { BackButton } from '@/components/navigation/BackButton';
-import { MyColors as C } from '@/constants/my';
+import { ScreenColors as C } from '@/constants/colors';
 import { useMyNotes } from '@/hooks/use-my-notes';
 
 const VISIBILITY_LABELS = { PUBLIC: '전체 공개', FRIENDS: '친구 공개', PRIVATE: '나만 보기' } as const;
+const NOTE_DATE_FORMAT = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul' });
+const SCREEN_OPTIONS = {
+  headerShown: false,
+  statusBarStyle: 'dark',
+  contentStyle: { backgroundColor: C.background },
+} as const;
+
+function backToMyPage() {
+  if (router.canGoBack()) router.back();
+  else router.replace('/my');
+}
+
+function WrittenNotesHeader() {
+  return (
+    <>
+      <BackButton accessibilityLabel="마이페이지로 돌아가기" onPress={backToMyPage} />
+      <Text accessibilityRole="header" style={s.title}>내가 작성한 쪽지</Text>
+    </>
+  );
+}
+
+function WrittenNotesEmpty() {
+  return <Text style={s.empty}>아직 작성한 쪽지가 없어요.</Text>;
+}
 
 function WrittenNoteCard({ note }: { note: MyNote }) {
   return (
     <View style={s.card}>
-      <Text style={s.metadata}>{VISIBILITY_LABELS[note.visibility]} · {new Date(note.createdAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</Text>
+      <Text style={s.metadata}>{VISIBILITY_LABELS[note.visibility]} · {NOTE_DATE_FORMAT.format(new Date(note.createdAt))}</Text>
       <Text selectable style={s.body}>{note.content}</Text>
       <Text style={s.place}>{note.placeName || note.neighborhood || '장소 정보 없음'}</Text>
     </View>
   );
 }
 
+const noteKey = (note: MyNote) => note.noteId;
+const renderNote: ListRenderItem<MyNote> = ({ item }) => <WrittenNoteCard note={item} />;
+
 export default function MyNotesScreen() {
   const insets = useSafeAreaInsets();
-  const notes = useMyNotes();
+  const { notes, hasNext, loading, error, refreshing, refresh, loadMore, retry } = useMyNotes();
+  const showMore = hasNext && !loading && !error;
+
   return (
     <View style={s.screen}>
-      <Stack.Screen options={{ headerShown: false, statusBarStyle: 'dark', contentStyle: { backgroundColor: C.background } }} />
-      <FlatList data={notes.notes} keyExtractor={(note) => note.noteId} renderItem={({ item }) => <WrittenNoteCard note={item} />}
+      <Stack.Screen options={SCREEN_OPTIONS} />
+      <FlatList
+        data={notes}
+        keyExtractor={noteKey}
+        renderItem={renderNote}
         contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24 }]}
-        refreshing={notes.loading && notes.page < 0} onRefresh={notes.refresh}
-        ListHeaderComponent={<>
-          <BackButton accessibilityLabel="마이페이지로 돌아가기"
-            onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/my'); }} />
-          <Text accessibilityRole="header" style={s.title}>내가 작성한 쪽지</Text>
-        </>}
-        ListEmptyComponent={!notes.loading && !notes.error ? <Text style={s.empty}>아직 작성한 쪽지가 없어요.</Text> : null}
-        ListFooterComponent={<>
-          <AccountLoadState loading={notes.loading} error={notes.error} onRetry={notes.retry} label="작성한 쪽지" />
-          {notes.hasNext && !notes.loading && !notes.error ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="작성한 쪽지 더 보기" onPress={notes.loadMore} style={s.more}>
-              <Text style={s.moreText}>더 보기</Text>
-            </Pressable>
-          ) : null}
-        </>}
+        refreshing={refreshing}
+        onRefresh={refresh}
+        ListHeaderComponent={WrittenNotesHeader}
+        ListEmptyComponent={!loading && !error ? WrittenNotesEmpty : null}
+        ListFooterComponent={(
+          <>
+            <AccountLoadState loading={loading} error={error} onRetry={retry} label="작성한 쪽지" />
+            {showMore ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="작성한 쪽지 더 보기" onPress={loadMore} style={s.more}>
+                <Text style={s.moreText}>더 보기</Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
       />
     </View>
   );

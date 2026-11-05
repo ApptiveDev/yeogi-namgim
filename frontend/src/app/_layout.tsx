@@ -5,8 +5,7 @@ import { useColorScheme } from 'react-native';
 import { Toast } from '@/components/ui/toast';
 import { StartupScreen } from '@/components/StartupScreen';
 import { initializeSession } from '@/auth/member-session';
-import { MyColors } from '@/constants/my';
-import { StorageColors } from '@/constants/storage';
+import { ScreenColors, StorageColors } from '@/constants/colors';
 import { useAuthSession } from '@/hooks/use-auth-session';
 
 SplashScreen.preventAutoHideAsync();
@@ -32,7 +31,7 @@ export default function RootLayout() {
           <Stack.Screen name="note/[noteId]" options={{ presentation: 'transparentModal', animation: 'fade', statusBarStyle: 'light', contentStyle: { backgroundColor: 'transparent' } }} />
           <Stack.Screen name="storage" />
           <Stack.Screen name="friends" options={{ animation: 'none', statusBarStyle: 'dark', contentStyle: { backgroundColor: StorageColors.background } }} />
-          <Stack.Screen name="my" options={{ animation: 'none', statusBarStyle: 'dark', contentStyle: { backgroundColor: MyColors.background } }} />
+          <Stack.Screen name="my" options={{ animation: 'none', statusBarStyle: 'dark', contentStyle: { backgroundColor: ScreenColors.background } }} />
           <Stack.Screen name="settings" />
           <Stack.Screen name="profile-edit" />
           <Stack.Screen name="my-notes" />

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
+import { FontFamilies } from '@/constants/fonts';
+import { StorageColors as C } from '@/constants/colors';
 
 export function StorageHeader() {
   return (
@@ -14,5 +15,5 @@ export function StorageHeader() {
 
 const s = StyleSheet.create({
   header: { paddingTop: 18, paddingBottom: 18 },
-  title: { fontFamily: F.display, fontSize: 58, lineHeight: 52, color: C.ink, letterSpacing: -1, includeFontPadding: false },
+  title: { fontFamily: FontFamilies.archivoBlack, fontSize: 58, lineHeight: 52, color: C.ink, letterSpacing: -1, includeFontPadding: false },
 });

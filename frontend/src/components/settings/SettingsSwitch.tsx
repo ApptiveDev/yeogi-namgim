@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { SettingsColors as C } from '@/constants/settings';
+import { SettingsColors as C } from '@/constants/colors';
 
 type Props = {
   label: string;

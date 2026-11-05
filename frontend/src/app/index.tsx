@@ -17,6 +17,8 @@ import { useNoteCompose } from '@/hooks/use-note-compose';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { styles } from '@/styles/home.styles';
 
+type StartupStatus = 'loading' | 'ready' | { error: string };
+
 export default function HomeScreen() {
   const [attempt, setAttempt] = useState(0);
   return <HomeContent key={attempt} onRetry={() => setAttempt((value) => value + 1)} />;
@@ -25,8 +27,9 @@ export default function HomeScreen() {
 function HomeContent({ onRetry }: { onRetry: () => void }) {
   const isReadingNote = usePathname().startsWith('/note/');
   const { compose } = useLocalSearchParams<{ compose?: string }>();
-  const [homeReady, setHomeReady] = useState(false);
-  const [startupError, setStartupError] = useState<string | null>(null);
+  const [startup, setStartup] = useState<StartupStatus>('loading');
+  const homeReady = startup === 'ready';
+  const startupError = typeof startup === 'object' ? startup.error : null;
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -57,6 +60,15 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
     isFollowingUser, setIsFollowingUser, cameraRef, resumeFollowingAfterClose,
     notesRefreshKey, nearbySheetHeight,
   });
+
+  if (startup === 'loading') {
+    const error = locationStatus === 'error'
+      ? '위치를 확인하지 못했어요. 위치 서비스를 확인하고 다시 시도해 주세요.'
+      : map.startupError;
+    if (error) setStartup({ error });
+    else if (map.isMapReady && map.isMapRendered) setStartup('ready');
+  }
+
   const openRequestedCompose = useEffectEvent(() => {
     router.setParams({ compose: undefined });
     if (!isComposeOpen) { map.clearMapSelection(); void openCompose(map.mapRef); }
@@ -67,17 +79,14 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   }, [homeReady, compose]);
 
   useEffect(() => {
-    if (homeReady || startupError) return;
-    if (locationStatus === 'error') setStartupError('위치를 확인하지 못했어요. 위치 서비스를 확인하고 다시 시도해 주세요.');
-    else if (map.startupError) setStartupError(map.startupError);
-    else if (map.isMapReady && map.isMapRendered) setHomeReady(true);
-  }, [homeReady, startupError, locationStatus, map.startupError, map.isMapReady, map.isMapRendered]);
-
-  useEffect(() => {
-    if (homeReady || startupError || locationStatus === 'permission') return;
-    const timer = setTimeout(() => setStartupError('지도 준비 시간이 초과됐어요. 다시 시도해 주세요.'), 15000);
+    if (startup !== 'loading' || locationStatus === 'permission') return;
+    const timer = setTimeout(() => {
+      setStartup((current) => current === 'loading'
+        ? { error: '지도 준비 시간이 초과됐어요. 다시 시도해 주세요.' }
+        : current);
+    }, 15000);
     return () => clearTimeout(timer);
-  }, [homeReady, startupError, locationStatus]);
+  }, [startup, locationStatus]);
 
   return (
     <View style={styles.container}>

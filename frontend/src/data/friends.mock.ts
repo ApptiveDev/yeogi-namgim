@@ -18,16 +18,17 @@ const FRIENDS = [
 
 // 화면 확인용 상대 시간입니다. 서버나 기기 저장소에 저장하지 않습니다.
 export function createFriendsMock(now: number): FriendsData {
-  const hoursAgo = (hours: number) => new Date(now - hours * 60 * 60_000).toISOString();
+  const hoursAgo = (hours: number) => now - hours * 60 * 60_000;
   return {
     friends: FRIENDS,
+    // 최신순으로 정의해 친구를 선택했을 때도 같은 순서로 보여줍니다.
     activities: [
-      { id: 'mock-friend-note-1', friend: FRIENDS[0], locationLabel: '성수동', createdAt: hoursAgo(1) },
-      { id: 'mock-friend-note-2', friend: FRIENDS[1], locationLabel: '서울숲', createdAt: hoursAgo(25) },
-      { id: 'mock-friend-note-3', friend: FRIENDS[2], locationLabel: '뚝섬 한강공원', createdAt: hoursAgo(49) },
-      { id: 'mock-friend-note-4', friend: FRIENDS[3], locationLabel: '연남동', createdAt: hoursAgo(73) },
-      { id: 'mock-friend-note-5', friend: FRIENDS[0], locationLabel: '성수역 근처', createdAt: hoursAgo(97) },
-      { id: 'mock-friend-note-6', friend: FRIENDS[4], locationLabel: '북촌 한옥마을', createdAt: hoursAgo(121) },
+      { id: 'mock-friend-note-1', friend: FRIENDS[0], locationLabel: '성수동', createdAtMs: hoursAgo(1) },
+      { id: 'mock-friend-note-2', friend: FRIENDS[1], locationLabel: '서울숲', createdAtMs: hoursAgo(25) },
+      { id: 'mock-friend-note-3', friend: FRIENDS[2], locationLabel: '뚝섬 한강공원', createdAtMs: hoursAgo(49) },
+      { id: 'mock-friend-note-4', friend: FRIENDS[3], locationLabel: '연남동', createdAtMs: hoursAgo(73) },
+      { id: 'mock-friend-note-5', friend: FRIENDS[0], locationLabel: '성수역 근처', createdAtMs: hoursAgo(97) },
+      { id: 'mock-friend-note-6', friend: FRIENDS[4], locationLabel: '북촌 한옥마을', createdAtMs: hoursAgo(121) },
     ],
   };
 }

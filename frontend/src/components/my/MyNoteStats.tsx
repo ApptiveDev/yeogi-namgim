@@ -1,28 +1,42 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { MY_NOTE_STATS, MyColors as C, MyFonts as F } from '@/constants/my';
-import type { MyPageModel } from '@/types/my';
+import { FontFamilies } from '@/constants/fonts';
+import { ScreenColors as C } from '@/constants/colors';
+import { MY_NOTE_STATS } from '@/constants/my';
 import { formatMyNoteCount } from '@/utils/my-page';
 
-export function MyNoteStats({ counts }: { counts: MyPageModel['noteCounts'] }) {
+type Props = { written: number | null; saved: number | null };
+
+function openWrittenNotes() {
+  router.push('/my-notes');
+}
+
+export function MyNoteStats({ written, saved }: Props) {
+  const counts = { found: null, written, saved };
+
   return (
     <View style={s.stats}>
-      {MY_NOTE_STATS.map(({ id, label, maximum }, index) => (
-        <Pressable
-          key={id}
-          accessibilityRole="button"
-          accessibilityLabel={`${label} ${counts[id] === null ? '집계 정보 없음' : `${counts[id]}개`}`}
-          accessibilityHint={id === 'written' ? '내가 작성한 쪽지 목록으로 이동합니다' : '집계를 준비하고 있어요'}
-          disabled={id !== 'written'}
-          accessibilityState={{ disabled: id !== 'written' }}
-          onPress={() => router.push('/my-notes')}
-          style={({ pressed }) => [s.stat, index > 0 && s.divider, pressed && s.pressed]}
-        >
-          <Text style={s.count}>{formatMyNoteCount(counts[id], maximum)}</Text>
-          <Text style={s.label}>{label}</Text>
-        </Pressable>
-      ))}
+      {MY_NOTE_STATS.map(({ id, label, maximum }, index) => {
+        const count = counts[id];
+        const opensList = id === 'written';
+
+        return (
+          <Pressable
+            key={id}
+            accessibilityRole="button"
+            accessibilityLabel={`${label} ${count === null ? '집계 정보 없음' : `${count}개`}`}
+            accessibilityHint={opensList ? '내가 작성한 쪽지 목록으로 이동합니다' : '집계를 준비하고 있어요'}
+            disabled={!opensList}
+            accessibilityState={{ disabled: !opensList }}
+            onPress={opensList ? openWrittenNotes : undefined}
+            style={({ pressed }) => [s.stat, index > 0 && s.divider, pressed && s.pressed]}
+          >
+            <Text style={s.count}>{formatMyNoteCount(count, maximum)}</Text>
+            <Text style={s.label}>{label}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -32,6 +46,6 @@ const s = StyleSheet.create({
   stat: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: 3 },
   divider: { borderLeftWidth: 1, borderLeftColor: '#2C2C2E' },
   pressed: { opacity: 0.65 },
-  count: { fontFamily: F.display, fontSize: 24, lineHeight: 29, color: C.surface, includeFontPadding: false },
-  label: { fontFamily: F.regular, fontSize: 11, lineHeight: 16, color: C.muted, includeFontPadding: false },
+  count: { fontFamily: FontFamilies.archivoBlack, fontSize: 24, lineHeight: 29, color: C.surface, includeFontPadding: false },
+  label: { fontFamily: FontFamilies.notoSansKrRegular, fontSize: 11, lineHeight: 16, color: C.muted, includeFontPadding: false },
 });

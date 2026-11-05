@@ -3,13 +3,11 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { FriendAvatar } from '@/components/friends/FriendAvatar';
 import { ComposeIcon } from '@/components/notes/ComposeIcon';
-import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
+import { FontFamilies } from '@/constants/fonts';
+import { StorageColors as C } from '@/constants/colors';
 import type { FriendActivity } from '@/types/friends';
-import { formatActivityTime } from '@/utils/friends';
 
-export function FriendActivityCard({ activity, now }: { activity: FriendActivity; now: number }) {
-  const timeLabel = formatActivityTime(activity.createdAt, now);
-
+export function FriendActivityCard({ activity, timeLabel }: { activity: FriendActivity; timeLabel: string }) {
   return (
     <View style={s.card}>
       <View style={s.header} accessible>
@@ -46,11 +44,11 @@ const s = StyleSheet.create({
   card: { gap: 12, marginTop: 12, padding: 14, backgroundColor: C.surface, borderRadius: 22, boxShadow: '0px 2px 12px rgba(0, 0, 0, 0.06)' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   content: { flex: 1, minWidth: 0 },
-  message: { fontFamily: F.bold, fontSize: 14, lineHeight: 20, color: C.ink, includeFontPadding: false },
+  message: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 14, lineHeight: 20, color: C.ink, includeFontPadding: false },
   metadata: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  location: { flexShrink: 1, fontFamily: F.medium, fontSize: 11, lineHeight: 14, color: '#8E8E93', includeFontPadding: false },
-  time: { flexShrink: 0, fontFamily: F.medium, fontSize: 11, lineHeight: 14, color: '#8E8E93', includeFontPadding: false },
+  location: { flexShrink: 1, fontFamily: FontFamilies.notoSansKrMedium, fontSize: 11, lineHeight: 14, color: '#8E8E93', includeFontPadding: false },
+  time: { flexShrink: 0, fontFamily: FontFamilies.notoSansKrMedium, fontSize: 11, lineHeight: 14, color: '#8E8E93', includeFontPadding: false },
   preview: { minHeight: 122, borderRadius: 14, backgroundColor: '#EEE6D3', overflow: 'hidden', justifyContent: 'flex-end', alignItems: 'flex-start', padding: 10 },
   locationPill: { minHeight: 25, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, backgroundColor: C.ink },
-  locationPillLabel: { flexShrink: 1, fontFamily: F.bold, fontSize: 11, lineHeight: 17, color: C.surface, includeFontPadding: false },
+  locationPillLabel: { flexShrink: 1, fontFamily: FontFamilies.notoSansKrBold, fontSize: 11, lineHeight: 17, color: C.surface, includeFontPadding: false },
 });

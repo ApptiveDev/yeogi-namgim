@@ -73,10 +73,24 @@ test('popover follows the heading and stays within narrow and wide safe areas', 
   }
 });
 
-test('confirming a month normalizes its first day, clears date selection and retains the filter', () => {
+function createStorageRenderer(notes) {
   const states = [];
   let cursor = 0;
+
+  function useMemo(calculate, dependencies) {
+    const index = cursor++;
+    const previous = states[index];
+    if (previous && dependencies.every((value, i) => Object.is(value, previous.dependencies[i]))) {
+      return previous.value;
+    }
+    const value = calculate();
+    states[index] = { value, dependencies };
+    return value;
+  }
+
   const react = {
+    useMemo,
+    useCallback: (callback, dependencies) => useMemo(() => callback, dependencies),
     useState(initial) {
       const index = cursor++;
       if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial;
@@ -84,9 +98,17 @@ test('confirming a month normalizes its first day, clears date selection and ret
     },
   };
   const { useStorageNotes } = loadSource('hooks/use-storage-notes.ts', { react });
+  return (filter) => {
+    cursor = 0;
+    return useStorageNotes(notes, filter);
+  };
+}
+
+test('confirming a month normalizes its first day, clears date selection and retains the filter', () => {
   const year = new Date().getFullYear();
   const notes = [{ id: 'mine', title: 'record', createdAt: new Date(year, 1, 28, 12).toISOString(), author: 'me', isSaved: false }];
-  const render = () => { cursor = 0; return useStorageNotes(notes, 'mine'); };
+  const renderStorage = createStorageRenderer(notes);
+  const render = () => renderStorage('mine');
   let state = render();
   state.selectDate(new Date(year, 9, 30));
   state = render();
@@ -126,4 +148,44 @@ test('confirming a month normalizes its first day, clears date selection and ret
   assert.equal(state.month.getFullYear(), year);
   assert.equal(state.month.getMonth(), 11);
   assert.equal(state.selectedDate, null);
+});
+
+test('monthly badges and filtered markers stay stable while day selection narrows the newest-first list', () => {
+  const createdAt = (month, day, hour) => new Date(2025, month, day, hour).toISOString();
+  const notes = [
+    { id: 'saved-friend', createdAt: createdAt(1, 3, 9), author: 'friend', isSaved: true },
+    { id: 'mine', createdAt: createdAt(1, 4, 10), author: 'me', isSaved: false },
+    { id: 'newer-saved', createdAt: createdAt(1, 3, 17), author: 'anonymous', isSaved: true },
+    { id: 'another-month', createdAt: createdAt(2, 1, 10), author: 'friend', isSaved: true },
+  ];
+  const render = createStorageRenderer(notes);
+  render('all').selectMonth(new Date(2025, 1, 1));
+
+  const saved = render('saved');
+  assert.deepEqual(saved.counts, { all: 3, saved: 2, mine: 1, friends: 1 });
+  assert.deepEqual(saved.visibleNotes.map((note) => note.id), ['newer-saved', 'saved-friend']);
+  assert.deepEqual([...saved.markedDates], ['2025-02-03']);
+
+  saved.selectDate(new Date(2025, 1, 4));
+  const selected = render('saved');
+  assert.equal(selected.selectedDate, '2025-02-04');
+  assert.deepEqual(selected.visibleNotes, []);
+  assert.equal(selected.counts, saved.counts);
+  assert.equal(selected.markedDates, saved.markedDates);
+
+  const all = render('all');
+  assert.deepEqual(all.visibleNotes.map((note) => note.id), ['mine']);
+  assert.equal(all.counts, saved.counts);
+  assert.deepEqual([...all.markedDates].sort(), ['2025-02-03', '2025-02-04']);
+
+  all.selectDate(new Date(2025, 1, 4));
+  const cleared = render('all');
+  assert.equal(cleared.selectedDate, null);
+  assert.deepEqual(cleared.visibleNotes.map((note) => note.id), ['mine', 'newer-saved', 'saved-friend']);
+
+  cleared.selectDate(new Date(2025, 2, 1));
+  const adjacentMonth = render('all');
+  assert.equal(adjacentMonth.month.getMonth(), 2);
+  assert.equal(adjacentMonth.selectedDate, '2025-03-01');
+  assert.deepEqual(adjacentMonth.visibleNotes.map((note) => note.id), ['another-month']);
 });

@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
+import { FontFamilies } from '@/constants/fonts';
+import { StorageColors as C } from '@/constants/colors';
 import type { StorageNote } from '@/types/storage';
 
 const AUTHOR_LABELS = { me: '내 노트', friend: '친구', anonymous: '익명' } as const;
@@ -36,7 +37,7 @@ const s = StyleSheet.create({
   card: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, paddingVertical: 10, paddingLeft: 10, paddingRight: 14, backgroundColor: C.surface, borderRadius: 16, boxShadow: '0px 1px 4px 0px rgba(0, 0, 0, 0.04)' },
   thumbnail: { width: 46, height: 46, flexShrink: 0, borderRadius: 10 },
   content: { flex: 1, minWidth: 0, gap: 4 },
-  title: { fontFamily: F.bold, fontSize: 15, lineHeight: 22, color: '#0E0E0E', includeFontPadding: false },
-  metadata: { fontFamily: F.medium, fontSize: 12, lineHeight: 18, color: '#8E8E93', includeFontPadding: false },
+  title: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 15, lineHeight: 22, color: '#0E0E0E', includeFontPadding: false },
+  metadata: { fontFamily: FontFamilies.notoSansKrMedium, fontSize: 12, lineHeight: 18, color: '#8E8E93', includeFontPadding: false },
   bookmark: { width: 22, height: 22, flexShrink: 0 },
 });

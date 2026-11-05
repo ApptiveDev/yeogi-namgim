@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { Animated, Easing, Platform, Pressable, Text, View } from 'react-native';
 
 import { COMPOSE_DIM_DURATION, COMPOSE_DIM_OPACITY } from '@/components/notes/compose-transitions';
@@ -19,7 +19,7 @@ type Props = {
 export function MapSelector({
   isComposeOpen, isMapMenuOpen, setIsMapMenuOpen, fontsLoaded, fontError, insets,
 }: Props) {
-  const selectorShadeOpacity = useRef(new Animated.Value(0)).current;
+  const [selectorShadeOpacity] = useState(() => new Animated.Value(0));
   const [selectedMap, setSelectedMap] = useState<typeof MAP_OPTIONS[number]>('공개지도');
 
   useEffect(() => {

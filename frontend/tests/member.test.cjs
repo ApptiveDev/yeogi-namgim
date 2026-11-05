@@ -42,7 +42,7 @@ beforeEach(async () => {
     calls.push(request);
     return respond(request);
   };
-  for (const path of ['../src/api/client.ts', '../src/api/auth.ts', '../src/api/member.ts', '../src/auth/member-session.ts']) {
+  for (const path of ['../src/api/client.ts', '../src/api/auth.ts', '../src/api/member.ts', '../src/auth/member-session.ts', '../src/state/member-account.ts']) {
     delete require.cache[require.resolve(path)];
   }
   authApi = require('../src/api/auth.ts');
@@ -55,17 +55,14 @@ beforeEach(async () => {
   respond = () => { throw new Error('Unexpected request'); };
 });
 
-test('member profile and stats preserve unsupported counts without mock values', async () => {
+test('member profile and stats preserve the API values and distinguish missing counts from zero', async () => {
   respond = ({ path }) => ok(path.endsWith('/stats') ? stats : profile);
   const [identity, counts] = await Promise.all([
     session.runMemberRequest(authApi.getMemberProfile), session.runMemberRequest(memberApi.getMemberStats),
   ]);
-  const { memberToMyPage, formatMyNoteCount } = require('../src/utils/my-page.ts');
-  const view = memberToMyPage(identity, counts);
-  assert.equal(view.displayName, profile.nickname);
-  assert.deepEqual(view.noteCounts, { found: null, written: 7, saved: null });
-  assert.equal(view.loginType, '');
-  assert.equal(view.tag, null);
+  const { formatMyNoteCount } = require('../src/utils/my-page.ts');
+  assert.deepEqual(identity, profile);
+  assert.deepEqual(counts, stats);
   assert.equal(formatMyNoteCount(null, 99), '—');
   assert.equal(formatMyNoteCount(0, 99), '0');
   assert.ok(calls.every((request) => request.headers.Authorization === 'Bearer access' && !request.query.has('userId')));
@@ -73,6 +70,44 @@ test('member profile and stats preserve unsupported counts without mock values',
   assert.equal((await session.runMemberRequest(memberApi.getMemberStats)).savedNoteCount, 0);
   respond = () => ok({ ...stats, writtenNoteCount: -1 });
   await assert.rejects(session.runMemberRequest(memberApi.getMemberStats));
+});
+
+test('overlapping account reads share one request per resource and completed reads can reload', async () => {
+  const { loadMemberProfile, loadMemberStats } = require('../src/state/member-account.ts');
+  respond = ({ path }) => ok(path.endsWith('/stats') ? stats : profile);
+
+  const pendingProfile = loadMemberProfile();
+  const pendingStats = loadMemberStats();
+  assert.equal(loadMemberProfile(), pendingProfile);
+  assert.equal(loadMemberStats(), pendingStats);
+  assert.deepEqual(await Promise.all([pendingProfile, pendingStats]), [profile, stats]);
+  assert.deepEqual(calls.map(({ path }) => path), ['/api/v1/users/me', '/api/v1/users/me/stats']);
+
+  assert.notEqual(loadMemberProfile(), pendingProfile);
+  await loadMemberProfile();
+  assert.equal(calls.length, 3);
+});
+
+test('saving a nickname prevents the next screen from joining a read started before the save', async () => {
+  const { loadMemberProfile, saveMemberNickname } = require('../src/state/member-account.ts');
+  const updated = { ...profile, nickname: '새이름' };
+  let finishPreviousRead;
+  let finishNextRead;
+  respond = () => new Promise((resolve) => { finishPreviousRead = resolve; });
+  const previousRead = loadMemberProfile();
+
+  respond = () => ok(updated);
+  await saveMemberNickname(updated.nickname);
+  respond = () => new Promise((resolve) => { finishNextRead = resolve; });
+  const nextRead = loadMemberProfile();
+  assert.notEqual(nextRead, previousRead);
+
+  finishPreviousRead(ok(profile));
+  await previousRead;
+  assert.equal(loadMemberProfile(), nextRead);
+  finishNextRead(ok(updated));
+  assert.deepEqual(await nextRead, updated);
+  assert.deepEqual(calls.map(({ method }) => method), ['GET', 'PATCH', 'GET']);
 });
 
 test('nickname editing sends only the normalized nickname and returns the saved profile', async () => {
@@ -152,16 +187,21 @@ test('a revoked refreshed token signs out after one retry; a server failure keep
 });
 
 test('responses from a previous login are discarded after logout and another login', async () => {
+  const { loadMemberProfile } = require('../src/state/member-account.ts');
+  const otherProfile = { ...profile, userId: 'member-b', email: 'other@example.test', nickname: '다른회원' };
   let finishProfile;
-  respond = ({ path }) => path.endsWith('/logout') ? ok({ loggedOut: true })
+  respond = ({ path, headers }) => path.endsWith('/logout') ? ok({ loggedOut: true })
     : path.endsWith('/login') ? ok({ ...tokens, accessToken: 'other-access', refreshToken: 'other-refresh' })
+    : headers.Authorization === 'Bearer other-access' ? ok(otherProfile)
     : new Promise((resolve) => { finishProfile = resolve; });
   const owner = session.getMemberSessionKey();
-  const pending = session.runMemberRequest(authApi.getMemberProfile);
+  const pending = loadMemberProfile();
   await session.signOut();
   await session.signIn('other@example.test', 'Pass123!');
+  const otherRead = loadMemberProfile();
   finishProfile(ok(profile));
   await assert.rejects(pending, /로그인 정보를 확인/);
+  assert.deepEqual(await otherRead, otherProfile);
   assert.notEqual(session.getMemberSessionKey(), owner);
   assert.equal(session.getAuthState().session.accessToken, 'other-access');
 });

@@ -1,71 +1,121 @@
 import { useEffect, useState } from 'react';
-import { Animated, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, TextInput, View, type TextInputSelectionChangeEvent } from 'react-native';
 
-import { StorageColors as C, StorageFonts as F } from '@/constants/storage';
+import { FontFamilies } from '@/constants/fonts';
+import { StorageColors as C } from '@/constants/colors';
 
 const CODE_LENGTH = 6;
-
-function formatInput(text: string) {
-  return text.replace(/[^A-Za-z0-9]/g, '').slice(0, CODE_LENGTH);
-}
+const CODE_CELLS = Array.from({ length: CODE_LENGTH }, (_, index) => index);
+const CELL_GAP = 6;
+const MEASURE_TEXT = '0'.repeat(CODE_LENGTH);
+const IS_WEB = Platform.OS === 'web';
 
 export function FriendCodeInput() {
   const [value, setValue] = useState('');
   const [focused, setFocused] = useState(false);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
+  const [pressedFilledCell, setPressedFilledCell] = useState(false);
+  const [fieldWidth, setFieldWidth] = useState(0);
+  const [glyphWidth, setGlyphWidth] = useState(0);
   const [caretOpacity] = useState(() => new Animated.Value(1));
   const displayCode = value.toUpperCase();
-  const activeCell = focused && value.length < CODE_LENGTH ? value.length : -1;
+  const caretPosition = focused && selection.start === selection.end
+    ? Math.min(selection.start, value.length) : -1;
+  const emptyCaretCell = !pressedFilledCell && caretPosition === value.length && caretPosition < CODE_LENGTH
+    ? caretPosition : -1;
+  const activeCharacter = caretPosition > 0 && (caretPosition < value.length || pressedFilledCell);
+  const activeCell = activeCharacter ? caretPosition - 1 : emptyCaretCell;
+
+  // Match the native character advance to the distance between the visible cells.
+  const cellPitch = (fieldWidth + CELL_GAP) / CODE_LENGTH;
+  const letterSpacing = Math.max(0, cellPitch - glyphWidth);
+  // Center each cell over the native cursor position immediately after its character.
+  const inputLeft = fieldWidth ? -(cellPitch + CELL_GAP) / 2 : 0;
+  const inputWidth = fieldWidth ? fieldWidth - inputLeft + CELL_GAP : '100%';
+
+  function markPressedCell(inputX: number) {
+    const x = inputX + inputLeft + CELL_GAP / 2;
+    setPressedFilledCell(x >= 0 && x < value.length * cellPitch);
+  }
+
+  function changeCode(text: string) {
+    setPressedFilledCell(false);
+    setValue(text.replace(/[^A-Za-z0-9]/g, ''));
+  }
+
+  function changeSelection(event: TextInputSelectionChangeEvent) {
+    const { start, end } = event.nativeEvent.selection;
+    setSelection((current) => current.start === start && current.end === end ? current : { start, end });
+  }
+
+  function blurInput() {
+    setFocused(false);
+    setPressedFilledCell(false);
+  }
 
   useEffect(() => {
-    if (activeCell < 0) return;
+    if (emptyCaretCell < 0) return;
 
     caretOpacity.setValue(1);
     const blink = Animated.loop(Animated.timing(caretOpacity, {
       toValue: 0,
       duration: 1000,
       easing: (progress) => progress < 0.5 ? 0 : 1,
-      useNativeDriver: Platform.OS !== 'web',
+      useNativeDriver: !IS_WEB,
       isInteraction: false,
     }));
     blink.start();
     return () => blink.stop();
-  }, [activeCell, caretOpacity]);
+  }, [emptyCaretCell, caretOpacity]);
 
   return (
-    <View style={s.field}>
+    <View style={s.field} onLayout={(event) => setFieldWidth(event.nativeEvent.layout.width)}>
       <TextInput
         accessibilityLabel="친구 코드 입력"
         accessibilityHint="영문 대문자와 숫자 6자리"
-        autoCapitalize="none"
+        allowFontScaling={false}
+        autoCapitalize="characters"
         autoComplete="off"
         autoCorrect={false}
+        caretHidden={Platform.OS !== 'android' || value.length > 0}
+        cursorColor="transparent"
         spellCheck={false}
         underlineColorAndroid="transparent"
+        selectionColor={C.blue}
+        maxLength={CODE_LENGTH}
         value={value}
-        onChangeText={(text) => setValue(formatInput(text))}
+        onChangeText={changeCode}
+        onSelectionChange={changeSelection}
+        onPointerDown={IS_WEB ? (event) => markPressedCell(event.nativeEvent.offsetX) : undefined}
+        onPressIn={IS_WEB ? undefined : (event) => markPressedCell(event.nativeEvent.locationX)}
         onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onBlur={blurInput}
         returnKeyType="done"
-        style={s.input}
+        style={[s.inputFont, s.input, { left: inputLeft, width: inputWidth, letterSpacing }]}
       />
-      <View style={s.row} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        {Array.from({ length: CODE_LENGTH }, (_, index) => (
-          <View key={index} style={[s.cell, displayCode[index] && s.filled, index === activeCell && s.active]}>
-            {displayCode[index] ? (
-              <Text style={s.character}>{displayCode[index]}</Text>
-            ) : index === activeCell ? (
-              <Animated.View style={[s.caret, { opacity: caretOpacity }]} />
-            ) : null}
-          </View>
-        ))}
+      <View style={s.row} aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <Text allowFontScaling={false} style={[s.inputFont, s.measure]}
+          onLayout={(event) => setGlyphWidth(event.nativeEvent.layout.width / CODE_LENGTH)}>
+          {MEASURE_TEXT}
+        </Text>
+        {CODE_CELLS.map((index) => {
+          const character = displayCode[index];
+          const selected = focused && index >= selection.start && index < selection.end;
+          return (
+            <View key={index} style={[s.cell, character && s.filled, (index === activeCell || selected) && s.active]}>
+              {character ? <Text style={s.character}>{character}</Text> : null}
+              {index === emptyCaretCell ? <Animated.View style={[s.caret, { opacity: caretOpacity }]} /> : null}
+            </View>
+          );
+        })}
       </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  field: { width: '100%', maxWidth: 270, alignSelf: 'center' },
-  row: { zIndex: 1, flexDirection: 'row', gap: 6, backgroundColor: C.surface },
+  field: { width: '100%', maxWidth: 270, alignSelf: 'center', direction: 'ltr', overflow: 'hidden' },
+  row: { zIndex: 1, flexDirection: 'row', gap: CELL_GAP, backgroundColor: C.surface, pointerEvents: 'none' },
   cell: {
     flex: 1,
     minHeight: 52,
@@ -78,7 +128,19 @@ const s = StyleSheet.create({
   },
   filled: { borderColor: C.ink, backgroundColor: C.surface },
   active: { borderWidth: 2, borderColor: C.blue },
-  character: { fontFamily: F.display, fontSize: 20, lineHeight: 26, color: C.ink, includeFontPadding: false },
+  character: { fontFamily: FontFamilies.archivoBlack, fontSize: 20, lineHeight: 26, color: C.ink, includeFontPadding: false },
   caret: { width: 2, height: 22, backgroundColor: C.blue },
-  input: { ...StyleSheet.absoluteFill, padding: 0, color: 'transparent', backgroundColor: 'transparent' },
+  inputFont: { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 20, includeFontPadding: false },
+  measure: { position: 'absolute', top: 0, left: 0, opacity: 0 },
+  input: {
+    position: 'absolute',
+    top: 0,
+    height: '100%',
+    padding: 0,
+    color: 'transparent',
+    backgroundColor: 'transparent',
+    textAlign: 'left',
+    writingDirection: 'ltr',
+    ...Platform.select({ web: { outlineWidth: 0 } }),
+  },
 });

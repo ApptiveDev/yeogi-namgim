@@ -100,7 +100,8 @@ frontend/
 │   │   └── ui/         # 공통 UI 컴포넌트
 │   ├── constants/
 │   │   ├── home-map.ts # 지도 반경, 기본 줌, 카메라 복귀 시간
-│   │   ├── storage.ts  # 보관함 필터 정의, 문구, 색상 및 폰트
+│   │   ├── fonts.ts    # 화면에서 공유하는 폰트 패밀리 이름
+│   │   ├── storage.ts  # 보관함 필터 정의, 문구 및 색상
 │   │   └── theme.ts    # 테마 상수
 │   ├── data/           # API 연결 전 보관함의 빈 데이터
 │   ├── hooks/
@@ -169,8 +170,8 @@ MY·설정의 회원 정보는 실제 API를 사용합니다.
 
 | 화면 | 응답 입력 | 화면 모델 |
 | --- | --- | --- |
-| 보관함 | [storage-notes.ts](src/data/storage-notes.ts)의 `STORAGE_NOTES_RESPONSE` | [StorageNote](src/types/storage.ts) 배열 |
-| MY·설정 | `GET /users/me`, `GET /users/me/stats`, `PATCH /users/me` | [MyPageModel](src/types/my.ts) |
+| 보관함 | [storage-notes.mock.ts](src/data/storage-notes.mock.ts)의 예시 목록 또는 빈 목록 | [StorageNote](src/types/storage.ts) 배열 |
+| MY·설정 | `GET /users/me`, `GET /users/me/stats`, `PATCH /users/me` | [MemberProfile](src/api/auth.ts), [MemberStats](src/api/member.ts) |
 | 친구 | `GET /friends`, `POST /friends/invitations`, 초대 확인·수락 API | [FriendProfile](src/types/friends.ts), [친구 API DTO](src/api/friends.ts) |
 
 ## 미구현 기능

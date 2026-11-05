@@ -14,7 +14,7 @@ export const STORAGE_NOTE_MOCKS: readonly StorageNote[] = [
   {
     id: 'mock-storage-mine-20261101',
     title: 'MY테스트01',
-    createdAt: '2026-11-01T12:00:00+09:00',
+    createdAt: '2026-11-04T12:00:00+09:00',
     author: 'me',
     locationLabel: '서울숲 주변',
     isSaved: false,

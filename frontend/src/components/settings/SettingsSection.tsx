@@ -1,7 +1,8 @@
 import { Children, Fragment, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { SettingsColors as C, SettingsFonts as F } from '@/constants/settings';
+import { FontFamilies } from '@/constants/fonts';
+import { SettingsColors as C } from '@/constants/colors';
 
 export function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -21,7 +22,7 @@ export function SettingsSection({ title, children }: { title: string; children: 
 
 const s = StyleSheet.create({
   section: { marginTop: 12 },
-  title: { marginLeft: 8, marginBottom: 6, color: C.section, fontFamily: F.bold, fontSize: 11, lineHeight: 16, letterSpacing: 1, includeFontPadding: false },
+  title: { marginLeft: 8, marginBottom: 6, color: C.section, fontFamily: FontFamilies.notoSansKrBold, fontSize: 11, lineHeight: 16, letterSpacing: 1, includeFontPadding: false },
   card: { borderRadius: 20, backgroundColor: C.surface, borderWidth: 0, borderColor: C.border, overflow: 'hidden' },
   divider: { height: 1, marginHorizontal: 18, backgroundColor: C.line },
 });
