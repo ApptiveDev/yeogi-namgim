@@ -1,9 +1,11 @@
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, BackHandler, FlatList, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { MapNotePreview } from '@/api/types';
 import { NOTE_TAP_DURATION } from '@/constants/home-map';
 import type { NearbyNoteList } from '@/hooks/use-home-map';
 import { ComposeIcon } from './ComposeIcon';
@@ -18,11 +20,12 @@ const AUTHOR_ICONS = {
   friends: require('../../../assets/images/nearby-note-friends.svg'),
 };
 
-export function NearbyNotesSheet({ list, height, onClose, onRetry }: {
+export function NearbyNotesSheet({ list, height, onClose, onRetry, onOpen }: {
   list: NearbyNoteList;
   height: number;
   onClose: () => void;
   onRetry: () => void;
+  onOpen: (note: MapNotePreview) => void;
 }) {
   const [visible, setVisible] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -37,10 +40,10 @@ export function NearbyNotesSheet({ list, height, onClose, onRetry }: {
     return () => clearTimeout(timer);
   }, [reduceMotion]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; });
     return () => subscription.remove();
-  }, [onClose]);
+  }, [onClose]));
 
   if (!visible || list.status === 'zooming') return null;
   return (
@@ -85,7 +88,7 @@ export function NearbyNotesSheet({ list, height, onClose, onRetry }: {
                   <Text style={s.author} numberOfLines={1}>{note.isMine ? '내 쪽지' : note.authorNickname || '누군가'} · {Math.ceil(note.distanceMeters)}m</Text>
                 </View>
               </View>
-              <Pressable disabled accessibilityRole="button" accessibilityLabel="쪽지 열기" accessibilityState={{ disabled: true }} style={s.open}>
+              <Pressable onPress={() => onOpen(note)} accessibilityRole="button" accessibilityLabel="쪽지 열기" style={s.open}>
                 <Text style={s.openText}>열기</Text>
                 <Image source={require('../../../assets/images/nearby-note-open.svg')} style={s.authorIcon} contentFit="contain" accessible={false} />
               </Pressable>

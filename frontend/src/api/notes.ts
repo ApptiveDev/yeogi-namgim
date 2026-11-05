@@ -67,7 +67,7 @@ export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0,
     const nullableString = (value: unknown) => value === null || typeof value === 'string';
     if (!Array.isArray(data.openableNotes) || data.openableNotes.some((note) => {
       if (!note || typeof note.noteId !== 'string' || !markers.has(note.noteId) || ids.has(note.noteId)
-        || typeof note.preview !== 'string' || typeof note.isMine !== 'boolean'
+        || typeof note.preview !== 'string' || typeof note.isMine !== 'boolean' || typeof note.isSaved !== 'boolean'
         || markers.get(note.noteId)?.isMine !== note.isMine
         || (note.distanceMeters !== null && (!Number.isFinite(note.distanceMeters) || note.distanceMeters < 0))
         || !['PUBLIC', 'FRIENDS', 'PRIVATE'].includes(note.visibility)
@@ -78,8 +78,8 @@ export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0,
     })) {
       throw new Error('쪽지 미리보기 응답이 올바르지 않습니다.');
     }
-    openableNotes = data.openableNotes.map(({ noteId, preview, distanceMeters, isMine, color, visibility, placeName, neighborhood, createdAt, authorNickname }) =>
-      ({ noteId, preview, distanceMeters, isMine, color, visibility, placeName, neighborhood, createdAt, authorNickname }));
+    openableNotes = data.openableNotes.map(({ noteId, preview, distanceMeters, isMine, isSaved, color, visibility, placeName, neighborhood, createdAt, authorNickname }) =>
+      ({ noteId, preview, distanceMeters, isMine, isSaved, color, visibility, placeName, neighborhood, createdAt, authorNickname }));
   }
 
   return {

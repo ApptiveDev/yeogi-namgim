@@ -1,7 +1,7 @@
 import { useFonts } from 'expo-font';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams, usePathname } from 'expo-router';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CameraRef } from '@maplibre/maplibre-react-native';
 
@@ -10,7 +10,6 @@ import { StartupScreen } from '@/components/StartupScreen';
 import { HomeMap } from '@/components/home/HomeMap';
 import { MapSelector } from '@/components/home/MapSelector';
 import { NoteComposeSheet } from '@/components/notes/NoteComposeSheet';
-import { NoteCreatedDialog } from '@/components/notes/NoteCreatedDialog';
 import { NoteLockedDialog } from '@/components/notes/NoteLockedDialog';
 import { NearbyNotesSheet } from '@/components/notes/NearbyNotesSheet';
 import { useHomeMap } from '@/hooks/use-home-map';
@@ -24,18 +23,18 @@ export default function HomeScreen() {
 }
 
 function HomeContent({ onRetry }: { onRetry: () => void }) {
+  const isReadingNote = usePathname().startsWith('/note/');
   const { compose } = useLocalSearchParams<{ compose?: string }>();
   const [homeReady, setHomeReady] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
   const insets = useSafeAreaInsets();
-  const { height, width } = useWindowDimensions();
+  const { height } = useWindowDimensions();
   const cameraRef = useRef<CameraRef>(null);
   const resumeFollowingAfterClose = useRef(false);
-  const [isCreatedDialogVisible, setIsCreatedDialogVisible] = useState(false);
-  const sheetHeight = Math.min(540, height * 0.66, height - insets.top - 140);
   const nearbySheetHeight = Math.min(height * 506 / 852, height - insets.top - 140);
   const [fontsLoaded, fontError] = useFonts({
+    NanumPen: require('../../assets/fonts/NanumPenScript-Regular.ttf'),
     'Pretendard-Bold': require('../../assets/fonts/Pretendard-Bold.ttf'),
     'Pretendard-Regular': require('../../assets/fonts/Pretendard-Regular.ttf'),
     'NotoSansKR-Regular': require('../../assets/fonts/NotoSansKR-Regular.otf'),
@@ -47,20 +46,20 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
     useState(true);
   const { userCoordinates, setUserCoordinates, locationStatus } = useUserLocation();
   const {
-    isComposeOpen, composeCoordinates, composeLocationLabel,
+    isComposeOpen, isComposeOpening, onComposeCameraIdle, composeCoordinates, composeLocationLabel, placeName, changePlaceName,
     draft, setDraft, isSubmitting, openCompose, closeCompose, submitNote,
   } = useNoteCompose({
     userCoordinates, setUserCoordinates, cameraRef, resumeFollowingAfterClose,
-    setIsFollowingUser, setIsMapMenuOpen, setNotesRefreshKey, setIsCreatedDialogVisible,
+    setIsFollowingUser, setIsMapMenuOpen, setNotesRefreshKey,
   });
   const map = useHomeMap({
     userCoordinates, composeCoordinates, isComposeOpen,
     isFollowingUser, setIsFollowingUser, cameraRef, resumeFollowingAfterClose,
-    notesRefreshKey, sheetHeight, nearbySheetHeight, height, width, insets,
+    notesRefreshKey, nearbySheetHeight,
   });
   const openRequestedCompose = useEffectEvent(() => {
     router.setParams({ compose: undefined });
-    if (!isComposeOpen) { map.clearMapSelection(); void openCompose(); }
+    if (!isComposeOpen) { map.clearMapSelection(); void openCompose(map.mapRef); }
   });
 
   useEffect(() => {
@@ -82,13 +81,16 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.container} pointerEvents={homeReady ? 'auto' : 'none'} accessibilityElementsHidden={!homeReady} importantForAccessibility={homeReady ? 'auto' : 'no-hide-descendants'}>
+      <Stack.Screen options={{ statusBarStyle: isComposeOpen ? 'light' : 'dark' }} />
+      <View style={styles.container} pointerEvents={homeReady && !isReadingNote && !isComposeOpening ? 'auto' : 'none'} accessibilityElementsHidden={!homeReady || isReadingNote} importantForAccessibility={homeReady && !isReadingNote ? 'auto' : 'no-hide-descendants'}>
       {userCoordinates && <HomeMap
         map={map}
         initialCenter={[userCoordinates.longitude, userCoordinates.latitude]}
         cameraRef={cameraRef}
         isComposeOpen={isComposeOpen}
+        onComposeCameraIdle={onComposeCameraIdle}
       />}
+      <View style={[StyleSheet.absoluteFill, isReadingNote && { opacity: 0 }]} pointerEvents={isReadingNote ? 'none' : 'box-none'}>
       <MapSelector
         isComposeOpen={isComposeOpen}
         isMapMenuOpen={isMapMenuOpen}
@@ -124,27 +126,25 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         </Text>
       </Pressable>}
 
-      {!isComposeOpen && !map.nearbyNotes && <BottomTabBar onAddPress={() => { map.clearMapSelection(); void openCompose(); }} />}
+      {!isComposeOpen && !map.nearbyNotes && <BottomTabBar onAddPress={() => { map.clearMapSelection(); void openCompose(map.mapRef); }} />}
 
       {isComposeOpen && (
         <NoteComposeSheet
-          height={sheetHeight}
           draft={draft}
           onChange={setDraft}
           locationLabel={composeLocationLabel}
+          placeName={placeName}
+          onPlaceNameChange={changePlaceName}
           locationReady={Boolean(composeCoordinates)}
           onClose={closeCompose}
           onSubmit={submitNote}
           isSubmitting={isSubmitting}
         />
       )}
-      <NoteCreatedDialog
-        visible={isCreatedDialogVisible}
-        onConfirm={() => setIsCreatedDialogVisible(false)}
-      />
       <NoteLockedDialog selection={map.selectedMapPoint} onClose={map.clearMapSelection} />
       {map.nearbyNotes && <NearbyNotesSheet key={map.nearbyNotes.key} list={map.nearbyNotes} height={nearbySheetHeight}
-        onClose={map.clearMapSelection} onRetry={map.retryNearbyNotes} />}
+        onClose={map.clearMapSelection} onRetry={map.retryNearbyNotes} onOpen={map.openNoteDetail} />}
+      </View>
       </View>
       {!homeReady && (
         <StartupScreen

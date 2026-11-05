@@ -42,6 +42,7 @@ export type NoteMarkersResponse = {
 export type MapNoteLocation = { latitude: number; longitude: number };
 
 export type MapNotePreview = {
+  isSaved: boolean;
   noteId: string;
   preview: string;
   distanceMeters: number | null;
@@ -58,9 +59,27 @@ export type NoteCreateRequest = {
   content: string;
   latitude: number;
   longitude: number;
+  visibility: 'PUBLIC' | 'FRIENDS' | 'PRIVATE';
+  placeName?: string;
+  neighborhood?: string;
 };
 
 export type NoteCreateResponse = {
   noteId: string;
   createdAt: string;
 };
+
+export type NoteLocationInput = MapNoteLocation & { accuracyMeters?: number; measuredAt?: string };
+export type NoteOpenResponse = {
+  noteId: string;
+  content: string;
+  isMine: boolean;
+  createdAt: string;
+  visibility: MapNotePreview['visibility'];
+  color: string | null;
+  placeName: string | null;
+  neighborhood: string | null;
+  isSaved: boolean;
+  isRead: boolean;
+};
+export type BookmarkStateResponse = { noteId: string; isSaved: boolean; savedAt: string | null };
