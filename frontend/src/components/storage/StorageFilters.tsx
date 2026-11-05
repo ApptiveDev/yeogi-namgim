@@ -9,7 +9,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { FontFamilies } from '@/constants/fonts';
-import { STORAGE_FILTERS, StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
+import { STORAGE_FILTERS } from '@/constants/storage';
 import type { StorageFilter, StorageFilterCounts } from '@/types/storage';
 
 type Props = {

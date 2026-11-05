@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { FontFamilies } from '@/constants/fonts';
-import { StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
 
 const OPTIONS = ['전체공개', '친구만', '나만'] as const;
 const INDICATOR_ANIMATION = {

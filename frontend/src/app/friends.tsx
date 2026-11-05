@@ -12,7 +12,7 @@ import { FriendsHeader, FriendsTitle } from '@/components/friends/FriendsHeader'
 import { AccountLoadState } from '@/components/my/AccountLoadState';
 import BottomTabBar from '@/components/navigation/BottomTabBar';
 import { FontFamilies } from '@/constants/fonts';
-import { StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
 import { createFriendsMock } from '@/data/friends.mock';
 import { useDeveloperSettings } from '@/hooks/use-developer-settings';
 import { useFriends } from '@/hooks/use-friends';

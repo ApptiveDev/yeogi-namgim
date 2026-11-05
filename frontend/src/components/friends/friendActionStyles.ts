@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 
 import { FontFamilies } from '@/constants/fonts';
-import { StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
 
 export const friendActionStyles = StyleSheet.create({
   button: {

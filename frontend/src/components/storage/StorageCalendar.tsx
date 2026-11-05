@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { StorageMonthPicker } from '@/components/storage/StorageMonthPicker';
 import { FontFamilies } from '@/constants/fonts';
-import { STORAGE_MONTHS, STORAGE_WEEKDAYS, StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
+import { STORAGE_MONTHS, STORAGE_WEEKDAYS } from '@/constants/storage';
 import { calendarDays, dateKey, isSameMonth, shiftMonth } from '@/utils/storage-calendar';
 import { type MonthPickerAnchor, isStorageMonthAllowed } from '@/utils/storage-month-picker';
 

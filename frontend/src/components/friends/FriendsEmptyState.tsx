@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ComposeIcon } from '@/components/notes/ComposeIcon';
 import { FontFamilies } from '@/constants/fonts';
-import { StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
 
 import { friendActionStyles as action } from './friendActionStyles';
 

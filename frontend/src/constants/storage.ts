@@ -1,17 +1,5 @@
 import type { StorageFilter, StorageNote } from '@/types/storage';
 
-export const StorageColors = {
-  background: '#F7F7F5',
-  surface: '#FFFFFF',
-  ink: '#101010',
-  blue: '#2350FF',
-  lime: '#D6F65A',
-  muted: '#939399',
-  outsideMonth: '#CBCBD0',
-  filterTrack: '#ECECEC',
-  sunday: '#DC493C',
-} as const;
-
 // 필터 라벨, 판별 기준, 빈 상태 문구를 한곳에서 변경할 수 있습니다.
 export const STORAGE_FILTERS: readonly {
   id: StorageFilter;

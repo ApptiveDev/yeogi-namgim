@@ -4,7 +4,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FriendAvatar } from '@/components/friends/FriendAvatar';
 import { FontFamilies } from '@/constants/fonts';
-import { StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
 import type { FriendProfile } from '@/types/friends';
 
 import { friendActionStyles as action } from './friendActionStyles';

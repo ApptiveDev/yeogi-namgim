@@ -10,8 +10,7 @@ import { AccountLoadState } from '@/components/my/AccountLoadState';
 import { BackButton } from '@/components/navigation/BackButton';
 import { ProfileVisibilityPicker } from '@/components/settings/ProfileVisibilityPicker';
 import { FontFamilies } from '@/constants/fonts';
-import { SettingsColors as C } from '@/constants/settings';
-import { StorageColors } from '@/constants/storage';
+import { SettingsColors as C, StorageColors } from '@/constants/colors';
 import { useMemberAccount } from '@/hooks/use-member-account';
 import { saveMemberNickname } from '@/state/member-account';
 import { validateNickname } from '@/utils/auth-validation';
@@ -128,7 +127,7 @@ function ProfileForm({ profile }: { profile: MemberProfile }) {
   const saving = useRef(false);
   const mounted = useRef(true);
   // Match the native maxLength unit, including for characters such as emoji.
-  const nicknameLength = nickname.length;
+  const nicknameLength = Array.from(nickname).length;
   // Existing longer nicknames can be shortened without truncating them on load.
   const nicknameInputLimit = Math.max(NICKNAME_LIMIT, nicknameLength);
   useEffect(() => {

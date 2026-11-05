@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontFamilies } from '@/constants/fonts';
-import { SettingsColors as C } from '@/constants/settings';
+import { SettingsColors as C } from '@/constants/colors';
 
 type Props = {
   label: string;

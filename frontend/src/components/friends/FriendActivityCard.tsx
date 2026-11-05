@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { FriendAvatar } from '@/components/friends/FriendAvatar';
 import { ComposeIcon } from '@/components/notes/ComposeIcon';
 import { FontFamilies } from '@/constants/fonts';
-import { StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
 import type { FriendActivity } from '@/types/friends';
 
 export function FriendActivityCard({ activity, timeLabel }: { activity: FriendActivity; timeLabel: string }) {

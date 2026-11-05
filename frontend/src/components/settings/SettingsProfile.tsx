@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontFamilies } from '@/constants/fonts';
-import { SettingsColors as C } from '@/constants/settings';
+import { SettingsColors as C } from '@/constants/colors';
 
 const PROFILE_AVATAR = require('../../../assets/images/settings-profile-avatar.svg');
 

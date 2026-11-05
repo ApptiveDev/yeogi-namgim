@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontFamilies } from '@/constants/fonts';
-import { MY_NOTE_STATS, MyColors as C } from '@/constants/my';
+import { ScreenColors as C } from '@/constants/colors';
+import { MY_NOTE_STATS } from '@/constants/my';
 import { formatMyNoteCount } from '@/utils/my-page';
 
 type Props = { written: number | null; saved: number | null };

@@ -13,7 +13,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsSignOutRow } from '@/components/settings/SettingsSignOutRow';
 import { SettingsSwitch } from '@/components/settings/SettingsSwitch';
 import { FontFamilies } from '@/constants/fonts';
-import { SettingsColors as C } from '@/constants/settings';
+import { SettingsColors as C } from '@/constants/colors';
 import { useDeveloperSettings } from '@/hooks/use-developer-settings';
 import { useLocationPermission } from '@/hooks/use-location-permission';
 import { useMemberAccount } from '@/hooks/use-member-account';

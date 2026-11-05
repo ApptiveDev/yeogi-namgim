@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { FontFamilies } from '@/constants/fonts';
-import { StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
 import type { StorageNote } from '@/types/storage';
 
 const AUTHOR_LABELS = { me: '내 노트', friend: '친구', anonymous: '익명' } as const;

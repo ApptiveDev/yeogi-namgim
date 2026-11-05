@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { FontFamilies } from '@/constants/fonts';
-import { MyColors as C } from '@/constants/my';
+import { ScreenColors as C } from '@/constants/colors';
 
 export function MyProfile({ displayName }: { displayName: string }) {
   return (

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Animated, Platform, StyleSheet, Text, TextInput, View, type TextInputSelectionChangeEvent } from 'react-native';
 
 import { FontFamilies } from '@/constants/fonts';
-import { StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
 
 const CODE_LENGTH = 6;
 const CODE_CELLS = Array.from({ length: CODE_LENGTH }, (_, index) => index);

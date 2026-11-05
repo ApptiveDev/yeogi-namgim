@@ -17,7 +17,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { FontFamilies } from '@/constants/fonts';
-import { StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
 import {
   MONTH_PICKER_ROW_HEIGHT as ROW_HEIGHT,
   MONTH_PICKER_SPRING,

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { MyNote } from '@/api/member';
 import { AccountLoadState } from '@/components/my/AccountLoadState';
 import { BackButton } from '@/components/navigation/BackButton';
-import { MyColors as C } from '@/constants/my';
+import { ScreenColors as C } from '@/constants/colors';
 import { useMyNotes } from '@/hooks/use-my-notes';
 
 const VISIBILITY_LABELS = { PUBLIC: '전체 공개', FRIENDS: '친구 공개', PRIVATE: '나만 보기' } as const;

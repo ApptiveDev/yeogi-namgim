@@ -10,7 +10,7 @@ import { MyNoteStats } from '@/components/my/MyNoteStats';
 import { MyProfile } from '@/components/my/MyProfile';
 import BottomTabBar from '@/components/navigation/BottomTabBar';
 import { FontFamilies } from '@/constants/fonts';
-import { MyColors as C } from '@/constants/my';
+import { ScreenColors as C } from '@/constants/colors';
 import { useMemberAccount } from '@/hooks/use-member-account';
 
 const MY_FONTS = {

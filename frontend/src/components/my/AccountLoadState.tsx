@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontFamilies } from '@/constants/fonts';
-import { MyColors as C } from '@/constants/my';
+import { ScreenColors as C } from '@/constants/colors';
 
 type Props = { loading: boolean; error: string | null; onRetry: () => void; label: string };
 

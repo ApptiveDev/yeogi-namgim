@@ -7,7 +7,8 @@ import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
 import { MonthPickerWheel } from '@/components/storage/MonthPickerWheel';
 import { FontFamilies } from '@/constants/fonts';
-import { STORAGE_MONTHS, StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
+import { STORAGE_MONTHS } from '@/constants/storage';
 import {
   type MonthPickerAnchor,
   MONTH_PICKER_HEIGHT,

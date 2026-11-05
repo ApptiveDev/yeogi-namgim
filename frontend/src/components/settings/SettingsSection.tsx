@@ -2,7 +2,7 @@ import { Children, Fragment, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { FontFamilies } from '@/constants/fonts';
-import { SettingsColors as C } from '@/constants/settings';
+import { SettingsColors as C } from '@/constants/colors';
 
 export function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
   return (

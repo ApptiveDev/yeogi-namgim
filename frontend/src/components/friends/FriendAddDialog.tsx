@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { FriendInvitation } from '@/api/friends';
 import { ComposeIcon } from '@/components/notes/ComposeIcon';
 import { FontFamilies } from '@/constants/fonts';
-import { StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
 import { createFriendInvitationFlow } from '@/state/friend-invitation';
 
 import { FriendCodeInput } from './FriendCodeInput';

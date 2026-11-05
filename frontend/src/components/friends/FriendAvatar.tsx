@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
-import { StorageColors as C } from '@/constants/storage';
+import { StorageColors as C } from '@/constants/colors';
 import type { FriendProfile } from '@/types/friends';
 
 const AVATAR_COLORS = ['#A9B9E8', '#D8B6A4', '#AFC0A4', '#E5C66F', '#BDB0CF', '#A2C5C4'] as const;
