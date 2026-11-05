@@ -15,7 +15,7 @@ import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
 import { createFriendsMock } from '@/data/friends.mock';
 import { useDeveloperSettings } from '@/hooks/use-developer-settings';
-import { useFriends } from '@/hooks/use-friends';
+import { useFriendActivities, useFriends } from '@/hooks/use-friends';
 import type { FriendActivity, FriendProfile } from '@/types/friends';
 import { formatActivityTime } from '@/utils/friends';
 
@@ -75,9 +75,11 @@ function FriendsContent({ mockDataEnabled, isReady }: { mockDataEnabled: boolean
   const [addMode, setAddMode] = useState<FriendAddMode | null>(null);
   const preparing = !isReady || (!fontsLoaded && !fontError);
   const activeMock = showActualFriends ? null : mockData;
-  const realFriends = useFriends(isReady && !activeMock);
+  const showingExamples = activeMock !== null;
+  const realFriends = useFriends(isReady && !showingExamples);
+  const realActivities = useFriendActivities(isReady && !showingExamples);
   const friends = activeMock?.friends ?? realFriends.friends;
-  const allActivities = activeMock?.activities ?? EMPTY_ACTIVITIES;
+  const allActivities = activeMock?.activities ?? realActivities.activities;
   const selectedFriend = friends.find((friend) => friend.id === selectedFriendId);
   const activeFriendId = selectedFriend?.id;
   const activities = useMemo(() => activeFriendId
@@ -85,24 +87,30 @@ function FriendsContent({ mockDataEnabled, isReady }: { mockDataEnabled: boolean
     : allActivities, [activeFriendId, allActivities]);
   const now = useActivityTime(preparing ? EMPTY_ACTIVITIES : activities);
   const renderActivity = useCallback<ListRenderItem<FriendActivity>>(({ item }) => (
-    <FriendActivityCard activity={item} timeLabel={formatActivityTime(item.createdAtMs, now)} />
-  ), [now]);
+    <FriendActivityCard activity={item} timeLabel={formatActivityTime(item.createdAtMs, now)} showExamplePreview={showingExamples} />
+  ), [now, showingExamples]);
+  const feedReady = showingExamples || (realActivities.hasLoaded && !realActivities.error);
   const hasNoFriends = friends.length === 0 && allActivities.length === 0;
-  const showInvitation = hasNoFriends && (activeMock !== null || realFriends.hasLoaded);
+  const showInvitation = hasNoFriends && (showingExamples || realFriends.hasLoaded);
+
+  function reloadActual() {
+    realFriends.reload();
+    realActivities.reload();
+  }
 
   function openAddFriend(mode: FriendAddMode = 'options') {
     setSelectedFriendId(null);
-    if (mode === 'create') setShowActualFriends(true);
+    setShowActualFriends(true);
     setAddMode(mode);
   }
 
-  function closeAddFriend(mode: FriendAddMode) {
+  function closeAddFriend() {
     setAddMode(null);
-    if (!activeMock && mode !== 'enter') realFriends.reload();
+    reloadActual();
   }
 
-  function showExampleFriends() {
-    setShowActualFriends(false);
+  function changeFriendsMode(showActual: boolean) {
+    setShowActualFriends(showActual);
     setSelectedFriendId(null);
   }
 
@@ -124,6 +132,8 @@ function FriendsContent({ mockDataEnabled, isReady }: { mockDataEnabled: boolean
           keyExtractor={activityKey}
           renderItem={renderActivity}
           showsVerticalScrollIndicator={false}
+          refreshing={realFriends.refreshing || realActivities.refreshing}
+          onRefresh={showingExamples ? undefined : reloadActual}
           contentContainerStyle={[
             s.content,
             showInvitation && s.emptyContent,
@@ -138,11 +148,17 @@ function FriendsContent({ mockDataEnabled, isReady }: { mockDataEnabled: boolean
                 onAddFriend={() => openAddFriend()}
               />
               {activeMock ? (
-                <Text style={s.notice}>예시 친구를 보고 있어요.</Text>
+                <View>
+                  <Text style={s.notice}>예시 친구를 보고 있어요.</Text>
+                  <Pressable accessibilityRole="button" onPress={() => changeFriendsMode(true)}
+                    style={[action.button, action.secondary, action.compact, s.more]}>
+                    <Text style={[action.label, action.compactLabel]}>실제 친구 보기</Text>
+                  </Pressable>
+                </View>
               ) : (
                 <ActualFriendsStatus
                   friends={realFriends}
-                  onShowExamples={mockDataEnabled ? showExampleFriends : undefined}
+                  onShowExamples={mockDataEnabled ? () => changeFriendsMode(false) : undefined}
                 />
               )}
             </>
@@ -151,8 +167,11 @@ function FriendsContent({ mockDataEnabled, isReady }: { mockDataEnabled: boolean
             <View style={s.invitation}>
               <FriendsEmptyState onEnterCode={() => openAddFriend('enter')} />
             </View>
-          ) : hasNoFriends ? null : (
-            <EmptyActivityFeed showingExamples={activeMock !== null} selectedFriend={selectedFriend} />
+          ) : !hasNoFriends && feedReady ? (
+            <EmptyActivityFeed selectedFriend={selectedFriend} hasMore={realActivities.hasNext} />
+          ) : null}
+          ListFooterComponent={showingExamples ? null : (
+            <ActivityFeedStatus feed={realActivities} />
           )}
         />
       )}
@@ -198,13 +217,27 @@ function ActualFriendsStatus({ friends, onShowExamples }: {
   );
 }
 
-function EmptyActivityFeed({ showingExamples, selectedFriend }: {
-  showingExamples: boolean;
+function ActivityFeedStatus({ feed }: { feed: ReturnType<typeof useFriendActivities> }) {
+  return (
+    <>
+      <AccountLoadState loading={feed.loading && !feed.refreshing} error={feed.error} label="친구 쪽지 소식" onRetry={feed.retry} />
+      {feed.hasNext && !feed.loading && !feed.error ? (
+        <Pressable accessibilityRole="button" onPress={feed.loadMore}
+          style={[action.button, action.secondary, action.compact, s.more, s.feedMore]}>
+          <Text style={[action.label, action.compactLabel]}>소식 더 보기</Text>
+        </Pressable>
+      ) : null}
+    </>
+  );
+}
+
+function EmptyActivityFeed({ selectedFriend, hasMore }: {
   selectedFriend: FriendProfile | undefined;
+  hasMore: boolean;
 }) {
-  const message = !showingExamples ? {
-    title: '친구 쪽지 소식은 준비 중이에요',
-    description: '추가한 친구는 위 목록에서 확인할 수 있어요.',
+  const message = hasMore ? {
+    title: '불러온 목록에 친구의 소식이 없어요',
+    description: '소식 더 보기를 눌러 다음 소식을 확인해 보세요.',
   } : selectedFriend ? {
     title: '아직 남긴 쪽지가 없어요',
     description: `${selectedFriend.displayName}님이 쪽지를 남기면\n이곳에서 알려드릴게요.`,
@@ -232,4 +265,5 @@ const s = StyleSheet.create({
   emptyDescription: { fontFamily: FontFamilies.notoSansKrRegular, fontSize: 13, lineHeight: 22, color: C.muted, textAlign: 'center' },
   notice: { fontFamily: FontFamilies.notoSansKrRegular, fontSize: 12, lineHeight: 19, color: C.muted, marginTop: 4 },
   more: { minHeight: 44, alignSelf: 'center', marginBottom: 12 },
+  feedMore: { marginTop: 12 },
 });

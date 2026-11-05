@@ -7,7 +7,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(path: string, options: RequestInit = {}, noContent?: T): Promise<T> {
   const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
 
   if (!baseUrl) {
@@ -27,6 +27,8 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
       const failure: ApiFailure | null = await response.json().catch(() => null);
       throw new ApiError(failure?.error?.message || `API 요청 실패: ${response.status}`, response.status, failure?.error?.code);
     }
+
+    if (response.status === 204 && noContent !== undefined) return noContent;
 
     const result: ApiSuccess<T> = await response.json();
     if (result.success !== true) {

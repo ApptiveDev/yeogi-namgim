@@ -1,9 +1,12 @@
-import { acceptFriendInvitation, createFriendInvitation, previewFriendInvitation, type Friend, type FriendInvitation, type FriendInvitationPreview } from '../api/friends';
+import {
+  acceptFriendInvitation, createFriendInvitation, getCurrentFriendInvitation, previewFriendInvitation,
+  type Friend, type FriendInvitation, type FriendInvitationPreview,
+} from '../api/friends';
 import { ApiError } from '../api/client';
 import { getMemberSessionKey, runMemberRequest } from '../auth/member-session';
 import { friendErrorMessage, normalizeInvitationCode, validateInvitationCode } from '../utils/friends';
 
-type Action = 'create' | 'preview' | 'accept';
+type Action = 'current' | 'create' | 'preview' | 'accept';
 type ConfirmedInvitation = FriendInvitationPreview & { code: string };
 type InvitationState = {
   input: string;
@@ -48,8 +51,10 @@ export function createFriendInvitationFlow() {
   return {
     getState: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    setInput: (input: string) => { if (available()) update({ input, preview: null, error: null }); },
-    clearPreview: () => { if (available()) update({ preview: null, error: null }); },
+    setInput: (input: string) => {
+      if (available() && input !== state.input) update({ input, preview: null, error: null });
+    },
+    loadCurrent: () => run('current', getCurrentFriendInvitation, (created) => ({ created })),
     generate: () => run('create', createFriendInvitation, (created) => ({ created })),
     preview: async () => {
       if (!available()) return;
