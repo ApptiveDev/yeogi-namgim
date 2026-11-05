@@ -49,6 +49,7 @@
 ### 열람과 위치 판정
 
 - [x] 내 쪽지의 거리 예외와 상세 열람: `POST /api/v1/notes/{noteId}/open` — [#55](https://github.com/ApptiveDev/yeogi-namgim/issues/55), [상세 문서](MEMBER_NOTE_API.md)
+- [ ] 상세 열람 작성자 표시(`MINE/FRIEND/ANONYMOUS`, 정책상 허용된 친구 닉네임) — [#129](https://github.com/ApptiveDev/yeogi-namgim/issues/129)
 - [x] 회원 지도·상세의 공개 범위와 접근 상태 연결 — [#59](https://github.com/ApptiveDev/yeogi-namgim/issues/59)
 - [x] 회원 전용 요청과 타인 미저장 쪽지의 **150m 이하** 판정 — [#73](https://github.com/ApptiveDev/yeogi-namgim/issues/73), [PR #74](https://github.com/ApptiveDev/yeogi-namgim/pull/74)
 - [ ] 위치 정확도·측정 시각 허용 기준 — **계획**, 기준 확정 후 입력·열람 검증에 적용
