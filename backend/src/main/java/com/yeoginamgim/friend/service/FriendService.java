@@ -37,11 +37,23 @@ public class FriendService {
 
 	@Transactional
 	public InvitationCreated createInvitation(UUID userId) {
-		String code = codes.issue();
+		invitations.lockOwner(userId);
 		Instant now = clock.instant();
+		var current = invitations.current(userId, now);
+		if (current.isPresent()) return current.get();
 		Instant expiresAt = now.plus(properties.invitationTtl());
-		invitations.create(UUID.randomUUID(), userId, codes.hash(code), now, expiresAt);
-		return new InvitationCreated(code, expiresAt);
+		for (int attempt = 0; attempt < 10; attempt++) {
+			String code = codes.issue();
+			if (invitations.createShared(UUID.randomUUID(), userId, codes.hash(code), code, now, expiresAt)) {
+				return new InvitationCreated(code, expiresAt);
+			}
+		}
+		throw new IllegalStateException("Could not allocate a unique friend invitation code");
+	}
+
+	@Transactional(readOnly = true)
+	public java.util.Optional<InvitationCreated> currentInvitation(UUID userId) {
+		return invitations.current(userId, clock.instant());
 	}
 
 	@Transactional(readOnly = true)
@@ -60,7 +72,7 @@ public class FriendService {
 		Instant now = clock.instant();
 		validateInvitation(userId, invitation, now);
 		if (!friendships.create(invitation.inviterId(), userId, now)) throw FriendException.alreadyFriends();
-		invitations.accept(invitation.id(), userId, now);
+		if (!invitation.reusable()) invitations.accept(invitation.id(), userId, now);
 		return new Friend(invitation.inviterId(), invitation.nickname(), now);
 	}
 

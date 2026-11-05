@@ -48,6 +48,15 @@ public class FriendController {
 			.body(ApiResponse.success(friends.createInvitation(userId)));
 	}
 
+	@GetMapping("/invitations/current")
+	public ResponseEntity<ApiResponse<InvitationCreated>> current() {
+		UUID userId = currentUser.requireUserId();
+		return friends.currentInvitation(userId)
+			.map(invitation -> ResponseEntity.ok().cacheControl(CacheControl.noStore())
+				.body(ApiResponse.success(invitation)))
+			.orElseGet(() -> ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build());
+	}
+
 	@GetMapping("/invitations/{code}")
 	public ResponseEntity<ApiResponse<InvitationPreview>> preview(@PathVariable String code) {
 		UUID userId = currentUser.requireUserId();
