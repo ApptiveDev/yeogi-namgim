@@ -3,22 +3,23 @@ import { Animated, Platform, StyleSheet, Text, TextInput, View, type TextInputSe
 
 import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
+import { FRIEND_INVITATION_CODE_LENGTH as CODE_LENGTH, LEGACY_FRIEND_INVITATION_CODE_LENGTH, normalizeInvitationCode } from '@/utils/friends';
 
-const CODE_LENGTH = 6;
 const CODE_CELLS = Array.from({ length: CODE_LENGTH }, (_, index) => index);
 const CELL_GAP = 6;
 const MEASURE_TEXT = '0'.repeat(CODE_LENGTH);
 const IS_WEB = Platform.OS === 'web';
 
-export function FriendCodeInput() {
-  const [value, setValue] = useState('');
+type Props = { value: string; onChangeCode: (value: string) => void; editable: boolean };
+
+export function FriendCodeInput({ value, onChangeCode, editable }: Props) {
   const [focused, setFocused] = useState(false);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [pressedFilledCell, setPressedFilledCell] = useState(false);
   const [fieldWidth, setFieldWidth] = useState(0);
   const [glyphWidth, setGlyphWidth] = useState(0);
   const [caretOpacity] = useState(() => new Animated.Value(1));
-  const displayCode = value.toUpperCase();
+  const legacy = value.length > CODE_LENGTH;
   const caretPosition = focused && selection.start === selection.end
     ? Math.min(selection.start, value.length) : -1;
   const emptyCaretCell = !pressedFilledCell && caretPosition === value.length && caretPosition < CODE_LENGTH
@@ -40,7 +41,12 @@ export function FriendCodeInput() {
 
   function changeCode(text: string) {
     setPressedFilledCell(false);
-    setValue(text.replace(/[^A-Za-z0-9]/g, ''));
+    const trimmed = text.trim();
+    const allowedLength = trimmed.length <= CODE_LENGTH || trimmed.length === LEGACY_FRIEND_INVITATION_CODE_LENGTH
+      || (legacy && trimmed.length < LEGACY_FRIEND_INVITATION_CODE_LENGTH);
+    if (allowedLength && /^[A-Za-z0-9]*$/.test(trimmed)) {
+      onChangeCode(normalizeInvitationCode(trimmed));
+    }
   }
 
   function changeSelection(event: TextInputSelectionChangeEvent) {
@@ -72,17 +78,17 @@ export function FriendCodeInput() {
     <View style={s.field} onLayout={(event) => setFieldWidth(event.nativeEvent.layout.width)}>
       <TextInput
         accessibilityLabel="친구 코드 입력"
-        accessibilityHint="영문 대문자와 숫자 6자리"
+        accessibilityHint="영문과 숫자 6자리. 이전 16자리 코드는 붙여넣을 수 있어요."
         allowFontScaling={false}
         autoCapitalize="characters"
         autoComplete="off"
         autoCorrect={false}
-        caretHidden={Platform.OS !== 'android' || value.length > 0}
-        cursorColor="transparent"
+        caretHidden={!legacy && (Platform.OS !== 'android' || value.length > 0)}
+        cursorColor={legacy ? C.blue : 'transparent'}
         spellCheck={false}
         underlineColorAndroid="transparent"
         selectionColor={C.blue}
-        maxLength={CODE_LENGTH}
+        editable={editable}
         value={value}
         onChangeText={changeCode}
         onSelectionChange={changeSelection}
@@ -91,15 +97,15 @@ export function FriendCodeInput() {
         onFocus={() => setFocused(true)}
         onBlur={blurInput}
         returnKeyType="done"
-        style={[s.inputFont, s.input, { left: inputLeft, width: inputWidth, letterSpacing }]}
+        style={[s.inputFont, legacy ? s.legacyInput : [s.input, { left: inputLeft, width: inputWidth, letterSpacing }]]}
       />
-      <View style={s.row} aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {legacy ? null : <View style={s.row} aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Text allowFontScaling={false} style={[s.inputFont, s.measure]}
           onLayout={(event) => setGlyphWidth(event.nativeEvent.layout.width / CODE_LENGTH)}>
           {MEASURE_TEXT}
         </Text>
         {CODE_CELLS.map((index) => {
-          const character = displayCode[index];
+          const character = value[index];
           const selected = focused && index >= selection.start && index < selection.end;
           return (
             <View key={index} style={[s.cell, character && s.filled, (index === activeCell || selected) && s.active]}>
@@ -108,7 +114,7 @@ export function FriendCodeInput() {
             </View>
           );
         })}
-      </View>
+      </View>}
     </View>
   );
 }
@@ -131,6 +137,7 @@ const s = StyleSheet.create({
   character: { fontFamily: FontFamilies.archivoBlack, fontSize: 20, lineHeight: 26, color: C.ink, includeFontPadding: false },
   caret: { width: 2, height: 22, backgroundColor: C.blue },
   inputFont: { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 20, includeFontPadding: false },
+  legacyInput: { minHeight: 52, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5EA', color: C.ink, textAlign: 'center' },
   measure: { position: 'absolute', top: 0, left: 0, opacity: 0 },
   input: {
     position: 'absolute',

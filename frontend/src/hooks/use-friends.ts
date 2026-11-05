@@ -1,14 +1,16 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 
-import { getFriends, type Friend } from '@/api/friends';
+import { getFriendActivities, getFriends, type FriendActivitiesPage, type FriendsPage } from '@/api/friends';
 import { getAuthState, getInitialAuthState, getMemberSessionKey, runMemberRequest, subscribeAuth } from '@/auth/member-session';
-import type { FriendProfile } from '@/types/friends';
+import type { FriendActivity, FriendProfile } from '@/types/friends';
 import { friendErrorMessage } from '@/utils/friends';
 
-type FriendsState = {
+type Page = { page: number; hasNext: boolean };
+
+type PageState<Item> = {
   owner: number;
-  friends: readonly FriendProfile[];
+  items: readonly Item[];
   page: number;
   requestedPage: number;
   hasNext: boolean;
@@ -16,17 +18,17 @@ type FriendsState = {
   error: string | null;
 };
 
-const EMPTY_FRIENDS: readonly FriendProfile[] = [];
+const EMPTY_ITEMS: readonly never[] = [];
 
-function emptyFriendsState(owner: number, loading: boolean): FriendsState {
-  return { owner, friends: EMPTY_FRIENDS, page: -1, requestedPage: 0, hasNext: false, loading, error: null };
+function emptyPageState<Item>(owner: number, loading: boolean): PageState<Item> {
+  return { owner, items: EMPTY_ITEMS, page: -1, requestedPage: 0, hasNext: false, loading, error: null };
 }
 
-function mergeFriendPage(previous: readonly FriendProfile[], incoming: readonly Friend[], replace: boolean) {
+function mergeFriendPage(previous: readonly FriendProfile[], { friends }: FriendsPage, replace: boolean) {
   const previousById = new Map(previous.map((friend) => [friend.id, friend]));
   const nextById = replace ? new Map<string, FriendProfile>() : previousById;
 
-  for (const { friendId, nickname } of incoming) {
+  for (const { friendId, nickname } of friends) {
     const existing = previousById.get(friendId);
     const profile = existing?.displayName === nickname
       ? existing
@@ -40,31 +42,48 @@ function mergeFriendPage(previous: readonly FriendProfile[], incoming: readonly 
     : next;
 }
 
-export function useFriends(enabled: boolean) {
+function mergeActivityPage(previous: readonly FriendActivity[], { activities }: FriendActivitiesPage, replace: boolean) {
+  const byId = new Map((replace ? EMPTY_ITEMS : previous).map((activity) => [activity.id, activity]));
+  for (const { noteId, friendId, nickname, placeName, neighborhood, createdAt } of activities) {
+    byId.set(noteId, {
+      id: noteId,
+      friend: { id: friendId, displayName: nickname, avatarUrl: null },
+      locationLabel: placeName?.trim() || neighborhood?.trim() || '장소 정보 없음',
+      createdAtMs: Date.parse(createdAt),
+    });
+  }
+  return [...byId.values()];
+}
+
+function useFriendPages<Item, Response extends Page>(
+  enabled: boolean,
+  getPage: (token: string, page: number) => Promise<Response>,
+  mergePage: (previous: readonly Item[], result: Response, replace: boolean) => readonly Item[],
+) {
   const auth = useSyncExternalStore(subscribeAuth, getAuthState, getInitialAuthState);
   const owner = getMemberSessionKey();
   const generationRef = useRef(0);
   const busyRef = useRef<number | null>(null);
-  const [state, setState] = useState(() => emptyFriendsState(owner, enabled));
+  const [state, setState] = useState(() => emptyPageState<Item>(owner, enabled));
 
   const load = useCallback(async (page: number, generation: number) => {
     if (!enabled || auth.status !== 'authenticated' || owner !== getMemberSessionKey() || busyRef.current === generation) return;
     busyRef.current = generation;
     setState((previous) => ({
-      ...(previous.owner === owner ? previous : emptyFriendsState(owner, true)),
+      ...(previous.owner === owner ? previous : emptyPageState<Item>(owner, true)),
       requestedPage: page,
       loading: true,
       error: null,
     }));
     try {
-      const result = await runMemberRequest((token) => getFriends(token, page));
+      const result = await runMemberRequest((token) => getPage(token, page));
       if (generationRef.current !== generation || owner !== getMemberSessionKey()) return;
       setState((previous) => ({
         owner,
-        friends: mergeFriendPage(previous.owner === owner ? previous.friends : EMPTY_FRIENDS, result.friends, page === 0),
+        items: mergePage(previous.owner === owner ? previous.items : EMPTY_ITEMS, result, page === 0),
         page: result.page,
         requestedPage: page,
-        hasNext: result.hasNext,
+        hasNext: result.hasNext && result.page < 10000,
         loading: false,
         error: null,
       }));
@@ -75,7 +94,7 @@ export function useFriends(enabled: boolean) {
     } finally {
       if (busyRef.current === generation) busyRef.current = null;
     }
-  }, [enabled, auth.status, owner]);
+  }, [enabled, auth.status, owner, getPage, mergePage]);
 
   const reload = useCallback(() => { void load(0, ++generationRef.current); }, [load]);
   useFocusEffect(useCallback(() => {
@@ -83,16 +102,16 @@ export function useFriends(enabled: boolean) {
     return () => { generationRef.current += 1; };
   }, [reload]));
 
-  const current = state.owner === owner && enabled ? state : emptyFriendsState(owner, enabled);
-  const { friends, page, requestedPage, hasNext, loading, error } = current;
+  const current = state.owner === owner && enabled ? state : emptyPageState<Item>(owner, enabled);
+  const { items, page, requestedPage, hasNext, loading, error } = current;
   const loadMore = useCallback(() => {
-    if (!loading && hasNext && page < 10000) {
+    if (!loading && hasNext) {
       void load(page + 1, generationRef.current);
     }
   }, [loading, hasNext, page, load]);
 
   return {
-    friends,
+    items,
     hasNext,
     hasLoaded: page >= 0,
     loading,
@@ -102,4 +121,14 @@ export function useFriends(enabled: boolean) {
     loadMore,
     retry: requestedPage === 0 ? reload : loadMore,
   };
+}
+
+export function useFriends(enabled: boolean) {
+  const { items, ...page } = useFriendPages(enabled, getFriends, mergeFriendPage);
+  return { ...page, friends: items };
+}
+
+export function useFriendActivities(enabled: boolean) {
+  const { items, ...page } = useFriendPages(enabled, getFriendActivities, mergeActivityPage);
+  return { ...page, activities: items };
 }
