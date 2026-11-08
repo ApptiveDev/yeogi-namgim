@@ -7,7 +7,11 @@ import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
 import type { FriendActivity } from '@/types/friends';
 
-export function FriendActivityCard({ activity, timeLabel }: { activity: FriendActivity; timeLabel: string }) {
+export function FriendActivityCard({ activity, timeLabel, showExamplePreview }: {
+  activity: FriendActivity;
+  timeLabel: string;
+  showExamplePreview: boolean;
+}) {
   return (
     <View style={s.card}>
       <View style={s.header} accessible>
@@ -24,18 +28,20 @@ export function FriendActivityCard({ activity, timeLabel }: { activity: FriendAc
           </View>
         </View>
       </View>
-      <View style={s.preview}>
-        <Image
-          source={require('../../../assets/images/friends-note-preview.png')}
-          style={StyleSheet.absoluteFill}
-          contentFit="fill"
-          accessible={false}
-        />
-        <View style={s.locationPill} accessible accessibilityLabel="지도에서 위치 보기 준비 중">
-          <ComposeIcon name="lock" size={12} color={C.lime} />
-          <Text style={s.locationPillLabel}>눌러서 지도에서 위치 보기</Text>
+      {showExamplePreview ? (
+        <View style={s.preview}>
+          <Image
+            source={require('../../../assets/images/friends-note-preview.png')}
+            style={StyleSheet.absoluteFill}
+            contentFit="fill"
+            accessible={false}
+          />
+          <View style={s.locationPill} accessible accessibilityLabel="지도에서 위치 보기 준비 중">
+            <ComposeIcon name="lock" size={12} color={C.lime} />
+            <Text style={s.locationPillLabel}>눌러서 지도에서 위치 보기</Text>
+          </View>
         </View>
-      </View>
+      ) : null}
     </View>
   );
 }

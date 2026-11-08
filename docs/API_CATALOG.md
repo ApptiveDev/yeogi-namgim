@@ -31,7 +31,7 @@
 - [x] 회원 쪽지 작성·내 쪽지 목록: `POST /api/v1/notes`, `GET /api/v1/users/me/notes` — [#55](https://github.com/ApptiveDev/yeogi-namgim/issues/55), [상세 문서](MEMBER_NOTE_API.md)
 - [x] 회원 지도 범위 조회·필터: `GET /api/v1/notes` — [#59](https://github.com/ApptiveDev/yeogi-namgim/issues/59), [공통 API 계약](BACKEND_API_CONTRACT.md)
 - [x] 일회용 친구 초대·확인·수락·목록: `POST /api/v1/friends/invitations`, `GET /api/v1/friends/invitations/{code}`, `POST /api/v1/friends/invitations/{code}/accept`, `GET /api/v1/friends` — [#57](https://github.com/ApptiveDev/yeogi-namgim/issues/57), [상세 문서](FRIEND_API.md)
-- [ ] 친구 쪽지 소식: `GET /api/v1/friends/activities` — [#82](https://github.com/ApptiveDev/yeogi-namgim/issues/82), [PR #84](https://github.com/ApptiveDev/yeogi-namgim/pull/84)
+- [x] 친구 쪽지 소식: `GET /api/v1/friends/activities` — [#82](https://github.com/ApptiveDev/yeogi-namgim/issues/82), [상세 문서](FRIEND_API.md#친구-쪽지-소식)
 - [ ] 친구 관계 해제: `DELETE /api/v1/friends/{friendId}` — **계획**, 관계 해제 후 저장본 접근 정책 확정 필요
 
 ### 마이 탭과 계정
