@@ -4,4 +4,6 @@ export const DEFAULT_MAP_VIEW = { zoom: 16 };
 export const CAMERA_RETURN_DURATION = 600;
 export const NOTE_TAP_DURATION = 600;
 export const MAP_QUERY_PADDING_RATIO = 0.5;
-export const MAP_NOTES_LIMIT = 10_000;
+export const MAP_CLUSTER_GRID_SIZE = 32;
+export const MAP_CLUSTER_ZOOM_THRESHOLD = 0.5;
+export const MAP_QUERY_DEBOUNCE_MS = 300;

@@ -9,7 +9,7 @@ import { NoteSelectionHighlight } from './NoteSelectionHighlight';
 export function NoteLockedDialog({ selection, onClose }: { selection: NoteMapSelection | null; onClose: () => void }) {
   const { height } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
-  if (!selection || selection.isInside) return null;
+  if (!selection || selection.isInside || selection.distanceMeters === null) return null;
   return (
     <Modal transparent animationType={reduceMotion ? 'none' : 'fade'} statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
       <View style={s.container}>
