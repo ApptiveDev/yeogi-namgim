@@ -98,7 +98,7 @@ export default function StorageScreen() {
           keyExtractor={noteKey}
           renderItem={renderNote}
           showsVerticalScrollIndicator={false}
-          refreshing={!isFriends && archive.loading && archive.notes.length === 0}
+          refreshing={!isFriends && archive.refreshing}
           onRefresh={isFriends ? undefined : () => { void archive.refresh(); }}
           contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 94 }]}
           ListHeaderComponent={(

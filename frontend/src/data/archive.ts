@@ -36,14 +36,14 @@ export function toStorageNote(note: ArchiveNote): StorageNote {
   };
 }
 
-export async function loadArchivePage(selection: ArchiveSelection, dates: readonly string[], position: ArchivePosition, isCurrent: () => boolean) {
+export async function loadArchivePage(selection: ArchiveSelection, dates: readonly string[], position: ArchivePosition, isCurrent: () => boolean, limit = ARCHIVE_PAGE_SIZE) {
   const notes: ArchiveNote[] = [];
   let { dayIndex, cursor } = position;
   // The API has daily cursors. Fill one screen page by continuing through the
   // calendar's days, without downloading the whole month or estimating counts.
-  while (dayIndex < dates.length && notes.length < ARCHIVE_PAGE_SIZE) {
+  while (dayIndex < dates.length && notes.length < limit) {
     if (!isCurrent()) return null;
-    const page = await runMemberRequest((token) => getArchiveNotes(token, dates[dayIndex], selection.type, cursor, ARCHIVE_PAGE_SIZE - notes.length));
+    const page = await runMemberRequest((token) => getArchiveNotes(token, dates[dayIndex], selection.type, cursor, Math.min(100, limit - notes.length)));
     if (!isCurrent()) return null;
     notes.push(...page.notes);
     if (page.hasNext) {

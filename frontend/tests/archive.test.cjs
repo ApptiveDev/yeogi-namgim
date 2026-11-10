@@ -22,7 +22,7 @@ Module._load = function (id, parent, isMain) {
 };
 
 const tokens = { accessToken: 'access', refreshToken: 'refresh', tokenType: 'Bearer', expiresIn: 900, refreshExpiresIn: 86400 };
-const ok = (data) => new Response(JSON.stringify({ success: true, data }), { status: 200 });
+const ok = (data, status = 200) => new Response(JSON.stringify({ success: true, data }), { status });
 const fail = (status) => new Response(JSON.stringify({ success: false, error: { code: status === 401 ? 'UNAUTHORIZED' : 'UNAVAILABLE', message: '요청 실패' } }), { status });
 const note = (id, source = 'WRITTEN', date = '2026-11-10') => ({
   noteId: `00000000-0000-4000-8000-${String(id).padStart(12, '0')}`,
@@ -44,11 +44,12 @@ beforeEach(async () => {
   process.env.EXPO_PUBLIC_API_BASE_URL = 'https://api.test';
   global.fetch = async (url, options) => {
     const parsed = new URL(url);
-    const request = { path: parsed.pathname, query: parsed.searchParams, headers: options.headers };
+    const request = { path: parsed.pathname, query: parsed.searchParams, headers: options.headers,
+      method: options.method ?? 'GET', body: options.body ? JSON.parse(options.body) : null };
     calls.push(request);
     return respond(request);
   };
-  for (const path of ['api/client', 'api/auth', 'api/archive', 'auth/member-session', 'data/archive', 'state/archive-notes']) {
+  for (const path of ['api/client', 'api/auth', 'api/notes', 'api/archive', 'auth/member-session', 'data/archive', 'state/archive-notes']) {
     delete require.cache[require.resolve(`../src/${path}.ts`)];
   }
   session = require('../src/auth/member-session.ts');
@@ -63,7 +64,7 @@ beforeEach(async () => {
 });
 
 test('all, saved and mine filter one shared page locally without HTTP or count changes', async () => {
-  const cache = state.getArchiveCache(session.getMemberSessionKey(), '2026-11-10');
+  const cache = state.getArchiveCache(session.getMemberSessionKey());
   const store = cache.get(selection);
   await store.ensureLoaded();
   const count = calls.length;
@@ -79,19 +80,158 @@ test('all, saved and mine filter one shared page locally without HTTP or count c
   assert.ok(calls.every((request) => request.headers.Authorization === 'Bearer access' && !request.query.has('userId') && !request.query.has('page')));
 });
 
-test('tab re-entry keeps the cache; a new Seoul day, app cache or login starts fresh', async () => {
+test('the current login shares its cache across visits and a new login or app starts empty', async () => {
   const owner = session.getMemberSessionKey();
-  const first = state.getArchiveCache(owner, '2026-11-10');
+  const first = state.getArchiveCache(owner);
   await first.get(selection).ensureLoaded();
-  assert.equal(state.getArchiveCache(owner, '2026-11-10'), first);
-  await state.getArchiveCache(owner, '2026-11-10').get(selection).ensureLoaded();
+  assert.equal(state.getArchiveCache(owner), first);
+  await state.getArchiveCache(owner).get(selection).ensureLoaded();
   assert.equal(calls.length, 2);
-  const nextDay = state.getArchiveCache(owner, '2026-11-11');
-  assert.notEqual(nextDay, first);
-  await nextDay.get(selection).ensureLoaded();
-  assert.equal(calls.length, 4);
-  assert.notEqual(state.getArchiveCache(owner + 1, '2026-11-11'), nextDay);
+  assert.notEqual(state.getArchiveCache(owner + 1), first);
   assert.equal(state.createArchiveCache(owner).getCalendar('2026-11'), null);
+});
+
+test('re-entering fetches fresh data but an identical response keeps all references and emits no changes', async () => {
+  const cache = state.getArchiveCache(session.getMemberSessionKey());
+  const store = cache.get(selection);
+  await store.ensureLoaded();
+  const snapshot = store.getSnapshot();
+  const calendarSnapshot = cache.getCalendar(selection.month);
+  let storeUpdates = 0, calendarUpdates = 0, finish;
+  store.subscribe(() => { storeUpdates++; });
+  cache.subscribe(() => { calendarUpdates++; });
+  respond = (request) => request.path.endsWith('/calendar') ? new Promise((resolve) => { finish = resolve; })
+    : page(request, [note(2, 'SAVED'), note(1)]);
+  cache.invalidate(); // Navigation focus, not local filter changes.
+  const pending = store.ensureLoaded();
+  assert.equal(store.getSnapshot(), snapshot);
+  assert.equal(snapshot.loading, false);
+  assert.equal(snapshot.refreshing, false);
+  finish(ok(calendar));
+  await pending;
+  assert.equal(calls.length, 4);
+  assert.equal(store.getSnapshot(), snapshot);
+  assert.equal(cache.getCalendar(selection.month), calendarSnapshot);
+  assert.equal(storeUpdates, 0);
+  assert.equal(calendarUpdates, 0);
+});
+
+test('a successfully written note appears immediately on the next archive visit', async () => {
+  const cache = state.createArchiveCache(session.getMemberSessionKey());
+  const store = cache.get(selection);
+  const records = [note(2, 'SAVED'), note(1)];
+  const created = { ...note(3), preview: '방금 작성한 쪽지', createdAt: '2026-11-10T02:00:00Z' };
+  respond = (request) => {
+    if (request.path === '/api/v1/notes' && request.method === 'POST') {
+      assert.equal(request.body.content, created.preview);
+      records.unshift(created);
+      return ok({ noteId: created.noteId, createdAt: created.createdAt }, 201);
+    }
+    if (request.path.endsWith('/calendar')) return ok({ month: '2026-11', days: [{
+      date: '2026-11-10', writtenCount: records.filter((item) => item.source === 'WRITTEN').length, savedCount: 1,
+    }] });
+    return page(request, records);
+  };
+  await store.ensureLoaded();
+  const previous = store.getSnapshot();
+  const { createNote } = require('../src/api/notes.ts');
+  await session.runMemberRequest((token) => createNote({ content: created.preview, latitude: 35, longitude: 129, visibility: 'PUBLIC' }, token));
+  cache.invalidate();
+  await store.ensureLoaded();
+  const updated = store.getSnapshot();
+  assert.deepEqual(updated.notes.map((item) => item.id), [created.noteId, note(2).noteId, note(1).noteId]);
+  assert.equal(updated.notes[1], previous.notes[0]);
+  assert.equal(updated.notes[2], previous.notes[1]);
+  assert.equal(cache.getCalendar('2026-11').days[0].writtenCount, 2);
+});
+
+test('equal counts still update changed card content, author name and access without replacing other cards', async () => {
+  const cache = state.createArchiveCache(session.getMemberSessionKey());
+  const store = cache.get(selection);
+  await store.ensureLoaded();
+  const previous = store.getSnapshot();
+  const calendarSnapshot = cache.getCalendar(selection.month);
+  respond = (request) => request.path.endsWith('/calendar') ? ok(calendar)
+    : page(request, [{ ...note(2, 'SAVED'), authorCategory: 'FRIEND', authorDisplayName: '새 닉네임', preview: '바뀐 미리보기' }, note(1)]);
+  cache.invalidate();
+  await store.ensureLoaded();
+  assert.equal(cache.getCalendar(selection.month), calendarSnapshot);
+  assert.equal(store.getSnapshot().notes[0].authorDisplayName, '새 닉네임');
+  assert.equal(store.getSnapshot().notes[0].title, '바뀐 미리보기');
+  assert.equal(store.getSnapshot().notes[1], previous.notes[1]);
+  respond = (request) => request.path.endsWith('/calendar') ? ok(calendar)
+    : page(request, [{ ...note(2, 'SAVED'), accessStatus: 'LOCATION_REQUIRED', isSaved: false, preview: null }, note(1)]);
+  cache.invalidate();
+  await store.ensureLoaded();
+  assert.equal(store.getSnapshot().notes[0].openable, false);
+  assert.equal(store.getSnapshot().notes[0].isSaved, false);
+});
+
+test('revalidation keeps all loaded pages and advances the cursor after a newly inserted note', async () => {
+  const cache = state.createArchiveCache(session.getMemberSessionKey());
+  const store = cache.get(selection);
+  const records = Array.from({ length: 45 }, (_, index) => note(100 - index));
+  respond = (request) => {
+    if (request.path.endsWith('/calendar')) return ok({ month: '2026-11', days: [{ date: '2026-11-10', writtenCount: records.length, savedCount: 0 }] });
+    const offset = Number(request.query.get('cursor') ?? 0);
+    const end = Math.min(records.length, offset + Number(request.query.get('size')));
+    return page(request, records.slice(offset, end), end < records.length ? String(end) : null);
+  };
+  await store.ensureLoaded();
+  await store.loadMore();
+  const previous = store.getSnapshot();
+  assert.equal(previous.notes.length, 40);
+  cache.invalidate();
+  await store.ensureLoaded();
+  assert.equal(store.getSnapshot(), previous);
+  assert.equal(calls.at(-1).query.get('size'), '40');
+  records.unshift({ ...note(101), createdAt: '2026-11-10T02:00:00Z' });
+  cache.invalidate();
+  await store.ensureLoaded();
+  assert.equal(store.getSnapshot().notes.length, 40);
+  assert.equal(store.getSnapshot().notes[0].id, note(101).noteId);
+  await store.loadMore();
+  assert.deepEqual(store.getSnapshot().notes.map((item) => item.id), records.map((item) => item.noteId));
+  assert.equal(new Set(store.getSnapshot().notes.map((item) => item.id)).size, 46);
+});
+
+test('a failed background revalidation keeps the visible cards and cursor for explicit retry', async () => {
+  const cache = state.createArchiveCache(session.getMemberSessionKey());
+  const store = cache.get(selection);
+  await store.ensureLoaded();
+  const previous = store.getSnapshot();
+  const calendarSnapshot = cache.getCalendar(selection.month);
+  respond = () => fail(503);
+  cache.invalidate();
+  await store.ensureLoaded();
+  assert.equal(store.getSnapshot().notes, previous.notes);
+  assert.equal(store.getSnapshot().next, previous.next);
+  assert.equal(cache.getCalendar(selection.month), calendarSnapshot);
+  assert.equal(store.getSnapshot().loading, false);
+  assert.equal(store.getSnapshot().refreshing, false);
+  assert.ok(store.getSnapshot().error);
+  const failedCalls = calls.length;
+  await store.ensureLoaded();
+  assert.equal(calls.length, failedCalls);
+  respond = (request) => request.path.endsWith('/calendar') ? ok(calendar) : page(request, [note(1)]);
+  await store.retry();
+  assert.equal(store.getSnapshot().error, null);
+  assert.deepEqual(store.getSnapshot().notes.map((item) => item.id), [note(1).noteId]);
+});
+
+test('revalidating a long loaded prefix respects the 100-note API request limit', async () => {
+  const records = Array.from({ length: 120 }, (_, index) => note(200 - index));
+  respond = (request) => {
+    const offset = Number(request.query.get('cursor') ?? 0);
+    const size = Number(request.query.get('size'));
+    assert.ok(size <= 100);
+    const end = Math.min(records.length, offset + size);
+    return page(request, records.slice(offset, end), end < records.length ? String(end) : null);
+  };
+  const result = await data.loadArchivePage(selection, ['2026-11-10'], { dayIndex: 0, cursor: null }, () => true, 120);
+  assert.equal(result.notes.length, 120);
+  assert.equal(result.next, null);
+  assert.deepEqual(calls.map((request) => request.query.get('size')), ['100', '20']);
 });
 
 test('daily cursor stays bound to its date and the next day fills the remainder of a monthly page', async () => {
