@@ -18,12 +18,12 @@ const A = {
   pin: require('../../../assets/images/note-compose/pin.svg'),
 };
 const STICKERS = [
-  require('../../../assets/images/note-compose/star.png'),
-  require('../../../assets/images/note-compose/cherry.png'),
-  require('../../../assets/images/note-compose/cd.png'),
-  require('../../../assets/images/note-compose/cat.png'),
-  require('../../../assets/images/note-compose/clover.png'),
-  require('../../../assets/images/note-compose/smile.png'),
+  require('../../../assets/images/stickers/sparkle.png'),
+  require('../../../assets/images/stickers/cherry.png'),
+  require('../../../assets/images/stickers/disc.png'),
+  require('../../../assets/images/stickers/cat.png'),
+  require('../../../assets/images/stickers/clover.png'),
+  require('../../../assets/images/stickers/smiley.png'),
 ];
 const TOOLS = [
   { label: '글씨', image: require('../../../assets/images/note-compose/text.svg') },

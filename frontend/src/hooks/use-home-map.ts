@@ -34,7 +34,6 @@ type NearbyRequest = { key: number; owner: number; bounds: MapBounds; location: 
 
 type Options = {
   userCoordinates: Location.LocationObjectCoords | null;
-  composeCoordinates: Location.LocationObjectCoords | null;
   isComposeOpen: boolean;
   isFollowingUser: boolean;
   setIsFollowingUser: Dispatch<SetStateAction<boolean>>;
@@ -45,7 +44,7 @@ type Options = {
 };
 
 export function useHomeMap({
-  userCoordinates, composeCoordinates, isComposeOpen,
+  userCoordinates, isComposeOpen,
   isFollowingUser, setIsFollowingUser, cameraRef, resumeFollowingAfterClose: resumeFollowingAfterCloseRef,
   notesRefreshKey, nearbySheetHeight,
 }: Options) {
@@ -78,10 +77,6 @@ export function useHomeMap({
     type: 'Point',
     coordinates: [userCoordinates.longitude, userCoordinates.latitude],
   } : null, [userCoordinates]);
-  const composePoint = useMemo<GeoJSON.Point | null>(() => composeCoordinates ? {
-    type: 'Point',
-    coordinates: [composeCoordinates.longitude, composeCoordinates.latitude],
-  } : null, [composeCoordinates]);
 
   useEffect(() => {
     if (!isMapRendered || !isFollowingUser || isComposeOpen || !userPoint) return;
@@ -331,7 +326,7 @@ export function useHomeMap({
 
   return {
     mapRef, setIsMapReady, isMapReady, isMapRendered, setIsMapRendered, setMapError, startupError: mapError,
-    userPoint, composePoint, userCircle, mapNotes, noteSourceRef, handleNotePointPress,
+    userPoint, userCircle, mapNotes, noteSourceRef, handleNotePointPress,
     notesError, notesInitialLoading, retryNotes,
     selectedMapPoint: !isComposeOpen && selection?.owner === getMemberSessionKey()
       && (selection.notes === mapNotes || nearby?.request.key === selection.value.key) ? selection.value : null,

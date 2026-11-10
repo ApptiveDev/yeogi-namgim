@@ -5,11 +5,11 @@ import { FontFamilies } from '@/constants/fonts';
 import { ScreenColors as C } from '@/constants/colors';
 
 const STICKER_PREVIEWS = [
-  require('../../../assets/images/my/sparkle.png'),
-  require('../../../assets/images/my/cherry.png'),
-  require('../../../assets/images/my/disc.png'),
-  require('../../../assets/images/my/cat.png'),
-  require('../../../assets/images/my/clover.png'),
+  require('../../../assets/images/stickers/sparkle.png'),
+  require('../../../assets/images/stickers/cherry.png'),
+  require('../../../assets/images/stickers/disc.png'),
+  require('../../../assets/images/stickers/cat.png'),
+  require('../../../assets/images/stickers/clover.png'),
 ];
 
 export function MyComingSoonSections() {

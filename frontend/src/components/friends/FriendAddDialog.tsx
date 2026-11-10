@@ -201,7 +201,7 @@ export function FriendAddDialog({ onClose, initialMode = 'options' }: Props) {
               {error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}
             </ScrollView>
             {enteringCode ? <Image
-              source={require('../../../assets/images/my/smiley.png')}
+              source={require('../../../assets/images/stickers/smiley.png')}
               contentFit="contain"
               style={s.sticker}
               accessible={false}
