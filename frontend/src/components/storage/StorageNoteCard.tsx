@@ -5,7 +5,6 @@ import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
 import type { StorageNote } from '@/types/storage';
 
-const AUTHOR_LABELS = { me: '내 노트', friend: '친구', anonymous: '익명' } as const;
 const NOTE_DATE = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric' });
 const BOOKMARK_ICONS = {
   saved: require('../../../assets/images/storage-bookmark-saved.svg'),
@@ -20,7 +19,7 @@ export function StorageNoteCard({ note, onPress }: { note: StorageNote; onPress?
       <View style={s.content}>
         <Text numberOfLines={1} style={s.title}>{note.title}</Text>
         <Text numberOfLines={1} style={s.metadata}>
-          {`${note.authorDisplayName ?? AUTHOR_LABELS[note.author]} · ${note.locationLabel} · ${NOTE_DATE.format(createdAt)}`}
+          {`${note.authorDisplayName} · ${note.locationLabel} · ${NOTE_DATE.format(createdAt)}`}
         </Text>
       </View>
       <Image

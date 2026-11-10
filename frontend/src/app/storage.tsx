@@ -14,10 +14,8 @@ import { StorageNoteCard } from '@/components/storage/StorageNoteCard';
 import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
 import { STORAGE_FILTERS } from '@/constants/storage';
-import { STORAGE_NOTE_MOCKS } from '@/data/storage-notes.mock';
-import { useDeveloperSettings } from '@/hooks/use-developer-settings';
 import { useArchiveNotes } from '@/hooks/use-archive-notes';
-import { useStorageNotes } from '@/hooks/use-storage-notes';
+import { useStorageCalendar } from '@/hooks/use-storage-calendar';
 import type { StorageFilter, StorageNote } from '@/types/storage';
 import { dateKey, getSeoulToday } from '@/utils/storage-calendar';
 
@@ -34,6 +32,7 @@ const SCREEN_OPTIONS = {
   contentStyle: { backgroundColor: C.background },
 } as const;
 const EMPTY_NOTES: readonly StorageNote[] = [];
+const EMPTY_DATES: ReadonlySet<string> = new Set();
 const EMPTY_DAY = {
   emptyTitle: '이날의 노트가 없어요',
   emptyDescription: '다른 날짜를 선택하거나\n새로운 쪽지를 남겨보세요.',
@@ -56,18 +55,16 @@ function selectFilter(filter: StorageFilter) {
 
 export default function StorageScreen() {
   const insets = useSafeAreaInsets();
-  const { mockDataEnabled, isReady } = useDeveloperSettings();
   const [fontsLoaded, fontError] = useFonts(STORAGE_FONTS);
   const { filter: requestedFilter } = useLocalSearchParams<{ filter?: string | string[] }>();
   // URL을 기준으로 선택해, 이미 열린 보관함으로 돌아올 때도 요청한 필터를 적용합니다.
   const filter = STORAGE_FILTERS.find((item) => item.id === requestedFilter)?.id ?? 'all';
-  const notes = mockDataEnabled ? STORAGE_NOTE_MOCKS : EMPTY_NOTES;
-  const storage = useStorageNotes(notes, filter);
+  const storage = useStorageCalendar(filter);
   const monthKey = dateKey(storage.month).slice(0, 7);
   const archive = useArchiveNotes(monthKey, storage.selectedDate, filter);
   const isFriends = filter === 'friends';
   const [today, setToday] = useState(getSeoulToday);
-  const isLoading = (!fontsLoaded && !fontError) || !isReady;
+  const isLoading = !fontsLoaded && !fontError;
   const emptyState = storage.selectedDate ? EMPTY_DAY : storage.activeFilter;
 
   useFocusEffect(useCallback(() => {
@@ -97,7 +94,7 @@ export default function StorageScreen() {
         </View>
       ) : (
         <FlatList
-          data={isFriends ? storage.visibleNotes : archive.notes}
+          data={isFriends ? EMPTY_NOTES : archive.notes}
           keyExtractor={noteKey}
           renderItem={renderNote}
           showsVerticalScrollIndicator={false}
@@ -107,12 +104,12 @@ export default function StorageScreen() {
           ListHeaderComponent={(
             <>
               <StorageHeader />
-              <StorageFilters selected={storage.filter} counts={{ ...archive.counts, friends: storage.counts.friends }} onSelect={selectFilter} />
+              <StorageFilters selected={storage.filter} counts={archive.counts} onSelect={selectFilter} />
               <StorageCalendar
                 month={storage.month}
                 today={today}
                 selectedDate={storage.selectedDate}
-                markedDates={isFriends ? storage.markedDates : archive.markedDates}
+                markedDates={isFriends ? EMPTY_DATES : archive.markedDates}
                 onChangeMonth={storage.changeMonth}
                 onSelectDate={storage.selectDate}
                 onSelectMonth={storage.selectMonth}

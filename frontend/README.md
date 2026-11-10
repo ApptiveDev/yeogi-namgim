@@ -103,13 +103,14 @@ frontend/
 │   │   ├── fonts.ts    # 화면에서 공유하는 폰트 패밀리 이름
 │   │   ├── storage.ts  # 보관함 필터 정의, 문구 및 색상
 │   │   └── theme.ts    # 테마 상수
-│   ├── data/           # API 연결 전 보관함의 빈 데이터
+│   ├── data/           # API 응답 변환·페이지 조회와 친구 화면 예시 데이터
 │   ├── hooks/
 │   │   ├── use-home-map.ts         # 지도 제어, 범위 조회 및 마커 상태 계산
 │   │   ├── use-note-compose.ts     # 쪽지 작성·저장 및 작성창 열기·닫기
 │   │   ├── use-note-markers.ts     # 지도 범위에 따른 쪽지 목록 조회
 │   │   ├── use-note-reader.ts      # 쪽지 열람 요청 및 선택 상태 관리
-│   │   ├── use-storage-notes.ts    # 보관함 필터, 날짜 선택 및 목록 계산
+│   │   ├── use-storage-calendar.ts # 보관함 달력의 월·날짜 선택
+│   │   ├── use-archive-notes.ts    # 실제 보관함 목록·건수·필터·캐시 연결
 │   │   ├── use-user-location.ts    # 위치 권한 요청 및 실시간 위치 추적
 │   │   ├── use-color-scheme.ts     # 기기 색상 모드 조회
 │   │   ├── use-color-scheme.web.ts # 웹 색상 모드 조회
@@ -149,12 +150,12 @@ MY의 작성한 노트를 누르면 `/my-notes`의 전체 기간 페이지 목�
 ## 개발용 목업 데이터
 
 **MY → 설정 → 개발자 도구 → 목업 데이터 사용**에서 켜고 끕니다. 기본값은 켜짐이며,
-선택은 기기에 저장되어 재실행 후에도 유지되며 보관함과 친구 예시 화면에 적용됩니다.
+선택은 기기에 저장되어 재실행 후에도 유지되며 친구 예시 화면에만 적용됩니다.
 MY·설정의 회원 정보는 실제 API를 사용합니다.
 
-보관함의 전체·저장·내 노트는 목업 설정과 관계없이 실제 API를 사용합니다. 친구 노트는 기존처럼 목업을 켜면 예시 목록, 끄면 빈 상태를 표시합니다.
+보관함 목업은 제거했습니다. 전체·저장·내 노트는 실제 API를 사용하며, 친구 노트는 후속 연동 전까지 예시 없이 빈 상태를 표시합니다. 친구 노트의 미확인 건수는 `—`로 표시합니다.
 친구 화면은 목업을 끄거나 친구 추가를 시작하면 실제 친구 목록을 조회합니다.
-친구 화면의 `예시 친구 보기`는 해당 화면만 예시 모드로 바꾸며 보관함 설정은 변경하지 않습니다.
+친구 화면의 `예시 친구 보기`는 해당 화면만 예시 모드로 바꿉니다.
 실제 API 요청이 실패하면 오류·재시도를 제공하며 목업으로 대체하지 않습니다.
 실제 응답의 `0`과 빈 목록은 그대로 유지합니다. 예시 데이터는 `src/data/*.mock.ts`에서 수정합니다.
 앱 시작 시 비회원 토큰은 발급하지 않으며, 저장된 회원 세션이 없으면 로그인 화면으로 이동합니다.
@@ -171,7 +172,7 @@ MY·설정의 회원 정보는 실제 API를 사용합니다.
 | 화면 | 응답 입력 | 화면 모델 |
 | --- | --- | --- |
 | 보관함 전체·저장·내 노트 | `GET /users/me/archive/calendar`, `GET /users/me/archive/notes` | [StorageNote](src/types/storage.ts) 배열 |
-| 보관함 친구 노트 | [storage-notes.mock.ts](src/data/storage-notes.mock.ts)의 예시 목록 또는 빈 목록 | [StorageNote](src/types/storage.ts) 배열 |
+| 보관함 친구 노트 | 후속 연동 전까지 빈 목록 | [StorageNote](src/types/storage.ts) 배열 |
 | MY·설정 | `GET /users/me`, `GET /users/me/stats`, `PATCH /users/me` | [MemberProfile](src/api/auth.ts), [MemberStats](src/api/member.ts) |
 | 친구 | `GET /friends`, `POST /friends/invitations`, 초대 확인·수락 API | [FriendProfile](src/types/friends.ts), [친구 API DTO](src/api/friends.ts) |
 
