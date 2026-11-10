@@ -7,7 +7,7 @@ import type { CameraRef, MapRef, ViewStateChangeEvent } from '@maplibre/maplibre
 
 import { ApiError } from '@/api/client';
 import { getNoteMarkers, MAP_NOTES_PAGE_SIZE } from '@/api/notes';
-import type { MapBounds, MapClusterMarker, MapNoteLocation, MapNotePreview, MapViewport } from '@/api/types';
+import type { MapBounds, MapClusterMarker, MapFilter, MapNoteLocation, MapNotePreview, MapViewport } from '@/api/types';
 import { getAuthState, getMemberSessionKey, runMemberRequest, subscribeAuth } from '@/auth/member-session';
 import type { NoteMapPoint } from '@/components/notes/NoteMapLayer';
 import { CAMERA_RETURN_DURATION, DEFAULT_MAP_VIEW, NOTE_READ_RADIUS_METERS, USER_RADIUS_METERS } from '@/constants/home-map';
@@ -25,6 +25,7 @@ export type NearbyNoteList = {
 };
 
 type NearbyRequest = {
+  filter: MapFilter;
   key: number; owner: number; point: NoteMapPoint; bounds: readonly MapBounds[]; location: MapNoteLocation;
   range: number; page: number; hasNext: boolean; busy: boolean; notes: Map<string, MapNotePreview>;
   hasNotes: boolean; allLocked: boolean; locationRequired: boolean; nearestLocked: number | null;
@@ -58,6 +59,7 @@ export function useHomeMap({
   const listAnchor = useRef<[number, number] | null>(null);
   const listCameraTransition = useRef(false);
   const reduceMotion = useReducedMotion();
+  const [filter, setFilter] = useState<MapFilter>('ALL');
   const [isMapReady, setIsMapReady] = useState(false);
   const [isMapRendered, setIsMapRendered] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export function useHomeMap({
   const [selection, setSelection] = useState<{ owner: number; value: NoteMapSelection } | null>(null);
   const [nearby, setNearby] = useState<(NearbyNoteList & { owner: number }) | null>(null);
   const { clusters: mapClusters, error: notesError, initialLoading: notesInitialLoading, retry: retryNotes }
-    = useNoteMarkers(viewport, notesRefreshKey, moving);
+    = useNoteMarkers(viewport, notesRefreshKey, moving, filter);
 
   if (isComposeOpen && selection) setSelection(null);
   if (isComposeOpen && nearby) setNearby(null);
@@ -179,7 +181,7 @@ export function useHomeMap({
     try {
       while (request.hasNext && request.notes.size < request.targetCount) {
         if (!active()) return;
-        const page = await runMemberRequest((token) => getNoteMarkers(request.bounds[request.range], token, request.page, request.location));
+        const page = await runMemberRequest((token) => getNoteMarkers(request.bounds[request.range], token, request.page, request.location, request.filter));
         if (!active()) return;
         request.hasNotes ||= page.notes.length > 0;
         for (const marker of page.notes) {
@@ -249,7 +251,7 @@ export function useHomeMap({
       const clusters = loadClusters ? await loadClusters() : point.clusters;
       if (generation !== pressGeneration.current || owner !== getMemberSessionKey()) return;
       if (!clusters.length) throw new Error('선택한 쪽지 묶음을 확인하지 못했어요. 다시 눌러 주세요.');
-      const request: NearbyRequest = { key: generation, owner, point: { ...point, clusters },
+      const request: NearbyRequest = { key: generation, owner, filter, point: { ...point, clusters },
         bounds: clusters.map(({ minLatitude, maxLatitude, minLongitude, maxLongitude }) =>
           ({ minLatitude, maxLatitude, minLongitude, maxLongitude })),
         location: { latitude: userCoordinates.latitude, longitude: userCoordinates.longitude },
@@ -314,6 +316,12 @@ export function useHomeMap({
   };
 
   return {
+    filter,
+    selectFilter: (next: MapFilter) => {
+      if (next === filter) return;
+      clearMapSelection();
+      setFilter(next);
+    },
     mapRef, setIsMapReady, isMapReady, isMapRendered, setIsMapRendered, setMapError, startupError: mapError,
     userPoint, composePoint, userCircle, mapClusters, handleNotePointPress,
     notesError, notesInitialLoading, retryNotes, clearMapSelection,

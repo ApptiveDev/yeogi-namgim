@@ -1,6 +1,7 @@
 import { apiRequest } from './client';
 import type {
   MapBounds,
+  MapFilter,
   MapNoteLocation,
   MapNotePreview,
   NoteMarkersResponse,
@@ -26,7 +27,7 @@ export async function createNote(request: NoteCreateRequest, token: string): Pro
 
 export const MAP_NOTES_PAGE_SIZE = 500;
 
-export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0, location?: MapNoteLocation): Promise<NoteMarkersResponse> {
+export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0, location?: MapNoteLocation, filter: MapFilter = 'ALL'): Promise<NoteMarkersResponse> {
   const query = new URLSearchParams({
     minLatitude: String(bounds.minLatitude),
     minLongitude: String(bounds.minLongitude),
@@ -34,6 +35,7 @@ export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0,
     maxLongitude: String(bounds.maxLongitude),
     page: String(page),
     size: String(MAP_NOTES_PAGE_SIZE),
+    filter,
   });
 
   if (location) {

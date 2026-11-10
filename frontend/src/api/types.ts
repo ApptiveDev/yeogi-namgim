@@ -26,6 +26,8 @@ export type MapBounds = {
 
 export type MapViewport = { bounds: MapBounds; zoom: number };
 
+export type MapFilter = 'ALL' | 'FRIENDS' | 'MINE' | 'SAVED';
+
 export type MapCluster = MapBounds & {
   clusterId: string;
   latitude: number;

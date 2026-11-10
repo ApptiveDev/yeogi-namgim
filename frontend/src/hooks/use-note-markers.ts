@@ -4,13 +4,13 @@ import { AppState } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { loadMapClusters } from '@/api/map-notes';
-import type { MapClusterMarker, MapViewport } from '@/api/types';
+import type { MapClusterMarker, MapFilter, MapViewport } from '@/api/types';
 import { getAuthState, getInitialAuthState, getMemberSessionKey, subscribeAuth } from '@/auth/member-session';
 import { MAP_CLUSTER_ZOOM_THRESHOLD, MAP_QUERY_DEBOUNCE_MS, MAP_QUERY_PADDING_RATIO } from '@/constants/home-map';
 import { containsMapBounds, expandMapBounds } from '@/utils/map-bounds';
 
 const EMPTY_CLUSTERS: MapClusterMarker[] = [];
-type Request = MapViewport & { owner: number; refreshKey: number; retryKey: number };
+type Request = MapViewport & { owner: number; filter: MapFilter; refreshKey: number; retryKey: number };
 type Cache = Request & { clusters: MapClusterMarker[] };
 type Failure = Request & { message: string };
 
@@ -21,7 +21,7 @@ function sameClusters(previous: MapClusterMarker[], next: MapClusterMarker[]) {
     fields.every((field) => cluster[field] === next[index][field]));
 }
 
-export function useNoteMarkers(viewport: MapViewport | null, refreshKey = 0, moving = false) {
+export function useNoteMarkers(viewport: MapViewport | null, refreshKey = 0, moving = false, filter: MapFilter = 'ALL') {
   const auth = useSyncExternalStore(subscribeAuth, getAuthState, getInitialAuthState);
   const owner = getMemberSessionKey();
   const [retryKey, setRetryKey] = useState(0);
@@ -34,6 +34,10 @@ export function useNoteMarkers(viewport: MapViewport | null, refreshKey = 0, mov
   const [result, setResult] = useState<{ cache: Cache | null; failure: Failure | null }>({ cache: null, failure: null });
   const { cache, failure } = result;
 
+  if (cache && cache.filter !== filter || failure && failure.filter !== filter) {
+    setResult({ cache: null, failure: null });
+  }
+
   const cancelScheduled = useCallback(() => {
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current);
@@ -41,6 +45,11 @@ export function useNoteMarkers(viewport: MapViewport | null, refreshKey = 0, mov
     }
     timerRef.current = null;
   }, []);
+
+  useEffect(() => {
+    requestRef.current = null;
+    cancelScheduled();
+  }, [filter, cancelScheduled]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -83,7 +92,7 @@ export function useNoteMarkers(viewport: MapViewport | null, refreshKey = 0, mov
       return;
     }
     if (moving) return;
-    const reusable = (request: Request) => request.owner === owner && request.refreshKey === refreshKey
+    const reusable = (request: Request) => request.owner === owner && request.filter === filter && request.refreshKey === refreshKey
       && request.retryKey === retryKey && Math.abs(request.zoom - viewport.zoom) < MAP_CLUSTER_ZOOM_THRESHOLD
       && containsMapBounds(request.bounds, viewport.bounds);
 
@@ -92,17 +101,17 @@ export function useNoteMarkers(viewport: MapViewport | null, refreshKey = 0, mov
     if (requestRef.current && reusable(requestRef.current)) return;
 
     const request: Request = { bounds: expandMapBounds(viewport.bounds, MAP_QUERY_PADDING_RATIO),
-      zoom: viewport.zoom, owner, refreshKey, retryKey };
+      zoom: viewport.zoom, owner, filter, refreshKey, retryKey };
     requestRef.current = request;
     const isCurrent = () => mountedRef.current && requestRef.current === request && owner === getMemberSessionKey();
     const load = () => {
       timerRef.current = null;
       hasRequestedRef.current = true;
-      void loadMapClusters(request.bounds, isCurrent).then((clusters) => {
+      void loadMapClusters(request.bounds, isCurrent, request.filter).then((clusters) => {
         if (!isCurrent() || !clusters) return;
         requestRef.current = null;
         setResult((previous) => ({ cache: { ...request,
-          clusters: previous.cache?.owner === owner && sameClusters(previous.cache.clusters, clusters)
+          clusters: previous.cache?.owner === owner && previous.cache.filter === filter && sameClusters(previous.cache.clusters, clusters)
             ? previous.cache.clusters : clusters }, failure: null }));
       }).catch((error: unknown) => {
         if (!isCurrent()) return;
@@ -114,11 +123,11 @@ export function useNoteMarkers(viewport: MapViewport | null, refreshKey = 0, mov
     };
     if (hasRequestedRef.current) timerRef.current = setTimeout(load, MAP_QUERY_DEBOUNCE_MS);
     else load();
-  }, [viewport, moving, owner, refreshKey, retryKey, auth.status, cache, failure, focused, appActive, cancelScheduled]);
+  }, [viewport, moving, owner, filter, refreshKey, retryKey, auth.status, cache, failure, focused, appActive, cancelScheduled]);
 
   const enabled = Boolean(viewport && auth.status === 'authenticated');
-  const retained = enabled && cache?.owner === owner ? cache : null;
-  const error = enabled && failure?.owner === owner && failure.refreshKey === refreshKey && failure.retryKey === retryKey
+  const retained = enabled && cache?.owner === owner && cache.filter === filter ? cache : null;
+  const error = enabled && failure?.owner === owner && failure.filter === filter && failure.refreshKey === refreshKey && failure.retryKey === retryKey
     && viewport && Math.abs(failure.zoom - viewport.zoom) < MAP_CLUSTER_ZOOM_THRESHOLD
     && containsMapBounds(failure.bounds, viewport.bounds) ? failure.message : null;
   return {

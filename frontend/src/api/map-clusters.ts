@@ -1,11 +1,11 @@
 import { apiRequest } from './client';
-import type { MapBounds, MapClustersResponse } from './types';
+import type { MapBounds, MapClustersResponse, MapFilter } from './types';
 
-export async function getMapClusters(bounds: MapBounds, token: string, gridSize: number): Promise<MapClustersResponse> {
+export async function getMapClusters(bounds: MapBounds, token: string, gridSize: number, filter: MapFilter = 'ALL'): Promise<MapClustersResponse> {
   const query = new URLSearchParams({
     minLatitude: String(bounds.minLatitude), minLongitude: String(bounds.minLongitude),
     maxLatitude: String(bounds.maxLatitude), maxLongitude: String(bounds.maxLongitude),
-    filter: 'ALL', gridSize: String(gridSize),
+    filter, gridSize: String(gridSize),
   });
   const data = await apiRequest<MapClustersResponse>(`/api/v1/notes/clusters?${query}`, {
     method: 'GET', headers: { Authorization: `Bearer ${token}` },
