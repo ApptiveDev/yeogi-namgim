@@ -1,25 +1,26 @@
 import { Image } from 'expo-image';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
 import type { StorageNote } from '@/types/storage';
 
 const AUTHOR_LABELS = { me: '내 노트', friend: '친구', anonymous: '익명' } as const;
+const NOTE_DATE = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric' });
 const BOOKMARK_ICONS = {
   saved: require('../../../assets/images/storage-bookmark-saved.svg'),
   unsaved: require('../../../assets/images/storage-bookmark.svg'),
 };
 
-export function StorageNoteCard({ note }: { note: StorageNote }) {
+export function StorageNoteCard({ note, onPress }: { note: StorageNote; onPress?: () => void }) {
   const createdAt = new Date(note.createdAt);
   return (
-    <View style={s.card}>
+    <Pressable style={s.card} onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityHint={onPress ? '쪽지 상세를 엽니다' : undefined}>
       <View style={[s.thumbnail, { backgroundColor: note.thumbnailColor }]} accessible={false} />
       <View style={s.content}>
         <Text numberOfLines={1} style={s.title}>{note.title}</Text>
         <Text numberOfLines={1} style={s.metadata}>
-          {`${AUTHOR_LABELS[note.author]} · ${note.locationLabel} · ${createdAt.getMonth() + 1}월 ${createdAt.getDate()}일`}
+          {`${note.authorDisplayName ?? AUTHOR_LABELS[note.author]} · ${note.locationLabel} · ${NOTE_DATE.format(createdAt)}`}
         </Text>
       </View>
       <Image
@@ -29,7 +30,7 @@ export function StorageNoteCard({ note }: { note: StorageNote }) {
         accessible
         accessibilityLabel={note.isSaved ? '저장한 노트' : '저장하지 않은 노트'}
       />
-    </View>
+    </Pressable>
   );
 }
 

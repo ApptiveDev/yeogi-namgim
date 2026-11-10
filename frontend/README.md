@@ -16,9 +16,9 @@ React Native, Expo를 기반으로 개발합니다.
 
 ## 실행 방법
 
-마이페이지·설정은 회원 프로필 조회, 닉네임 수정, 작성 쪽지 통계와 작성 목록 API에 연결되어 있습니다. `AUTH_ENABLED=true`인 백엔드에 회원 로그인한 뒤 사용합니다. 마이페이지는 개발자 목업 설정과 관계없이 실제 회원 데이터를 조회합니다. 저장·발견 수가 제공되지 않으면 `—`로 표시하며, 저장·발견·보관함 전체 API 연동은 후속 작업입니다. 상세 계약은 [마이페이지 통계 API](../docs/MEMBER_STATS_API.md)와 [회원 쪽지 API](../docs/MEMBER_NOTE_API.md)를 참고합니다.
+마이페이지·설정은 회원 프로필 조회, 닉네임 수정, 작성 쪽지 통계와 작성 목록 API에 연결되어 있습니다. `AUTH_ENABLED=true`인 백엔드에 회원 로그인한 뒤 사용합니다. 마이페이지와 보관함의 전체·저장·내 노트는 개발자 목업 설정과 관계없이 실제 회원 데이터를 조회합니다. 저장·발견 수가 제공되지 않으면 `—`로 표시하며 발견 목록과 보관함 친구 노트 연동은 후속 작업입니다. 상세 계약은 [마이페이지 통계 API](../docs/MEMBER_STATS_API.md), [회원 쪽지 API](../docs/MEMBER_NOTE_API.md), [보관함 API](../docs/ARCHIVE_API.md)를 참고합니다.
 
-프론트 자동 검사는 `npm run lint`, `npx tsc --noEmit`, `npm run test:auth`, `npm run test:member`로 실행합니다.
+프론트 자동 검사는 `npm run lint`, `npx tsc --noEmit`, `npm run test:auth`, `npm run test:member`, `npm run test:archive`로 실행합니다.
 
 일회용 초대 코드 생성과 기기 텍스트 공유를 제공합니다. 친구 코드 입력 창은 영문 대문자·숫자 6자리를 지원하며, 코드 확인·수락 API는 6자리 서버 규격에 맞춰 연동할 예정입니다. `친구 추가`를 누르면 `초대 링크 보내기`와 `코드로 추가하기`가 표시됩니다. 링크 공유는 준비 중이며, 코드 화면에서 일회용 코드를 발급하거나 복사할 수 있습니다. 예시 모드에서는 예시 목록을 유지합니다. 친구 소식의 쪽지 미리보기와 지도 위치 보기는 예시 UI입니다. 친구 소식과 초대 링크 앱 진입 연동은 후속 작업입니다. 계약은 [친구 API](../docs/FRIEND_API.md), 자동 검사는 `npm run test:friends`를 참고합니다.
 
@@ -152,7 +152,7 @@ MY의 작성한 노트를 누르면 `/my-notes`의 전체 기간 페이지 목�
 선택은 기기에 저장되어 재실행 후에도 유지되며 보관함과 친구 예시 화면에 적용됩니다.
 MY·설정의 회원 정보는 실제 API를 사용합니다.
 
-보관함은 API 연결 전이므로 목업을 끄면 빈 상태를 표시합니다.
+보관함의 전체·저장·내 노트는 목업 설정과 관계없이 실제 API를 사용합니다. 친구 노트는 기존처럼 목업을 켜면 예시 목록, 끄면 빈 상태를 표시합니다.
 친구 화면은 목업을 끄거나 친구 추가를 시작하면 실제 친구 목록을 조회합니다.
 친구 화면의 `예시 친구 보기`는 해당 화면만 예시 모드로 바꾸며 보관함 설정은 변경하지 않습니다.
 실제 API 요청이 실패하면 오류·재시도를 제공하며 목업으로 대체하지 않습니다.
@@ -166,11 +166,12 @@ MY·설정의 회원 정보는 실제 API를 사용합니다.
 앱 시작 시 저장된 회원 세션을 확인하며, 모바일 토큰은 SecureStore에 저장합니다.
 인증 관련 자동 검증은 `npm run test:auth`로 실행합니다. 실제 SMTP 발송·수신 확인은 별도로 필요합니다.
 
-보관함과 친구 소식은 후속 연결 대상입니다. MY·설정과 친구 목록·추가는 실제 회원 API를 사용합니다.
+보관함의 전체·저장·내 노트는 달력·목록 API에 연결되어 있습니다. `type=ALL` 목록을 공유하고 저장·내 노트는 받은 목록에서 필터링하므로 탭 변경 시 추가 요청 없이 전환됩니다. 날짜 미선택 시 월 전체 기록을 최신순으로 이어 조회하며, `더 보기`로 다음 페이지를 가져옵니다. 필터 건수는 월별 달력 응답을 사용합니다. 앱 실행 후 첫 보관함 진입과 서울 날짜 변경 후 첫 이용에 자동 조회하고, 같은 날의 탭 재진입·백그라운드 복귀에는 메모리 캐시를 사용합니다. 당겨서 새로고침하면 최신 데이터를 조회합니다. 친구 노트는 후속 연결 대상입니다. MY·설정과 친구 목록·추가는 실제 회원 API를 사용합니다.
 
 | 화면 | 응답 입력 | 화면 모델 |
 | --- | --- | --- |
-| 보관함 | [storage-notes.mock.ts](src/data/storage-notes.mock.ts)의 예시 목록 또는 빈 목록 | [StorageNote](src/types/storage.ts) 배열 |
+| 보관함 전체·저장·내 노트 | `GET /users/me/archive/calendar`, `GET /users/me/archive/notes` | [StorageNote](src/types/storage.ts) 배열 |
+| 보관함 친구 노트 | [storage-notes.mock.ts](src/data/storage-notes.mock.ts)의 예시 목록 또는 빈 목록 | [StorageNote](src/types/storage.ts) 배열 |
 | MY·설정 | `GET /users/me`, `GET /users/me/stats`, `PATCH /users/me` | [MemberProfile](src/api/auth.ts), [MemberStats](src/api/member.ts) |
 | 친구 | `GET /friends`, `POST /friends/invitations`, 초대 확인·수락 API | [FriendProfile](src/types/friends.ts), [친구 API DTO](src/api/friends.ts) |
 

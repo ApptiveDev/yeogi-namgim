@@ -60,8 +60,8 @@
 
 ### 보관함·통계·알림
 
-- [ ] 달력형 보관함 날짜: `GET /api/v1/users/me/archive/calendar` — **계획**
-- [ ] 날짜·유형별 보관함 목록: `GET /api/v1/users/me/archive/notes` — **계획**
+- [x] 달력형 보관함 날짜: `GET /api/v1/users/me/archive/calendar` — #94, PR #97 병합 완료. [보관함 계약](ARCHIVE_API.md), 프론트 연동 작업 #131.
+- [x] 날짜·유형별 보관함 목록: `GET /api/v1/users/me/archive/notes` — #94, PR #97 병합 완료. 프론트는 `ALL` 목록을 전체·저장·내 노트에 공유하며 친구 노트 연동은 후속이다.
 - [ ] 저장 쪽지 수 조회 서비스를 마이 탭 통계에 연결 — **계획**, A의 `GET /api/v1/users/me/stats`와 연동
 - [ ] 회원 알림·푸시 정책 및 API — **계획**, 기획과 인증·공개 범위 계약 확정 후 경로 결정
 - [ ] 탈퇴 시 저장·발견·알림 데이터 정리 — **계획**, A의 회원 탈퇴 API와 함께 검증
