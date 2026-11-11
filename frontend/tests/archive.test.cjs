@@ -80,6 +80,84 @@ test('all, saved and mine filter one shared page locally without HTTP or count c
   assert.ok(calls.every((request) => request.headers.Authorization === 'Bearer access' && !request.query.has('userId') && !request.query.has('page')));
 });
 
+test('a saved note opened from the archive can be unsaved and saved again using the current location', async () => {
+  const store = state.getArchiveCache(session.getMemberSessionKey()).get(selection);
+  await store.ensureLoaded();
+  const [card] = data.filterArchiveNotes(store.getSnapshot().notes, 'saved');
+  assert.ok(card.openable);
+
+  const coords = { latitude: 35.233, longitude: 129.083 };
+  const locationCalls = [];
+  const toasts = [];
+  const hooks = [];
+  let cursor = 0, focus;
+  const dependencies = {
+    'expo-location': {
+      Accuracy: { High: 4 },
+      async requestForegroundPermissionsAsync() {
+        locationCalls.push('permission');
+        return { granted: true, status: 'granted' };
+      },
+      async getCurrentPositionAsync() {
+        locationCalls.push('position');
+        return { coords: { ...coords, accuracy: 5 } };
+      },
+    },
+    'expo-router': { useFocusEffect: (effect) => { focus = effect; } },
+    react: {
+      useCallback: (callback) => callback,
+      useRef: (initial) => (hooks[cursor++] ??= { current: initial }),
+      useState(initial) {
+        const index = cursor++;
+        hooks[index] ??= initial;
+        return [hooks[index], (next) => { hooks[index] = typeof next === 'function' ? next(hooks[index]) : next; }];
+      },
+    },
+    '@/components/ui/toast': { showToast: (message) => { toasts.push(message); } },
+  };
+  const source = fs.readFileSync(require.resolve('../src/hooks/use-note-detail.ts'), 'utf8');
+  const { outputText } = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  });
+  const exported = {};
+  new Function('require', 'exports', outputText)((id) => dependencies[id] ?? require(`../src/${id.slice(2)}.ts`), exported);
+  const render = () => {
+    cursor = 0;
+    // The archive route passes skipLocation and no coordinates.
+    return exported.useNoteDetail(card.id, true);
+  };
+  const settle = () => new Promise(setImmediate);
+
+  const { noteId, preview, createdAt, savedAt, visibility, color, placeName, neighborhood } = note(2, 'SAVED');
+  const path = `/api/v1/notes/${noteId}`;
+  respond = ({ path: requestPath, method }) => requestPath === `${path}/open`
+    ? ok({ noteId, content: preview, createdAt, visibility, color, placeName, neighborhood, isMine: false, isSaved: true, isRead: true })
+    : ok({ noteId, isSaved: method === 'POST', savedAt: method === 'POST' ? savedAt : null });
+
+  calls = [];
+  render();
+  const blur = focus();
+  await settle();
+  assert.equal(render().note.isSaved, true);
+  render().toggleSaved();
+  await settle();
+  assert.equal(render().note.isSaved, false);
+  assert.deepEqual(locationCalls, []);
+
+  render().toggleSaved();
+  await settle();
+  assert.deepEqual(calls.map(({ path, method, body }) => ({ path, method, body })), [
+    { path: `${path}/open`, method: 'POST', body: {} },
+    { path: `${path}/bookmarks`, method: 'DELETE', body: null },
+    { path: `${path}/bookmarks`, method: 'POST', body: coords },
+  ]);
+  assert.deepEqual(locationCalls, ['permission', 'position']);
+  assert.equal(render().note.isSaved, true);
+  assert.equal(render().saving, false);
+  assert.deepEqual(toasts, []);
+  blur();
+});
+
 test('the current login shares its cache across visits and a new login or app starts empty', async () => {
   const owner = session.getMemberSessionKey();
   const first = state.getArchiveCache(owner);
