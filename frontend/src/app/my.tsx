@@ -1,6 +1,6 @@
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AccountLoadState } from '@/components/my/AccountLoadState';
@@ -53,9 +53,6 @@ export default function MyScreen() {
           {profileCard}
           {noteStats}
           <AccountLoadState loading={false} error={stats.error} label="활동 통계" onRetry={reload} />
-          <Text style={s.notice}>
-            {saved === null ? '찾은 노트와 저장한 노트 집계를 준비하고 있어요.' : '찾은 노트 집계를 준비하고 있어요.'}
-          </Text>
           <MyComingSoonSections />
         </ScrollView>
       )}
@@ -68,5 +65,4 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.background },
   content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 24 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  notice: { color: C.muted, fontSize: 12, lineHeight: 18, marginTop: 8, textAlign: 'center' },
 });

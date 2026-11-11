@@ -56,7 +56,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
     setIsFollowingUser, setIsMapMenuOpen, setNotesRefreshKey,
   });
   const map = useHomeMap({
-    userCoordinates, composeCoordinates, isComposeOpen,
+    userCoordinates, isComposeOpen,
     isFollowingUser, setIsFollowingUser, cameraRef, resumeFollowingAfterClose,
     notesRefreshKey, nearbySheetHeight,
   });
@@ -96,7 +96,6 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         map={map}
         initialCenter={[userCoordinates.longitude, userCoordinates.latitude]}
         cameraRef={cameraRef}
-        isComposeOpen={isComposeOpen}
         onComposeCameraIdle={onComposeCameraIdle}
       />}
       <View style={[StyleSheet.absoluteFill, isReadingNote && { opacity: 0 }]} pointerEvents={isReadingNote ? 'none' : 'box-none'}>

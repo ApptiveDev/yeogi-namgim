@@ -15,7 +15,7 @@ export function FriendsEmptyState({ onEnterCode }: { onEnterCode: () => void }) 
           <View style={s.friendSlot}><ComposeIcon name="plus" size={24} color="#C7C7CC" /></View>
           <View style={s.friendSlot}><ComposeIcon name="plus" size={24} color="#C7C7CC" /></View>
           <View style={s.friendSlot}><ComposeIcon name="plus" size={24} color="#C7C7CC" /></View>
-          <Image source={require('../../../assets/images/my/cat.png')} style={s.cat} contentFit="contain" accessible={false} />
+          <Image source={require('../../../assets/images/stickers/cat.png')} style={s.cat} contentFit="contain" accessible={false} />
         </View>
         <Text accessibilityRole="header" style={s.title}>아직 친구가 없어요</Text>
         <Text style={s.description}>{'친구를 초대하면\n친구가 남긴 쪽지 소식이 여기 떠요'}</Text>

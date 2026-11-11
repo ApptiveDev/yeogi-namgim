@@ -15,7 +15,7 @@ import type { StorageFilter, StorageFilterCounts } from '@/types/storage';
 
 type Props = {
   selected: StorageFilter;
-  counts: StorageFilterCounts;
+  counts: Partial<StorageFilterCounts>;
   onSelect: (filter: StorageFilter) => void;
 };
 
@@ -99,12 +99,12 @@ export function StorageFilters({ selected, counts, onSelect }: Props) {
           const active = selected === id;
           const count = counts[id];
           const maxCount = id === 'all' ? 999 : 99;
-          const countLabel = count > maxCount ? `${maxCount}+` : String(count);
+          const countLabel = count === undefined ? '—' : count > maxCount ? `${maxCount}+` : String(count);
           return (
             <Pressable
               key={id}
               accessibilityRole="tab"
-              accessibilityLabel={`${label}, ${count}개`}
+              accessibilityLabel={count === undefined ? label : `${label}, ${count}개`}
               accessibilityState={{ selected: active }}
               onLayout={(event) => measureTab(id, 'slot', event)}
               onPress={() => onSelect(id)}

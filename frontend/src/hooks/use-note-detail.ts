@@ -1,3 +1,4 @@
+import * as Location from 'expo-location';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 
@@ -9,7 +10,7 @@ import { showToast } from '@/components/ui/toast';
 import { loadNoteDetail } from '@/data/note-detail';
 import { publishBookmarkChange } from '@/state/note-bookmarks';
 
-function listLocation(latitude?: number, longitude?: number): MapNoteLocation {
+function requireLocation(latitude?: number, longitude?: number): MapNoteLocation {
   if (typeof latitude !== 'number' || typeof longitude !== 'number'
     || !Number.isFinite(latitude) || latitude < -90 || latitude > 90
     || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
@@ -42,7 +43,7 @@ export function useNoteDetail(noteId: string, skipLocation = false, latitude?: n
     setState({ id: noteId, owner, note: null, loading: true, saving: false });
     try {
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(noteId)) throw new Error('올바른 쪽지 주소가 아니에요.');
-      const note = await loadNoteDetail(noteId, skipLocation ? null : listLocation(latitude, longitude), active);
+      const note = await loadNoteDetail(noteId, skipLocation ? null : requireLocation(latitude, longitude), active);
       if (active() && note) setState({ id: noteId, owner, note, loading: false, saving: false });
     } catch (error) {
       if (active()) {
@@ -66,15 +67,27 @@ export function useNoteDetail(noteId: string, skipLocation = false, latitude?: n
     const current = generation.current;
     const active = () => focused.current && current === generation.current && owner === getMemberSessionKey();
     try {
-      const location = note.isSaved ? null : listLocation(latitude, longitude);
-      if (owner !== getMemberSessionKey()) return;
+      let location: MapNoteLocation | null = null;
+      if (!note.isSaved && skipLocation) {
+        const { granted } = await Location.requestForegroundPermissionsAsync();
+        if (!active()) return;
+        if (!granted) {
+          showToast('쪽지를 저장하려면 위치 권한을 허용해 주세요.');
+          return;
+        }
+        const { coords } = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        location = requireLocation(coords.latitude, coords.longitude);
+      } else if (!note.isSaved) {
+        location = requireLocation(latitude, longitude);
+      }
+      if (!active()) return;
       const saved = await runMemberRequest((token) => changeBookmark(noteId, !note.isSaved, location, token));
       if (owner === getMemberSessionKey()) {
         if (active()) setState((previous) => ({ ...previous, note: { ...note, isSaved: saved.isSaved } }));
         publishBookmarkChange({ owner, noteId, isSaved: saved.isSaved });
       }
     } catch {
-      if (owner === getMemberSessionKey()) {
+      if (active()) {
         showToast(`${note.isSaved ? '저장 취소' : '저장'}하지 못했어요. 다시 시도해 주세요.`);
       }
     } finally {

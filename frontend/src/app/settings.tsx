@@ -109,7 +109,7 @@ export default function SettingsScreen() {
           <SettingsSection title="개발자 도구">
             <SettingsRow
               label={MOCK_DATA_LABEL}
-              description="보관함과 친구 화면에 예시 데이터를 표시해요"
+              description="친구 화면에 예시 데이터를 표시해요"
               trailing={(
                 <SettingsSwitch
                   label={MOCK_DATA_LABEL}
