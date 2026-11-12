@@ -43,7 +43,7 @@ beforeEach(async () => {
     calls.push(request);
     return respond(request);
   };
-  for (const path of ['../src/api/client.ts', '../src/api/auth.ts', '../src/api/friends.ts', '../src/utils/friends.ts', '../src/auth/member-session.ts', '../src/state/friend-invitation.ts']) {
+  for (const path of ['../src/api/client.ts', '../src/api/auth.ts', '../src/api/friends.ts', '../src/utils/friends.ts', '../src/auth/member-session.ts', '../src/state/friend-invitation.ts', '../src/state/friend-pages.ts', '../src/state/member-cache.ts']) {
     delete require.cache[require.resolve(path)];
   }
   api = require('../src/api/friends.ts');
@@ -223,79 +223,45 @@ test('friend listing is paginated and empty responses stay empty', async () => {
   await assert.rejects(session.runMemberRequest(api.getFriends), (error) => error.status === 503);
 });
 
-function renderFriendsHook(name) {
-  const source = fs.readFileSync(require.resolve('../src/hooks/use-friends.ts'), 'utf8');
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  });
-  const hooks = [];
-  let cursor = 0;
-  const dependencies = {
-    'expo-router': { useFocusEffect() {} },
-    react: {
-      useSyncExternalStore: (_, snapshot) => snapshot(),
-      useCallback: (callback) => callback,
-      useRef: (initial) => (hooks[cursor++] ??= { current: initial }),
-      useState(initial) {
-        const index = cursor++;
-        if (!(index in hooks)) hooks[index] = initial();
-        return [hooks[index], (update) => { hooks[index] = update(hooks[index]); }];
-      },
-    },
-    '@/api/friends': api,
-    '@/auth/member-session': session,
-    '@/utils/friends': require('../src/utils/friends.ts'),
-  };
-  const exported = {};
-  new Function('require', 'exports', outputText)((id) => dependencies[id], exported);
-  return () => { cursor = 0; return exported[name](true); };
-}
-
 test('friend list retries the failed page and reuses profiles when a page overlaps', async () => {
-  const render = renderFriendsHook('useFriends');
-  const settle = () => new Promise(setImmediate);
+  const { friends: store } = require('../src/state/friend-pages.ts').getFriendPages();
   const page = (friends, index, hasNext) => ok({ friends, page: index, size: 20, hasNext });
 
   respond = () => page([friend], 0, true);
-  render().reload();
-  await settle();
-  const first = render();
+  await store.revalidate();
+  const first = store.getSnapshot();
   assert.equal(first.hasLoaded, true);
-  first.reload();
-  await settle();
-  assert.equal(render().friends, first.friends);
+  await store.revalidate();
+  assert.equal(store.getSnapshot(), first);
 
   respond = () => fail(503, 'UNAVAILABLE');
-  render().loadMore();
-  await settle();
-  const failed = render();
+  await store.loadMore();
+  const failed = store.getSnapshot();
   assert.ok(failed.error);
-  assert.equal(failed.friends, first.friends);
+  assert.equal(failed.items, first.items);
 
   const other = { ...friend, friendId: 'other-friend', nickname: '새 친구' };
   respond = () => page([friend, other], 1, false);
-  failed.retry();
-  await settle();
-  const loaded = render();
+  await store.retry();
+  const loaded = store.getSnapshot();
   assert.deepEqual(calls.map(({ query }) => query.get('page')), ['0', '0', '1', '1']);
-  assert.deepEqual(loaded.friends.map(({ id }) => id), [friend.friendId, other.friendId]);
-  assert.equal(loaded.friends[0], first.friends[0]);
+  assert.deepEqual(loaded.items.map(({ id }) => id), [friend.friendId, other.friendId]);
+  assert.equal(loaded.items[0], first.items[0]);
   assert.equal(loaded.error, null);
   assert.equal(loaded.hasNext, false);
 });
 
 test('friend activity feed maps card metadata and retries overlapping pages', async () => {
-  const render = renderFriendsHook('useFriendActivities');
-  const settle = () => new Promise(setImmediate);
+  const { getFriendPages } = require('../src/state/friend-pages.ts');
+  const { activities: store } = getFriendPages();
   const createdAt = '2026-11-01T00:00:00Z';
   const activity = { noteId: 'note-1', friendId: friend.friendId, nickname: friend.nickname, placeName: '서울숲', neighborhood: '성수동', createdAt };
   const page = (activities, index, hasNext) => ok({ activities, page: index, size: 20, hasNext });
 
   respond = () => page([activity], 0, true);
-  render().reload();
-  await settle();
-  const first = render();
-  assert.deepEqual(first.activities, [{
+  await store.revalidate();
+  const first = store.getSnapshot();
+  assert.deepEqual(first.items, [{
     id: activity.noteId,
     friend: { id: friend.friendId, displayName: friend.nickname, avatarUrl: null },
     locationLabel: '서울숲',
@@ -303,21 +269,19 @@ test('friend activity feed maps card metadata and retries overlapping pages', as
   }]);
 
   respond = () => page([{ ...activity, createdAt: 'invalid' }], 1, false);
-  first.loadMore();
-  await settle();
-  const failed = render();
+  await store.loadMore();
+  const failed = store.getSnapshot();
   assert.match(failed.error, /친구 쪽지 소식/);
-  assert.equal(failed.activities, first.activities);
+  assert.equal(failed.items, first.items);
 
   respond = () => page([
     activity,
     { ...activity, noteId: 'note-2', placeName: null },
     { ...activity, noteId: 'note-3', placeName: ' ', neighborhood: null },
   ], 1, false);
-  failed.retry();
-  await settle();
-  const loaded = render();
-  assert.deepEqual(loaded.activities.map(({ id, locationLabel }) => [id, locationLabel]), [
+  await store.retry();
+  const loaded = store.getSnapshot();
+  assert.deepEqual(loaded.items.map(({ id, locationLabel }) => [id, locationLabel]), [
     ['note-1', '서울숲'], ['note-2', '성수동'], ['note-3', '장소 정보 없음'],
   ]);
   assert.equal(loaded.error, null);
@@ -329,7 +293,48 @@ test('friend activity feed maps card metadata and retries overlapping pages', as
 
   respond = () => ok({ loggedOut: true });
   await session.signOut();
-  assert.deepEqual(render().activities, []);
+  assert.deepEqual(getFriendPages().activities.getSnapshot().items, []);
+});
+
+test('returning to the feed quietly revalidates all loaded pages and changes only affected cards', async () => {
+  const { getFriendPages } = require('../src/state/friend-pages.ts');
+  const store = getFriendPages().activities;
+  const first = { noteId: 'note-1', friendId: friend.friendId, nickname: friend.nickname, placeName: '서울숲', neighborhood: null, createdAt: '2026-11-01T00:00:00Z' };
+  const second = { ...first, noteId: 'note-2', placeName: '장전동' };
+  const third = { ...first, noteId: 'note-3' };
+  let pages = [[first], [second, third]];
+  const response = ({ query }) => {
+    const page = Number(query.get('page'));
+    return ok({ activities: pages[page], page, size: 20, hasNext: page === 0 });
+  };
+  respond = response;
+  await store.revalidate();
+  await store.loadMore();
+  const previous = store.getSnapshot();
+  let changes = 0;
+  store.subscribe(() => { changes += 1; });
+  let finish;
+  respond = (request) => request.query.get('page') === '1'
+    ? new Promise((resolve) => { finish = () => resolve(response(request)); }) : response(request);
+  const pending = store.revalidate();
+  await new Promise(setImmediate);
+  assert.equal(getFriendPages().activities, store);
+  assert.equal(store.getSnapshot(), previous);
+  finish();
+  await pending;
+  assert.equal(store.getSnapshot(), previous);
+  assert.equal(changes, 0);
+
+  pages = [[first], [{ ...second, placeName: '새 장소' }]];
+  respond = response;
+  await store.revalidate();
+  const updated = store.getSnapshot();
+  assert.deepEqual(updated.items.map(({ id }) => id), ['note-1', 'note-2']);
+  assert.equal(updated.items[0], previous.items[0]);
+  assert.notEqual(updated.items[1], previous.items[1]);
+  assert.equal(updated.items[1].locationLabel, '새 장소');
+  assert.deepEqual(calls.map(({ query }) => query.get('page')), ['0', '1', '0', '1', '0', '1']);
+  assert.equal(changes, 1);
 });
 
 test('malformed success payloads never report creation, preview or acceptance as complete', async () => {

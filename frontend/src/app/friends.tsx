@@ -1,14 +1,14 @@
 import { useFonts } from 'expo-font';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, AppState, FlatList, Pressable, StyleSheet, Text, View, type ListRenderItem } from 'react-native';
+import { AppState, FlatList, Pressable, StyleSheet, Text, View, type ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FriendActivityCard } from '@/components/friends/FriendActivityCard';
+import { FriendActivitiesSkeleton, FriendActivityCard } from '@/components/friends/FriendActivityCard';
 import { friendActionStyles as action } from '@/components/friends/friendActionStyles';
 import { FriendAddDialog, type FriendAddMode } from '@/components/friends/FriendAddDialog';
 import { FriendsEmptyState } from '@/components/friends/FriendsEmptyState';
-import { FriendsHeader, FriendsTitle } from '@/components/friends/FriendsHeader';
+import { FriendsHeader, FriendsListSkeleton, FriendsTitle } from '@/components/friends/FriendsHeader';
 import { AccountLoadState } from '@/components/my/AccountLoadState';
 import BottomTabBar from '@/components/navigation/BottomTabBar';
 import { FontFamilies } from '@/constants/fonts';
@@ -80,6 +80,8 @@ function FriendsContent({ mockDataEnabled, isReady }: { mockDataEnabled: boolean
   const realActivities = useFriendActivities(isReady && !showingExamples);
   const friends = activeMock?.friends ?? realFriends.friends;
   const allActivities = activeMock?.activities ?? realActivities.activities;
+  const friendsLoading = preparing || (!showingExamples && !realFriends.hasLoaded && !realFriends.error);
+  const feedLoading = preparing || (!showingExamples && !realActivities.hasLoaded && !realActivities.error);
   const selectedFriend = friends.find((friend) => friend.id === selectedFriendId);
   const activeFriendId = selectedFriend?.id;
   const activities = useMemo(() => activeFriendId
@@ -90,8 +92,8 @@ function FriendsContent({ mockDataEnabled, isReady }: { mockDataEnabled: boolean
     <FriendActivityCard activity={item} timeLabel={formatActivityTime(item.createdAtMs, now)} showExamplePreview={showingExamples} />
   ), [now, showingExamples]);
   const feedReady = showingExamples || (realActivities.hasLoaded && !realActivities.error);
-  const hasNoFriends = friends.length === 0 && allActivities.length === 0;
-  const showInvitation = hasNoFriends && (showingExamples || realFriends.hasLoaded);
+  const showInvitation = !preparing && friends.length === 0 && allActivities.length === 0
+    && (showingExamples || (realFriends.hasLoaded && realActivities.hasLoaded));
 
   function reloadActual() {
     realFriends.reload();
@@ -119,62 +121,58 @@ function FriendsContent({ mockDataEnabled, isReady }: { mockDataEnabled: boolean
       <View style={[s.content, { paddingTop: insets.top + 8 }]}>
         <FriendsTitle
           fontsLoaded={fontsLoaded}
-          onCreateCode={!preparing && showInvitation ? () => openAddFriend('create') : undefined}
+          onCreateCode={showInvitation ? () => openAddFriend('create') : undefined}
         />
       </View>
-      {preparing ? (
-        <View style={s.loading}>
-          <ActivityIndicator color={C.blue} accessibilityLabel="친구 소식 준비 중" />
-        </View>
-      ) : (
-        <FlatList
-          data={activities}
-          keyExtractor={activityKey}
-          renderItem={renderActivity}
-          showsVerticalScrollIndicator={false}
-          refreshing={realFriends.refreshing || realActivities.refreshing}
-          onRefresh={showingExamples ? undefined : reloadActual}
-          contentContainerStyle={[
-            s.content,
-            showInvitation && s.emptyContent,
-            { paddingTop: showInvitation ? 0 : 16, paddingBottom: insets.bottom + (showInvitation ? 134 : 94) },
-          ]}
-          ListHeaderComponent={(
-            <>
+      <FlatList
+        data={feedLoading ? EMPTY_ACTIVITIES : activities}
+        keyExtractor={activityKey}
+        renderItem={renderActivity}
+        showsVerticalScrollIndicator={false}
+        refreshing={realFriends.refreshing || realActivities.refreshing}
+        onRefresh={preparing || showingExamples || (friendsLoading && feedLoading) ? undefined : reloadActual}
+        contentContainerStyle={[
+          s.content,
+          showInvitation && s.emptyContent,
+          { paddingTop: showInvitation ? 0 : 16, paddingBottom: insets.bottom + (showInvitation ? 134 : 94) },
+        ]}
+        ListHeaderComponent={(
+          <>
+            {friendsLoading ? <FriendsListSkeleton /> : (
               <FriendsHeader
                 friends={friends}
                 selectedFriend={selectedFriend}
                 onSelectFriend={setSelectedFriendId}
                 onAddFriend={() => openAddFriend()}
               />
-              {activeMock ? (
-                <View>
-                  <Text style={s.notice}>예시 친구를 보고 있어요.</Text>
-                  <Pressable accessibilityRole="button" onPress={() => changeFriendsMode(true)}
-                    style={[action.button, action.secondary, action.compact, s.more]}>
-                    <Text style={[action.label, action.compactLabel]}>실제 친구 보기</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <ActualFriendsStatus
-                  friends={realFriends}
-                  onShowExamples={mockDataEnabled ? () => changeFriendsMode(false) : undefined}
-                />
-              )}
-            </>
-          )}
-          ListEmptyComponent={showInvitation ? (
-            <View style={s.invitation}>
-              <FriendsEmptyState onEnterCode={() => openAddFriend('enter')} />
-            </View>
-          ) : !hasNoFriends && feedReady ? (
-            <EmptyActivityFeed selectedFriend={selectedFriend} hasMore={realActivities.hasNext} />
-          ) : null}
-          ListFooterComponent={showingExamples ? null : (
-            <ActivityFeedStatus feed={realActivities} />
-          )}
-        />
-      )}
+            )}
+            {preparing ? null : activeMock ? (
+              <View>
+                <Text style={s.notice}>예시 친구를 보고 있어요.</Text>
+                <Pressable accessibilityRole="button" onPress={() => changeFriendsMode(true)}
+                  style={[action.button, action.secondary, action.compact, s.more]}>
+                  <Text style={[action.label, action.compactLabel]}>실제 친구 보기</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <ActualFriendsStatus
+                friends={realFriends}
+                onShowExamples={mockDataEnabled ? () => changeFriendsMode(false) : undefined}
+              />
+            )}
+          </>
+        )}
+        ListEmptyComponent={feedLoading ? <FriendActivitiesSkeleton /> : showInvitation ? (
+          <View style={s.invitation}>
+            <FriendsEmptyState onEnterCode={() => openAddFriend('enter')} />
+          </View>
+        ) : feedReady ? (
+          <EmptyActivityFeed selectedFriend={selectedFriend} hasMore={realActivities.hasNext} />
+        ) : null}
+        ListFooterComponent={feedLoading || showingExamples ? null : (
+          <ActivityFeedStatus feed={realActivities} />
+        )}
+      />
       <BottomTabBar selectedTab="friends" onAddPress={openCompose} />
       {addMode ? <FriendAddDialog initialMode={addMode} onClose={closeAddFriend} /> : null}
     </View>
@@ -185,7 +183,7 @@ function ActualFriendsStatus({ friends, onShowExamples }: {
   friends: ReturnType<typeof useFriends>;
   onShowExamples?: () => void;
 }) {
-  const loading = !friends.refreshing && (friends.loading || (!friends.hasLoaded && !friends.error));
+  const loading = friends.hasLoaded && friends.loading && !friends.refreshing;
 
   return (
     <>
@@ -202,11 +200,11 @@ function ActualFriendsStatus({ friends, onShowExamples }: {
         </View>
       ) : null}
       <AccountLoadState loading={loading} error={friends.error} label="친구 목록" onRetry={friends.retry} />
-      {friends.hasNext && !friends.error ? (
+      {friends.hasNext && !loading && !friends.error ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="친구 목록 더 보기"
-          disabled={friends.loading}
+          disabled={friends.refreshing}
           onPress={friends.loadMore}
           style={[action.button, action.secondary, action.compact, s.more]}
         >
@@ -222,7 +220,7 @@ function ActivityFeedStatus({ feed }: { feed: ReturnType<typeof useFriendActivit
     <>
       <AccountLoadState loading={feed.loading && !feed.refreshing} error={feed.error} label="친구 쪽지 소식" onRetry={feed.retry} />
       {feed.hasNext && !feed.loading && !feed.error ? (
-        <Pressable accessibilityRole="button" onPress={feed.loadMore}
+        <Pressable accessibilityRole="button" onPress={feed.loadMore} disabled={feed.refreshing}
           style={[action.button, action.secondary, action.compact, s.more, s.feedMore]}>
           <Text style={[action.label, action.compactLabel]}>소식 더 보기</Text>
         </Pressable>
@@ -259,7 +257,6 @@ const s = StyleSheet.create({
   content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 24 },
   emptyContent: { flexGrow: 1, paddingHorizontal: 23.5 },
   invitation: { flexGrow: 1 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', backgroundColor: C.surface, borderRadius: 16, marginTop: 12, paddingHorizontal: 20, paddingVertical: 36, gap: 10 },
   emptyTitle: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 16, lineHeight: 24, color: C.ink, textAlign: 'center' },
   emptyDescription: { fontFamily: FontFamilies.notoSansKrRegular, fontSize: 13, lineHeight: 22, color: C.muted, textAlign: 'center' },
