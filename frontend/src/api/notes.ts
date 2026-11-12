@@ -26,6 +26,7 @@ export async function createNote(request: NoteCreateRequest, token: string): Pro
 }
 
 export const MAP_NOTES_PAGE_SIZE = 500;
+export const MAP_NOTES_LIST_PAGE_SIZE = 20;
 
 export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0, location?: MapNoteLocation, filter: MapFilter = 'ALL'): Promise<NoteMarkersResponse> {
   const query = new URLSearchParams({
@@ -34,7 +35,7 @@ export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0,
     maxLatitude: String(bounds.maxLatitude),
     maxLongitude: String(bounds.maxLongitude),
     page: String(page),
-    size: String(MAP_NOTES_PAGE_SIZE),
+    size: String(filter === 'MINE' || filter === 'SAVED' ? MAP_NOTES_LIST_PAGE_SIZE : MAP_NOTES_PAGE_SIZE),
     filter,
   });
 

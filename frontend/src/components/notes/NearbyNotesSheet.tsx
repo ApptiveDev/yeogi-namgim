@@ -60,7 +60,8 @@ export function NearbyNotesSheet({ list, height, onClose, onRetry, onLoadMore, o
         </View>
         <Text style={s.description} accessibilityLiveRegion="polite">
           {list.status === 'loading' ? '열 수 있는 쪽지를 확인하고 있어요' : list.status === 'error'
-            ? '목록을 다시 불러와 주세요' : list.notes.length ? '열람 가능한 쪽지 · 가까운 순' : '지금 열 수 있는 쪽지가 없어요'}
+            ? '목록을 다시 불러와 주세요' : list.notes.length ? '열람 가능한 쪽지 · 가까운 순'
+              : list.hasNext ? '더 보기를 눌러 다음 쪽지를 확인해 주세요' : '지금 열 수 있는 쪽지가 없어요'}
         </Text>
       </View>
       {list.status === 'loading' ? (
@@ -76,7 +77,7 @@ export function NearbyNotesSheet({ list, height, onClose, onRetry, onLoadMore, o
           keyExtractor={(note) => note.noteId}
           contentContainerStyle={[s.items, { paddingBottom: Math.max(24, insets.bottom) }]}
           ItemSeparatorComponent={Separator}
-          ListEmptyComponent={<Text style={s.statusText}>쪽지가 삭제되었거나 공개 범위가 바뀌었을 수 있어요.</Text>}
+          ListEmptyComponent={list.hasNext ? null : <Text style={s.statusText}>쪽지가 삭제되었거나 공개 범위가 바뀌었을 수 있어요.</Text>}
           ListFooterComponent={list.hasNext ? (
             <View style={s.status}>
               {list.error && <Text style={s.statusText}>{list.error}</Text>}

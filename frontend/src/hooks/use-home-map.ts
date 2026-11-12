@@ -6,7 +6,7 @@ import { useReducedMotion } from 'react-native-reanimated';
 import type { CameraRef, MapRef, ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
 
 import { ApiError } from '@/api/client';
-import { getNoteMarkers, MAP_NOTES_PAGE_SIZE } from '@/api/notes';
+import { getNoteMarkers, MAP_NOTES_LIST_PAGE_SIZE, MAP_NOTES_PAGE_SIZE } from '@/api/notes';
 import type { MapBounds, MapClusterMarker, MapFilter, MapNoteLocation, MapNotePreview, MapViewport } from '@/api/types';
 import { getAuthState, getMemberSessionKey, runMemberRequest, subscribeAuth } from '@/auth/member-session';
 import type { NoteMapPoint } from '@/components/notes/NoteMapLayer';
@@ -29,10 +29,11 @@ type NearbyRequest = {
   key: number; owner: number; point: NoteMapPoint; bounds: readonly MapBounds[]; location: MapNoteLocation;
   range: number; page: number; hasNext: boolean; busy: boolean; notes: Map<string, MapNotePreview>;
   hasNotes: boolean; allLocked: boolean; locationRequired: boolean; nearestLocked: number | null;
-  targetCount: number | null;
+  targetCount: number | null; visibleCount: number;
 };
 
 const nearbyPreviews = (request: NearbyRequest) => [...request.notes.values()]
+  .slice(0, request.visibleCount)
   .sort((a, b) => (a.distanceMeters ?? Infinity) - (b.distanceMeters ?? Infinity));
 
 type Options = {
@@ -159,7 +160,8 @@ export function useHomeMap({
 
   const showNearbyList = (request: NearbyRequest, error: string | null) => {
     const notes = nearbyPreviews(request);
-    setNearby({ key: request.key, owner: request.owner, status: 'ready', notes, hasNext: request.hasNext, loadingMore: false, error });
+    setNearby({ key: request.key, owner: request.owner, status: 'ready', notes,
+      hasNext: request.hasNext || request.notes.size > request.visibleCount, loadingMore: false, error });
     if (notes.length) {
       const distanceMeters = notes.reduce<number | null>((nearest, note) => note.distanceMeters === null
         ? nearest : Math.min(nearest ?? Infinity, note.distanceMeters), null);
@@ -174,10 +176,12 @@ export function useHomeMap({
     request.busy = true;
     const active = () => nearbyRequest.current === request && request.owner === getMemberSessionKey()
       && AppState.currentState !== 'background' && AppState.currentState !== 'inactive';
-    const previousCount = request.notes.size;
-    request.targetCount ??= previousCount + MAP_NOTES_PAGE_SIZE;
+    const previousCount = Math.min(request.notes.size, request.visibleCount);
+    const manualPaging = request.filter === 'MINE' || request.filter === 'SAVED';
+    request.targetCount ??= previousCount + (manualPaging ? MAP_NOTES_LIST_PAGE_SIZE : MAP_NOTES_PAGE_SIZE);
+    request.visibleCount = manualPaging ? request.targetCount : Infinity;
     setNearby({ key: request.key, owner: request.owner, status: previousCount ? 'ready' : 'loading', notes: nearbyPreviews(request),
-      hasNext: request.hasNext, loadingMore: previousCount > 0, error: null });
+      hasNext: request.hasNext || request.notes.size > request.visibleCount, loadingMore: previousCount > 0, error: null });
     try {
       while (request.hasNext && request.notes.size < request.targetCount) {
         if (!active()) return;
@@ -198,14 +202,14 @@ export function useHomeMap({
       }
 
       if (!active()) return;
-      if (!request.notes.size && request.hasNotes && request.allLocked && request.nearestLocked !== null) {
+      if (!request.hasNext && !request.notes.size && request.hasNotes && request.allLocked && request.nearestLocked !== null) {
         const screenPoint = await mapRef.current?.project(request.point.center);
         if (!active()) return;
         if (!screenPoint || !screenPoint.every(Number.isFinite)) throw new Error('선택한 원의 위치를 확인하지 못했어요.');
         setNearby(null);
         setSelection({ owner: request.owner, value: { key: request.key, point: request.point, isInside: false,
           distanceMeters: request.nearestLocked, screenPoint } });
-      } else if (!request.notes.size && request.locationRequired) {
+      } else if (!request.hasNext && !request.notes.size && request.locationRequired) {
         clearMapSelection();
         Alert.alert('위치 확인 필요', '현재 위치를 확인한 뒤 다시 시도해 주세요.');
       } else {
@@ -240,7 +244,7 @@ export function useHomeMap({
       const duration = reduceMotion ? 0 : CAMERA_RETURN_DURATION;
       const camera = cameraRef.current;
       if (!camera) return;
-      if (zoom < DEFAULT_MAP_VIEW.zoom) {
+      if (zoom < DEFAULT_MAP_VIEW.zoom && filter !== 'MINE' && filter !== 'SAVED') {
         camera.easeTo({ center: point.center, zoom: Math.min(zoom + 2, DEFAULT_MAP_VIEW.zoom), duration });
         return;
       }
@@ -256,7 +260,8 @@ export function useHomeMap({
           ({ minLatitude, maxLatitude, minLongitude, maxLongitude })),
         location: { latitude: userCoordinates.latitude, longitude: userCoordinates.longitude },
         range: 0, page: 0, hasNext: true, busy: false, notes: new Map(), hasNotes: false,
-        allLocked: true, locationRequired: false, nearestLocked: null, targetCount: null };
+        allLocked: true, locationRequired: false, nearestLocked: null, targetCount: null,
+        visibleCount: filter === 'MINE' || filter === 'SAVED' ? 0 : Infinity };
       nearbyRequest.current = request;
       await fetchNearbyNotes(request);
     } catch (error) {
