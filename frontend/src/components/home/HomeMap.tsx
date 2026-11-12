@@ -4,7 +4,6 @@ import { Camera, GeoJSONSource, Images, Layer, Map, Marker, type CameraRef, type
 
 import { NoteMapLayer } from '@/components/notes/NoteMapLayer';
 import { NoteSelectionHighlight } from '@/components/notes/NoteSelectionHighlight';
-import { NotePlacementPreview, NotePlacementPreviewImages } from '@/components/notes/NotePlacementPreview';
 import { DEFAULT_MAP_VIEW } from '@/constants/home-map';
 import type { useHomeMap } from '@/hooks/use-home-map';
 import { styles } from '@/styles/home.styles';
@@ -20,13 +19,12 @@ type Props = {
   map: ReturnType<typeof useHomeMap>;
   initialCenter: [number, number];
   cameraRef: RefObject<CameraRef | null>;
-  isComposeOpen: boolean;
   onComposeCameraIdle: (event: NativeSyntheticEvent<ViewStateChangeEvent>) => void;
 };
 
-export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen, onComposeCameraIdle }: Props) {
+export function HomeMap({ map, initialCenter, cameraRef, onComposeCameraIdle }: Props) {
   const {
-    mapRef, setIsMapReady, userPoint, composePoint, userCircle, mapClusters,
+    mapRef, setIsMapReady, userPoint, userCircle, mapClusters,
     handleRegionWillChange, handleRegionDidChange, updateMapBounds,
   } = map;
   // Start at the resolved location, so an earlier default viewport cannot dismiss the cover.
@@ -125,13 +123,6 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen, onCompos
           afterId={userPoint ? 'user-location-marker' : userCircle ? 'user-radius-outline' : BASE_MAP_TOP_LAYER}
           onPointPress={(point, loadClusters) => { void map.handleNotePointPress(point, loadClusters); }}
         />
-        <NotePlacementPreviewImages />
-
-        {isComposeOpen && composePoint && (
-          <GeoJSONSource id="note-placement" data={composePoint}>
-            <NotePlacementPreview />
-          </GeoJSONSource>
-        )}
         {map.selectedMapPoint?.isInside && (
           <Marker id="selected-note-highlight" lngLat={map.selectedMapPoint.point.center} pointerEvents="none">
             <NoteSelectionHighlight key={map.selectedMapPoint.key} point={map.selectedMapPoint.point} isInside />

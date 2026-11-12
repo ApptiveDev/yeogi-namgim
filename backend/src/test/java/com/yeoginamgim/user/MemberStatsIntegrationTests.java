@@ -57,7 +57,7 @@ class MemberStatsIntegrationTests {
 	}
 
 	@Test
-	void emptyCountsReturnZeroAndKeepProfileCompatible() throws Exception {
+	void emptyCountsIncludeBookmarkSourceAndKeepProfileCompatible() throws Exception {
 		mvc.perform(get("/api/v1/users/me/stats").header("Authorization", "Bearer " + tokens.accessToken()))
 			.andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
 			.andExpect(jsonPath("$.data.writtenNoteCount").value(0))

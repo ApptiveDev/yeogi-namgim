@@ -31,7 +31,7 @@
 - [x] 회원 쪽지 작성·내 쪽지 목록: `POST /api/v1/notes`, `GET /api/v1/users/me/notes` — [#55](https://github.com/ApptiveDev/yeogi-namgim/issues/55), [상세 문서](MEMBER_NOTE_API.md)
 - [x] 회원 지도 범위 조회·필터: `GET /api/v1/notes` — [#59](https://github.com/ApptiveDev/yeogi-namgim/issues/59), [공통 API 계약](BACKEND_API_CONTRACT.md)
 - [x] 일회용 친구 초대·확인·수락·목록: `POST /api/v1/friends/invitations`, `GET /api/v1/friends/invitations/{code}`, `POST /api/v1/friends/invitations/{code}/accept`, `GET /api/v1/friends` — [#57](https://github.com/ApptiveDev/yeogi-namgim/issues/57), [상세 문서](FRIEND_API.md)
-- [ ] 친구 쪽지 소식: `GET /api/v1/friends/activities` — [#82](https://github.com/ApptiveDev/yeogi-namgim/issues/82), [PR #84](https://github.com/ApptiveDev/yeogi-namgim/pull/84)
+- [x] 친구 쪽지 소식: `GET /api/v1/friends/activities` — [#82](https://github.com/ApptiveDev/yeogi-namgim/issues/82), [상세 문서](FRIEND_API.md#친구-쪽지-소식)
 - [ ] 친구 관계 해제: `DELETE /api/v1/friends/{friendId}` — **계획**, 관계 해제 후 저장본 접근 정책 확정 필요
 
 ### 마이 탭과 계정
@@ -60,8 +60,8 @@
 
 ### 보관함·통계·알림
 
-- [ ] 달력형 보관함 날짜: `GET /api/v1/users/me/archive/calendar` — **계획**
-- [ ] 날짜·유형별 보관함 목록: `GET /api/v1/users/me/archive/notes` — **계획**
+- [x] 달력형 보관함 날짜: `GET /api/v1/users/me/archive/calendar` — #94, PR #97 병합 완료. [보관함 계약](ARCHIVE_API.md), 프론트 연동 작업 #131.
+- [x] 날짜·유형별 보관함 목록: `GET /api/v1/users/me/archive/notes` — #94, PR #97 병합 완료. 프론트는 `ALL` 목록을 전체·저장·내 노트에 공유하며 친구 노트 연동은 후속이다.
 - [ ] 저장 쪽지 수 조회 서비스를 마이 탭 통계에 연결 — **계획**, A의 `GET /api/v1/users/me/stats`와 연동
 - [ ] 회원 알림·푸시 정책 및 API — **계획**, 기획과 인증·공개 범위 계약 확정 후 경로 결정
 - [ ] 탈퇴 시 저장·발견·알림 데이터 정리 — **계획**, A의 회원 탈퇴 API와 함께 검증

@@ -41,6 +41,7 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "test:archive": "node --test tests/archive.test.cjs",
     "test:friends": "node --test tests/friends.test.cjs",
     "test:member": "node --test tests/member.test.cjs",
     "test:auth": "node --test tests/auth.test.cjs",

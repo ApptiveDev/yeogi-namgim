@@ -21,7 +21,8 @@ Module._load = function (id, parent, isMain) {
   return originalLoad.call(this, id, parent, isMain);
 };
 
-const code = 'ABCDEFGHJKLM2345';
+const code = 'ABC234';
+const legacyCode = 'ABCDEFGHJKLM2345';
 const expiry = () => new Date(Date.now() + 86400000).toISOString();
 const friend = { friendId: '11111111-1111-4111-8111-111111111111', nickname: '초대한친구', friendedAt: '2026-11-01T00:00:00Z' };
 const tokens = { accessToken: 'access', refreshToken: 'refresh', tokenType: 'Bearer', expiresIn: 900, refreshExpiresIn: 86400 };
@@ -77,7 +78,7 @@ test('code generation is explicit and duplicate taps create only one invitation'
 
 test('invalid codes never reach the server; lowercase and outer whitespace are normalized', async () => {
   const flow = createFlow();
-  for (const invalid of ['', 'ABC', `${code.slice(0, 15)}0`, `${code.slice(0, 15)}I`, `${code.slice(0, 15)}O`, 'ABCDEFGH-JKLM2345', 'ABCDEFGH JKLM2345', '../friends']) {
+  for (const invalid of ['', 'ABC', 'ABC2345', 'ABC230', 'ABC231', 'ABC23I', 'ABC23O', 'ABC-234', 'ABC 234', '../friends']) {
     flow.setInput(invalid);
     await flow.preview();
     assert.ok(flow.getState().error);
@@ -93,6 +94,33 @@ test('invalid codes never reach the server; lowercase and outer whitespace are n
   assert.equal(calls.length, 1);
 });
 
+test('an existing 16-character invitation still reaches the preview API', async () => {
+  const flow = createFlow();
+  flow.setInput(legacyCode);
+  respond = () => ok({ inviterNickname: friend.nickname, expiresAt: expiry() });
+  await flow.preview();
+  assert.equal(calls[0].path, `/api/v1/friends/invitations/${legacyCode}`);
+  assert.equal(flow.getState().preview.code, legacyCode);
+});
+
+test('current invitation lookup handles an active code and 204 without generating a code', async () => {
+  const flow = createFlow();
+  const expiresAt = expiry();
+  respond = () => ok({ code, expiresAt });
+  await flow.loadCurrent();
+  assert.deepEqual(flow.getState().created, { code, expiresAt });
+  respond = () => new Response(null, { status: 204 });
+  await flow.loadCurrent();
+  assert.equal(flow.getState().created, null);
+  assert.equal(flow.getState().error, null);
+  assert.equal(calls.length, 2);
+  for (const request of calls) {
+    assert.equal(request.method, 'GET');
+    assert.equal(request.path, '/api/v1/friends/invitations/current');
+    assert.equal(request.headers.Authorization, 'Bearer access');
+  }
+});
+
 test('acceptance requires a preview, uses its confirmed code, and cannot be submitted twice', async () => {
   const flow = createFlow();
   await flow.accept();
@@ -104,7 +132,7 @@ test('acceptance requires a preview, uses its confirmed code, and cannot be subm
   respond = () => new Promise((resolve) => { finish = resolve; });
   const pending = flow.accept();
   await flow.accept();
-  flow.setInput('NNNNNNNNNNNNNNNN');
+  flow.setInput('DEF567');
   assert.equal(flow.getState().input, code);
   assert.equal(calls.length, 2);
   assert.equal(calls[1].path, `/api/v1/friends/invitations/${code}/accept`);
@@ -122,7 +150,7 @@ test('changing the entered code invalidates the previous preview', async () => {
   respond = () => ok({ inviterNickname: friend.nickname, expiresAt: expiry() });
   flow.setInput(code);
   await flow.preview();
-  flow.setInput('NNNNNNNNNNNNNNNN');
+  flow.setInput('DEF567');
   assert.equal(flow.getState().preview, null);
   await flow.accept();
   assert.equal(calls.length, 1);
@@ -195,7 +223,7 @@ test('friend listing is paginated and empty responses stay empty', async () => {
   await assert.rejects(session.runMemberRequest(api.getFriends), (error) => error.status === 503);
 });
 
-test('friend list retries the failed page and reuses profiles when a page overlaps', async () => {
+function renderFriendsHook(name) {
   const source = fs.readFileSync(require.resolve('../src/hooks/use-friends.ts'), 'utf8');
   const { outputText } = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -220,7 +248,11 @@ test('friend list retries the failed page and reuses profiles when a page overla
   };
   const exported = {};
   new Function('require', 'exports', outputText)((id) => dependencies[id], exported);
-  const render = () => { cursor = 0; return exported.useFriends(true); };
+  return () => { cursor = 0; return exported[name](true); };
+}
+
+test('friend list retries the failed page and reuses profiles when a page overlaps', async () => {
+  const render = renderFriendsHook('useFriends');
   const settle = () => new Promise(setImmediate);
   const page = (friends, index, hasNext) => ok({ friends, page: index, size: 20, hasNext });
 
@@ -250,6 +282,54 @@ test('friend list retries the failed page and reuses profiles when a page overla
   assert.equal(loaded.friends[0], first.friends[0]);
   assert.equal(loaded.error, null);
   assert.equal(loaded.hasNext, false);
+});
+
+test('friend activity feed maps card metadata and retries overlapping pages', async () => {
+  const render = renderFriendsHook('useFriendActivities');
+  const settle = () => new Promise(setImmediate);
+  const createdAt = '2026-11-01T00:00:00Z';
+  const activity = { noteId: 'note-1', friendId: friend.friendId, nickname: friend.nickname, placeName: '서울숲', neighborhood: '성수동', createdAt };
+  const page = (activities, index, hasNext) => ok({ activities, page: index, size: 20, hasNext });
+
+  respond = () => page([activity], 0, true);
+  render().reload();
+  await settle();
+  const first = render();
+  assert.deepEqual(first.activities, [{
+    id: activity.noteId,
+    friend: { id: friend.friendId, displayName: friend.nickname, avatarUrl: null },
+    locationLabel: '서울숲',
+    createdAtMs: Date.parse(createdAt),
+  }]);
+
+  respond = () => page([{ ...activity, createdAt: 'invalid' }], 1, false);
+  first.loadMore();
+  await settle();
+  const failed = render();
+  assert.match(failed.error, /친구 쪽지 소식/);
+  assert.equal(failed.activities, first.activities);
+
+  respond = () => page([
+    activity,
+    { ...activity, noteId: 'note-2', placeName: null },
+    { ...activity, noteId: 'note-3', placeName: ' ', neighborhood: null },
+  ], 1, false);
+  failed.retry();
+  await settle();
+  const loaded = render();
+  assert.deepEqual(loaded.activities.map(({ id, locationLabel }) => [id, locationLabel]), [
+    ['note-1', '서울숲'], ['note-2', '성수동'], ['note-3', '장소 정보 없음'],
+  ]);
+  assert.equal(loaded.error, null);
+  assert.equal(loaded.hasNext, false);
+  assert.deepEqual(calls.map(({ query }) => query.get('page')), ['0', '1', '1']);
+  assert.ok(calls.every(({ method, path, query, headers }) => (
+    method === 'GET' && path === '/api/v1/friends/activities' && query.get('size') === '20' && headers.Authorization === 'Bearer access'
+  )));
+
+  respond = () => ok({ loggedOut: true });
+  await session.signOut();
+  assert.deepEqual(render().activities, []);
 });
 
 test('malformed success payloads never report creation, preview or acceptance as complete', async () => {

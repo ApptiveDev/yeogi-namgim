@@ -38,7 +38,6 @@ const nearbyPreviews = (request: NearbyRequest) => [...request.notes.values()]
 
 type Options = {
   userCoordinates: Location.LocationObjectCoords | null;
-  composeCoordinates: Location.LocationObjectCoords | null;
   isComposeOpen: boolean;
   isFollowingUser: boolean;
   setIsFollowingUser: Dispatch<SetStateAction<boolean>>;
@@ -49,7 +48,7 @@ type Options = {
 };
 
 export function useHomeMap({
-  userCoordinates, composeCoordinates, isComposeOpen, isFollowingUser, setIsFollowingUser,
+  userCoordinates, isComposeOpen, isFollowingUser, setIsFollowingUser,
   cameraRef, resumeFollowingAfterClose: resumeFollowingAfterCloseRef, notesRefreshKey, nearbySheetHeight,
 }: Options) {
   const mapRef = useRef<MapRef>(null);
@@ -83,9 +82,6 @@ export function useHomeMap({
   const userPoint = useMemo<GeoJSON.Point | null>(() => userCoordinates ? {
     type: 'Point', coordinates: [userCoordinates.longitude, userCoordinates.latitude],
   } : null, [userCoordinates]);
-  const composePoint = useMemo<GeoJSON.Point | null>(() => composeCoordinates ? {
-    type: 'Point', coordinates: [composeCoordinates.longitude, composeCoordinates.latitude],
-  } : null, [composeCoordinates]);
   const userCircle = useMemo(() => userCoordinates ? createLocationCircle(
     userCoordinates.longitude, userCoordinates.latitude, NOTE_READ_RADIUS_METERS,
   ) : null, [userCoordinates]);
@@ -328,7 +324,7 @@ export function useHomeMap({
       setFilter(next);
     },
     mapRef, setIsMapReady, isMapReady, isMapRendered, setIsMapRendered, setMapError, startupError: mapError,
-    userPoint, composePoint, userCircle, mapClusters, handleNotePointPress,
+    userPoint, userCircle, mapClusters, handleNotePointPress,
     notesError, notesInitialLoading, retryNotes, clearMapSelection,
     selectedMapPoint: !isComposeOpen && selection?.owner === getMemberSessionKey() ? selection.value : null,
     nearbyNotes: !isComposeOpen && nearby?.owner === getMemberSessionKey() ? nearby : null,

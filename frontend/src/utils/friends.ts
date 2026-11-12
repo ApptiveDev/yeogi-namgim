@@ -1,12 +1,18 @@
 import { ApiError } from '../api/client';
 
+export const FRIEND_INVITATION_CODE_LENGTH = 6;
+export const LEGACY_FRIEND_INVITATION_CODE_LENGTH = 16;
+
 export function normalizeInvitationCode(value: string) {
   return value.trim().toUpperCase();
 }
 
 export function validateInvitationCode(value: string): string | null {
-  return /^[A-HJ-NP-Z2-9]{16}$/.test(normalizeInvitationCode(value))
-    ? null : '영문과 숫자로 된 초대 코드 16자리를 입력해 주세요. 공백이나 하이픈은 넣지 않아요.';
+  const code = normalizeInvitationCode(value);
+  // The server still accepts unexpired invitations issued before the 6-character rollout.
+  const validLength = code.length === FRIEND_INVITATION_CODE_LENGTH || code.length === LEGACY_FRIEND_INVITATION_CODE_LENGTH;
+  return validLength && /^[A-HJ-NP-Z2-9]+$/.test(code)
+    ? null : '영문과 숫자로 된 초대 코드 6자리를 확인해 주세요. I, O, 0, 1은 사용하지 않아요.';
 }
 
 export function friendErrorMessage(error: unknown) {
