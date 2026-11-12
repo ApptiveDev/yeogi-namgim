@@ -1,58 +1,37 @@
 import { GeoJSONSource, Layer, type GeoJSONSourceRef } from '@maplibre/maplibre-react-native';
-import type { ExpressionSpecification, GeoJSONSourceSpecification } from '@maplibre/maplibre-gl-style-spec';
-import type { FeatureCollection, Point } from 'geojson';
-import { memo, useMemo, type Ref } from 'react';
+import type { ExpressionSpecification } from '@maplibre/maplibre-gl-style-spec';
+import { memo, useMemo, useRef } from 'react';
+import { Alert } from 'react-native';
 
-export interface NoteMapItem {
-  id: string;
-  latitude: number;
-  longitude: number;
-  isWithinRadius?: boolean;
-}
+import type { MapClusterMarker } from '@/api/types';
+import { NEARBY_CLUSTER_MIN_ZOOM, NOTE_READ_RADIUS_METERS } from '@/constants/home-map';
+import { CLUSTER_PROPERTIES, createNoteMapData, getNoteMapPoint, getServerClusters, type NoteMapPoint } from '@/utils/note-map-clusters';
 
-export interface NoteMapPoint {
-  center: [longitude: number, latitude: number];
-  count: number;
-  clusterId?: number;
-  noteId?: string;
-}
+export type { NoteMapPoint } from '@/utils/note-map-clusters';
 
-export interface NoteMapLayerProps {
-  notes: readonly NoteMapItem[];
-  onPointPress?: (point: NoteMapPoint) => void;
-  sourceRef?: Ref<GeoJSONSourceRef>;
-  /** Unique per mounted layer when displaying multiple collections. */
+type Props = {
+  clusters: readonly MapClusterMarker[];
+  userPoint?: GeoJSON.Point | null;
+  onPointPress?: (point: NoteMapPoint, loadClusters?: () => Promise<readonly MapClusterMarker[]>) => void;
   id?: string;
   afterId?: string;
-}
-
-const COUNT: ExpressionSpecification = ['coalesce', ['get', 'point_count'], 1];
-// The stroke is drawn outside circle-radius; include it in the 44/52/64px diameter.
-const RADIUS: ExpressionSpecification = ['step', COUNT, 19, 100, 23, 10000, 29];
-const INSIDE: ExpressionSpecification = ['>', ['coalesce', ['get', 'insideCount'], 0], 0];
-const CLUSTER_PROPERTIES: GeoJSONSourceSpecification['clusterProperties'] = {
-  insideCount: ['+', ['get', 'insideCount']],
 };
 
-/** One clustered source; isolated notes use the same numbered circle as clusters. */
-export const NoteMapLayer = memo(function NoteMapLayer({
-  notes,
-  onPointPress,
-  sourceRef,
-  id = 'notes',
-  afterId,
-}: NoteMapLayerProps) {
-  const data = useMemo<FeatureCollection<Point>>(() => ({
-    type: 'FeatureCollection',
-    features: notes.map((note) => ({
-      type: 'Feature',
-      id: note.id,
-      geometry: { type: 'Point', coordinates: [note.longitude, note.latitude] },
-      properties: { noteId: note.id, insideCount: note.isWithinRadius ? 1 : 0 },
-    })),
-  }), [notes]);
+const COUNT: ExpressionSpecification = ['get', 'noteCount'];
 
-  const noteIds = useMemo(() => new Set(notes.map((note) => note.id)), [notes]);
+export const NoteMapLayer = memo(function NoteMapLayer({ clusters, userPoint, onPointPress, id = 'notes', afterId }: Props) {
+  const sourceRef = useRef<GeoJSONSourceRef>(null);
+  const byId = useMemo(() => new Map(clusters.map((cluster) => [cluster.id, cluster])), [clusters]);
+  const currentData = useRef(byId);
+  currentData.current = byId;
+  const data = useMemo(() => createNoteMapData(clusters), [clusters]);
+  // Evaluate the rendered point so native clusters use their final center, not their members.
+  const isNearby: ExpressionSpecification = userPoint
+    ? ['<=', ['distance', userPoint], NOTE_READ_RADIUS_METERS] : ['literal', false];
+  const fillColor: ExpressionSpecification = ['step', ['zoom'], '#2350FF', NEARBY_CLUSTER_MIN_ZOOM,
+    ['case', isNearby, '#D6F65A', '#2350FF']];
+  const foregroundColor: ExpressionSpecification = ['step', ['zoom'], '#FFFFFF', NEARBY_CLUSTER_MIN_ZOOM,
+    ['case', isNearby, '#0E0E0E', '#FFFFFF']];
 
   return (
     <GeoJSONSource
@@ -60,60 +39,40 @@ export const NoteMapLayer = memo(function NoteMapLayer({
       id={`${id}-source`}
       data={data}
       cluster
-      clusterRadius={50}
+      clusterRadius={60}
       clusterMinPoints={2}
       clusterProperties={CLUSTER_PROPERTIES}
       maxzoom={24}
       clusterMaxZoom={24}
       onPress={onPointPress ? (event) => {
         const feature = event.nativeEvent.features.find((item) => item.geometry.type === 'Point');
-        if (!feature || feature.geometry.type !== 'Point') return;
-        const [longitude, latitude] = feature.geometry.coordinates;
-        if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
-        const properties = feature.properties;
-        const isCluster = properties?.cluster === true;
-        if (isCluster) {
-          if (!Number.isInteger(properties.cluster_id) || properties.cluster_id < 0
-            || !Number.isSafeInteger(properties.point_count) || properties.point_count < 2) return;
-        } else if (typeof properties?.noteId !== 'string' || !noteIds.has(properties.noteId)) return;
-
+        if (!feature) return;
         event.stopPropagation();
-        onPointPress({
-          center: [longitude, latitude],
-          count: isCluster ? properties.point_count : 1,
-          ...(isCluster ? { clusterId: properties.cluster_id } : { noteId: properties.noteId }),
-        });
+        try {
+          const point = getNoteMapPoint(feature, byId);
+          if (!point) return;
+          onPointPress(point, point.clusters.length ? undefined : async () => {
+            const source = sourceRef.current;
+            if (!source || currentData.current !== byId) throw new Error('쪽지 묶음이 갱신되었어요. 다시 눌러 주세요.');
+            const result = await getServerClusters(source, feature, byId);
+            if (currentData.current !== byId) throw new Error('쪽지 묶음이 갱신되었어요. 다시 눌러 주세요.');
+            return result;
+          });
+        } catch (error) {
+          Alert.alert('쪽지 확인 실패', error instanceof Error ? error.message : '다시 시도해 주세요.');
+        }
       } : undefined}
     >
-      <Layer
-        id={`${id}-circles`}
-        type="circle"
-        afterId={afterId}
-        paint={{
-          'circle-radius': ['+', RADIUS, ['case', INSIDE, 0.5, 0]],
-          'circle-color': ['case', INSIDE, '#D6F65A', '#2350FF'],
-          'circle-stroke-color': ['case', INSIDE, '#0E0E0E', '#FFFFFF'],
-          'circle-stroke-width': ['case', INSIDE, 2.5, 3],
-          'circle-pitch-alignment': 'viewport',
-          'circle-pitch-scale': 'viewport',
-        }}
-      />
-      <Layer
-        id={`${id}-symbols`}
-        type="symbol"
-        afterId={`${id}-circles`}
-        layout={{
-          'text-field': ['to-string', COUNT],
-          'text-font': ['Noto Sans Bold'],
-          'text-size': 16,
-          'text-anchor': 'center',
-          'text-allow-overlap': true,
-          'text-ignore-placement': true,
-          'text-pitch-alignment': 'viewport',
-          'text-rotation-alignment': 'viewport',
-        }}
-        paint={{ 'text-color': ['case', INSIDE, '#0E0E0E', '#FFFFFF'] }}
-      />
+      <Layer id={`${id}-circles`} type="circle" afterId={afterId} paint={{
+        'circle-radius': ['step', COUNT, 19, 100, 23, 10000, 29],
+        'circle-color': fillColor, 'circle-stroke-color': foregroundColor, 'circle-stroke-width': 3,
+        'circle-pitch-alignment': 'viewport', 'circle-pitch-scale': 'viewport',
+      }} />
+      <Layer id={`${id}-symbols`} type="symbol" afterId={`${id}-circles`} layout={{
+        'text-field': ['to-string', COUNT], 'text-font': ['Noto Sans Bold'], 'text-size': 16,
+        'text-anchor': 'center', 'text-allow-overlap': true, 'text-ignore-placement': true,
+        'text-pitch-alignment': 'viewport', 'text-rotation-alignment': 'viewport',
+      }} paint={{ 'text-color': foregroundColor }} />
     </GeoJSONSource>
   );
 });

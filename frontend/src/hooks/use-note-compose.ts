@@ -15,13 +15,12 @@ type Options = {
   cameraRef: RefObject<CameraRef | null>;
   resumeFollowingAfterClose: RefObject<boolean>;
   setIsFollowingUser: Dispatch<SetStateAction<boolean>>;
-  setIsMapMenuOpen: Dispatch<SetStateAction<boolean>>;
   setNotesRefreshKey: Dispatch<SetStateAction<number>>;
 };
 
 export function useNoteCompose({
   userCoordinates, setUserCoordinates, cameraRef, resumeFollowingAfterClose: resumeFollowingAfterCloseRef,
-  setIsFollowingUser, setIsMapMenuOpen, setNotesRefreshKey,
+  setIsFollowingUser, setNotesRefreshKey,
 }: Options) {
   const composeRequest = useRef(0);
   const submitting = useRef(false);
@@ -125,7 +124,6 @@ export function useNoteCompose({
     const requestId = ++composeRequest.current;
     setPendingSuccessToast(null);
     placeEdited.current = false;
-    setIsMapMenuOpen(false);
     setIsFollowingUser(false);
     setComposeCoordinates(null);
     setPlaceName('');

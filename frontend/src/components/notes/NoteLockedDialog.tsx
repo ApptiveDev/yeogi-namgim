@@ -8,10 +8,10 @@ import { NoteSelectionHighlight } from './NoteSelectionHighlight';
 
 export function NoteLockedDialog({ selection: selectedPoint, onClose }: { selection: NoteMapSelection | null; onClose: () => void }) {
   const { height } = useWindowDimensions();
-  const activeSelection = selectedPoint?.isInside === false ? selectedPoint : null;
+  const activeSelection = selectedPoint?.isInside === false && selectedPoint.distanceMeters !== null ? selectedPoint : null;
   const motion = usePopupMotion(activeSelection);
   const selection = motion.content;
-  if (!selection) return null;
+  if (!selection || selection.distanceMeters === null) return null;
   return (
     <Modal transparent animationType="none" statusBarTranslucent navigationBarTranslucent
       onRequestClose={() => { if (activeSelection) onClose(); }}>
