@@ -44,7 +44,6 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
     'NotoSansKR-Medium': require('../../assets/fonts/NotoSansKR-Medium.otf'),
     'NotoSansKR-Bold': require('../../assets/fonts/NotoSansKR-Bold.otf'),
   });
-  const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
   const [isFollowingUser, setIsFollowingUser] =
     useState(true);
   const { userCoordinates, setUserCoordinates, locationStatus } = useUserLocation();
@@ -53,7 +52,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
     draft, setDraft, isSubmitting, openCompose, closeCompose, submitNote,
   } = useNoteCompose({
     userCoordinates, setUserCoordinates, cameraRef, resumeFollowingAfterClose,
-    setIsFollowingUser, setIsMapMenuOpen, setNotesRefreshKey,
+    setIsFollowingUser, setNotesRefreshKey,
   });
   const map = useHomeMap({
     userCoordinates, isComposeOpen,
@@ -101,8 +100,8 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
       <View style={[StyleSheet.absoluteFill, isReadingNote && { opacity: 0 }]} pointerEvents={isReadingNote ? 'none' : 'box-none'}>
       <MapSelector
         isComposeOpen={isComposeOpen}
-        isMapMenuOpen={isMapMenuOpen}
-        setIsMapMenuOpen={setIsMapMenuOpen}
+        selected={map.filter}
+        onSelect={map.selectFilter}
         fontsLoaded={fontsLoaded}
         fontError={fontError}
         insets={insets}
@@ -151,7 +150,8 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
       )}
       <NoteLockedDialog selection={map.selectedMapPoint} onClose={map.clearMapSelection} />
       {map.nearbyNotes && <NearbyNotesSheet key={map.nearbyNotes.key} list={map.nearbyNotes} height={nearbySheetHeight}
-        onClose={map.clearMapSelection} onRetry={map.retryNearbyNotes} onOpen={map.openNoteDetail} />}
+        onClose={map.clearMapSelection} onRetry={map.loadMoreNearbyNotes} onLoadMore={map.loadMoreNearbyNotes}
+        onOpen={map.openNoteDetail} />}
       </View>
       </View>
       {!homeReady && (

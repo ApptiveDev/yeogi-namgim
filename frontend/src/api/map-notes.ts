@@ -1,39 +1,20 @@
 import { getMemberSessionKey, runMemberRequest } from '../auth/member-session';
-import { MAP_NOTES_LIMIT } from '../constants/home-map';
+import { MAP_CLUSTER_GRID_SIZE } from '../constants/home-map';
 import { splitMapBounds } from '../utils/map-bounds';
-import { getNoteMarkers, MAP_NOTES_PAGE_SIZE } from './notes';
-import type { MapBounds, MapNoteLocation, MapNotePreview, NoteMarker } from './types';
+import { getMapClusters } from './map-clusters';
+import type { MapBounds, MapClusterMarker, MapFilter } from './types';
 
-const MAX_MAP_PAGES = Math.ceil(MAP_NOTES_LIMIT / MAP_NOTES_PAGE_SIZE);
-const LIMIT_MESSAGE = '표시할 쪽지가 너무 많아요. 지도를 확대하고 다시 시도해 주세요.';
-
-async function loadMapPages(bounds: MapBounds, isCurrent: () => boolean, location?: MapNoteLocation) {
+export async function loadMapClusters(bounds: MapBounds, isCurrent: () => boolean, filter: MapFilter = 'ALL'): Promise<MapClusterMarker[] | null> {
   const owner = getMemberSessionKey();
   const active = () => isCurrent() && owner === getMemberSessionKey();
-  const notes = new Map<string, NoteMarker>();
-  const previews = new Map<string, MapNotePreview>();
-  for (const range of splitMapBounds(bounds)) {
-    for (let page = 0; page < MAX_MAP_PAGES; page += 1) {
-      if (!active()) return null;
-      const result = await runMemberRequest((token) => getNoteMarkers(range, token, page, location));
-      if (!active()) return null;
-      for (const note of result.notes) {
-        if (!notes.has(note.noteId) && notes.size >= MAP_NOTES_LIMIT) throw new Error(LIMIT_MESSAGE);
-        notes.set(note.noteId, note);
-        previews.delete(note.noteId);
-      }
-      for (const note of result.openableNotes ?? []) previews.set(note.noteId, note);
-      if (!result.hasNext) break;
-      if (page === MAX_MAP_PAGES - 1) throw new Error(LIMIT_MESSAGE);
-    }
-  }
-  return active() ? { notes: [...notes.values()], openableNotes: [...previews.values()] } : null;
-}
-
-export async function loadMapNotes(bounds: MapBounds, isCurrent: () => boolean): Promise<NoteMarker[] | null> {
-  return (await loadMapPages(bounds, isCurrent))?.notes ?? null;
-}
-
-export async function loadMapNotePreviews(bounds: MapBounds, location: MapNoteLocation, isCurrent: () => boolean): Promise<MapNotePreview[] | null> {
-  return (await loadMapPages(bounds, isCurrent, location))?.openableNotes ?? null;
+  // Each stored longitude belongs to exactly one numeric interval, including +/-180.
+  const results = await Promise.all(splitMapBounds(bounds).map(async (range) => {
+    if (!active()) return null;
+    const result = await runMemberRequest((token) => getMapClusters(range, token, MAP_CLUSTER_GRID_SIZE, filter));
+    if (!active()) return null;
+    const scope = [filter, range.minLatitude, range.minLongitude, range.maxLatitude, range.maxLongitude, MAP_CLUSTER_GRID_SIZE].join(',');
+    return result.clusters.map((cluster) => ({ ...cluster, id: `${scope}/${cluster.clusterId}` }));
+  }));
+  if (!active() || results.some((result) => result === null)) return null;
+  return results.flatMap((result) => result ?? []);
 }

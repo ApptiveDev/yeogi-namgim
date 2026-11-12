@@ -24,7 +24,7 @@ type Props = {
 
 export function HomeMap({ map, initialCenter, cameraRef, onComposeCameraIdle }: Props) {
   const {
-    mapRef, setIsMapReady, userPoint, userCircle, mapNotes,
+    mapRef, setIsMapReady, userPoint, userCircle, mapClusters,
     handleRegionWillChange, handleRegionDidChange, updateMapBounds,
   } = map;
   // Start at the resolved location, so an earlier default viewport cannot dismiss the cover.
@@ -118,10 +118,10 @@ export function HomeMap({ map, initialCenter, cameraRef, onComposeCameraIdle }: 
         </GeoJSONSource>}
 
         <NoteMapLayer
-          notes={mapNotes}
-          sourceRef={map.noteSourceRef}
+          clusters={mapClusters}
+          userPoint={userPoint}
           afterId={userPoint ? 'user-location-marker' : userCircle ? 'user-radius-outline' : BASE_MAP_TOP_LAYER}
-          onPointPress={(point) => { void map.handleNotePointPress(point); }}
+          onPointPress={(point, loadClusters) => { void map.handleNotePointPress(point, loadClusters); }}
         />
         {map.selectedMapPoint?.isInside && (
           <Marker id="selected-note-highlight" lngLat={map.selectedMapPoint.point.center} pointerEvents="none">

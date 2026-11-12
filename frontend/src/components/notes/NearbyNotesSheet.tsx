@@ -20,11 +20,12 @@ const AUTHOR_ICONS = {
   friends: require('../../../assets/images/nearby-note-friends.svg'),
 };
 
-export function NearbyNotesSheet({ list, height, onClose, onRetry, onOpen }: {
+export function NearbyNotesSheet({ list, height, onClose, onRetry, onLoadMore, onOpen }: {
   list: NearbyNoteList;
   height: number;
   onClose: () => void;
   onRetry: () => void;
+  onLoadMore: () => void;
   onOpen: (note: MapNotePreview) => void;
 }) {
   const [visible, setVisible] = useState(false);
@@ -45,7 +46,7 @@ export function NearbyNotesSheet({ list, height, onClose, onRetry, onOpen }: {
     return () => subscription.remove();
   }, [onClose]));
 
-  if (!visible || list.status === 'zooming') return null;
+  if (!visible) return null;
   return (
     <View style={[s.sheet, { height }]} accessibilityViewIsModal onAccessibilityEscape={onClose}>
       <Pressable {...pan.panHandlers} onPress={onClose} style={s.handleButton}
@@ -54,12 +55,13 @@ export function NearbyNotesSheet({ list, height, onClose, onRetry, onOpen }: {
       </Pressable>
       <View style={s.header}>
         <View style={s.headingRow}>
-          <Text style={s.heading} accessibilityRole="header">쪽지{list.status === 'ready' && <Text style={s.count}> {list.notes.length}개</Text>}</Text>
+          <Text style={s.heading} accessibilityRole="header">쪽지{list.status === 'ready' && <Text style={s.count}> {list.notes.length}개{list.hasNext ? ' 불러옴' : ''}</Text>}</Text>
           <Text style={s.location} numberOfLines={1}>내 위치 기준</Text>
         </View>
         <Text style={s.description} accessibilityLiveRegion="polite">
           {list.status === 'loading' ? '열 수 있는 쪽지를 확인하고 있어요' : list.status === 'error'
-            ? '목록을 다시 불러와 주세요' : list.notes.length ? '원 안에 있어서 모두 열 수 있어요 · 가까운 순' : '지금 열 수 있는 쪽지가 없어요'}
+            ? '목록을 다시 불러와 주세요' : list.notes.length ? '열람 가능한 쪽지 · 가까운 순'
+              : list.hasNext ? '더 보기를 눌러 다음 쪽지를 확인해 주세요' : '지금 열 수 있는 쪽지가 없어요'}
         </Text>
       </View>
       {list.status === 'loading' ? (
@@ -75,7 +77,17 @@ export function NearbyNotesSheet({ list, height, onClose, onRetry, onOpen }: {
           keyExtractor={(note) => note.noteId}
           contentContainerStyle={[s.items, { paddingBottom: Math.max(24, insets.bottom) }]}
           ItemSeparatorComponent={Separator}
-          ListEmptyComponent={<Text style={s.statusText}>쪽지가 삭제되었거나 공개 범위가 바뀌었을 수 있어요.</Text>}
+          ListEmptyComponent={list.hasNext ? null : <Text style={s.statusText}>쪽지가 삭제되었거나 공개 범위가 바뀌었을 수 있어요.</Text>}
+          ListFooterComponent={list.hasNext ? (
+            <View style={s.status}>
+              {list.error && <Text style={s.statusText}>{list.error}</Text>}
+              {list.loadingMore ? <ActivityIndicator color="#2350FF" accessibilityLabel="추가 쪽지 불러오는 중" /> : (
+                <Pressable onPress={list.error ? onRetry : onLoadMore} style={s.retry} accessibilityRole="button">
+                  <Text style={s.retryText}>{list.error ? '다시 시도' : '더 보기'}</Text>
+                </Pressable>
+              )}
+            </View>
+          ) : null}
           renderItem={({ item: note, index }) => (
             <View style={s.card}>
               <Image source={PAPER_THUMBS[index % PAPER_THUMBS.length]} style={s.paper} contentFit="contain" accessible={false} />
@@ -85,7 +97,7 @@ export function NearbyNotesSheet({ list, height, onClose, onRetry, onOpen }: {
                   {note.visibility === 'PRIVATE' ? <ComposeIcon name="lock" size={14} color="#8E8E93" />
                     : <Image source={note.visibility === 'FRIENDS' ? AUTHOR_ICONS.friends : AUTHOR_ICONS.public}
                       style={s.authorIcon} contentFit="contain" accessible={false} />}
-                  <Text style={s.author} numberOfLines={1}>{note.isMine ? '내 쪽지' : note.authorNickname || '누군가'} · {Math.ceil(note.distanceMeters)}m</Text>
+                  <Text style={s.author} numberOfLines={1}>{note.isMine ? '내 쪽지' : note.authorNickname || '누군가'}{note.distanceMeters === null ? '' : ` · ${Math.ceil(note.distanceMeters)}m`}</Text>
                 </View>
               </View>
               <Pressable onPress={() => onOpen(note)} accessibilityRole="button" accessibilityLabel="쪽지 열기" style={s.open}>

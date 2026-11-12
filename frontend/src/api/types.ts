@@ -24,11 +24,33 @@ export type MapBounds = {
   maxLongitude: number;
 };
 
+export type MapViewport = { bounds: MapBounds; zoom: number };
+
+export type MapFilter = 'ALL' | 'FRIENDS' | 'MINE' | 'SAVED';
+
+export type MapCluster = MapBounds & {
+  clusterId: string;
+  latitude: number;
+  longitude: number;
+  count: number;
+  noteId: string | null;
+};
+
+export type MapClustersResponse = {
+  clusters: MapCluster[];
+  totalCount: number;
+  gridSize: number;
+};
+
+export type MapClusterMarker = MapCluster & { id: string };
+
 export type NoteMarker = {
   noteId: string;
   latitude: number;
   longitude: number;
   isMine: boolean;
+  accessStatus: 'OPENABLE' | 'LOCKED' | 'LOCATION_REQUIRED';
+  distanceMeters: number | null;
 };
 
 export type NoteMarkersResponse = {
@@ -42,7 +64,7 @@ export type NoteMarkersResponse = {
 export type MapNoteLocation = { latitude: number; longitude: number };
 
 export type MapNotePreview = {
-  isSaved: boolean;
+  isSaved: boolean | null;
   noteId: string;
   preview: string;
   distanceMeters: number | null;
