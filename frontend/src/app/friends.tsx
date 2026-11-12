@@ -174,7 +174,7 @@ function FriendsContent({ mockDataEnabled, isReady }: { mockDataEnabled: boolean
         )}
       />
       <BottomTabBar selectedTab="friends" onAddPress={openCompose} />
-      {addMode ? <FriendAddDialog initialMode={addMode} onClose={closeAddFriend} /> : null}
+      <FriendAddDialog initialMode={addMode} onClose={closeAddFriend} />
     </View>
   );
 }

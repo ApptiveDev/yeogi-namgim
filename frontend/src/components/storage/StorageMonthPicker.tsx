@@ -1,14 +1,14 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
 import { MonthPickerWheel } from '@/components/storage/MonthPickerWheel';
 import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
 import { STORAGE_MONTHS } from '@/constants/storage';
+import { usePopupMotion } from '@/hooks/use-ui-motion';
 import {
   type MonthPickerAnchor,
   MONTH_PICKER_HEIGHT,
@@ -21,17 +21,26 @@ import {
 
 type Props = {
   month: Date;
-  anchor: MonthPickerAnchor;
+  anchor: MonthPickerAnchor | null;
   onConfirm: (month: Date) => void;
   onClose: () => void;
 };
 
 const MONTHS = STORAGE_MONTHS.map((_, index) => index + 1);
-const ENTER_ANIMATION = FadeIn.duration(120).reduceMotion(ReduceMotion.System);
 const formatYear = (year: number) => String(year);
 const formatMonth = (month: number, selected: boolean) => selected ? STORAGE_MONTHS[month - 1] : STORAGE_MONTHS[month - 1].slice(0, 3);
 
-export function StorageMonthPicker({ month, anchor, onConfirm, onClose }: Props) {
+export function StorageMonthPicker({ anchor, ...props }: Props) {
+  const motion = usePopupMotion(anchor);
+  if (!motion.content) return null;
+  return <MonthPickerContent {...props} anchor={motion.content} motion={motion} visible={anchor !== null} />;
+}
+
+function MonthPickerContent({ month, anchor, onConfirm, onClose, motion, visible }: Omit<Props, 'anchor'> & {
+  anchor: MonthPickerAnchor;
+  motion: ReturnType<typeof usePopupMotion<MonthPickerAnchor>>;
+  visible: boolean;
+}) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [year, setYear] = useState(() => month.getFullYear());
@@ -68,9 +77,9 @@ export function StorageMonthPicker({ month, anchor, onConfirm, onClose }: Props)
       animationType="none"
       statusBarTranslucent
       navigationBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={() => { if (visible) onClose(); }}
     >
-      <GestureHandlerRootView style={s.overlay}>
+      <GestureHandlerRootView style={s.overlay} {...motion.interactionProps}>
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}
@@ -78,8 +87,8 @@ export function StorageMonthPicker({ month, anchor, onConfirm, onClose }: Props)
           accessibilityLabel="년월 선택 취소"
         />
         <Animated.View
-          entering={ENTER_ANIMATION}
-          style={[s.popover, { width: position.width, left: position.left, top: position.top }]}
+          style={[s.popover, { width: position.width, left: position.left, top: position.top,
+            opacity: motion.opacity, transform: [{ scale: motion.scale }] }]}
           accessibilityViewIsModal
           onAccessibilityEscape={onClose}
         >

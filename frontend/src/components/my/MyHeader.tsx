@@ -1,13 +1,14 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ScreenColors as C } from '@/constants/colors';
 
 export function MyHeader({ refreshing }: { refreshing: boolean }) {
   return (
     <View style={s.header}>
-      {refreshing ? <ActivityIndicator color={C.blue} accessibilityLabel="마이페이지 새로고침 중" /> : null}
+      {refreshing ? <LoadingSpinner color={C.blue} accessibilityLabel="마이페이지 새로고침 중" /> : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="설정"

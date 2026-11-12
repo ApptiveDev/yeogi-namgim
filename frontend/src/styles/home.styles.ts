@@ -26,18 +26,6 @@ export const styles = StyleSheet.create({
         textAlign: 'center',
     },
 
-    notesRetryButton: {
-        minHeight: 44,
-        paddingHorizontal: 16,
-        justifyContent: 'center',
-    },
-
-    notesRetryText: {
-        color: '#2350FF',
-        fontSize: 14,
-        fontWeight: '700',
-    },
-
     mapSelectorContainer: {
         position: 'absolute',
         left: '50%',

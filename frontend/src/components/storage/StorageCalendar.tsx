@@ -99,14 +99,12 @@ function CalendarHeading({ month, today, onChangeMonth, onSelectMonth }: Calenda
         </Text>
       </Pressable>
       <MonthArrow offset={1} disabled={nextDisabled} onChangeMonth={onChangeMonth} />
-      {pickerAnchor && (
-        <StorageMonthPicker
-          month={month}
-          anchor={pickerAnchor}
-          onConfirm={onSelectMonth}
-          onClose={() => setPickerAnchor(null)}
-        />
-      )}
+      <StorageMonthPicker
+        month={month}
+        anchor={pickerAnchor}
+        onConfirm={onSelectMonth}
+        onClose={() => setPickerAnchor(null)}
+      />
     </View>
   );
 }

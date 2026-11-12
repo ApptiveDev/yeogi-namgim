@@ -3,6 +3,7 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { Animated, Easing, Platform, Pressable, Text, View } from 'react-native';
 
 import { COMPOSE_DIM_DURATION, COMPOSE_DIM_OPACITY } from '@/components/notes/compose-transitions';
+import { usePopupMotion } from '@/hooks/use-ui-motion';
 import { styles } from '@/styles/home.styles';
 
 const MAP_OPTIONS = ['공개지도', '개인지도'] as const;
@@ -21,6 +22,7 @@ export function MapSelector({
 }: Props) {
   const [selectorShadeOpacity] = useState(() => new Animated.Value(0));
   const [selectedMap, setSelectedMap] = useState<typeof MAP_OPTIONS[number]>('공개지도');
+  const menuMotion = usePopupMotion(isMapMenuOpen ? true : null);
 
   useEffect(() => {
     const animation = Animated.timing(selectorShadeOpacity, {
@@ -68,8 +70,9 @@ export function MapSelector({
             />
           </Pressable>
 
-          {isMapMenuOpen && (
-            <View style={styles.mapMenu}>
+          {menuMotion.content && (
+            <Animated.View {...menuMotion.interactionProps}
+              style={[styles.mapMenu, { opacity: menuMotion.opacity, transform: [{ scale: menuMotion.scale }] }]}>
               {MAP_OPTIONS.map((option) => (
                 <Pressable
                   key={option}
@@ -92,7 +95,7 @@ export function MapSelector({
                   </Text>
                 </Pressable>
               ))}
-            </View>
+            </Animated.View>
           )}
           <Animated.View
             pointerEvents="none"

@@ -1,21 +1,25 @@
 import { Image } from 'expo-image';
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
+import { Animated, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { NOTE_READ_RADIUS_METERS } from '@/constants/home-map';
 import type { NoteMapSelection } from '@/hooks/use-home-map';
+import { usePopupMotion } from '@/hooks/use-ui-motion';
 import { NoteSelectionHighlight } from './NoteSelectionHighlight';
 
-export function NoteLockedDialog({ selection, onClose }: { selection: NoteMapSelection | null; onClose: () => void }) {
+export function NoteLockedDialog({ selection: selectedPoint, onClose }: { selection: NoteMapSelection | null; onClose: () => void }) {
   const { height } = useWindowDimensions();
-  const reduceMotion = useReducedMotion();
-  if (!selection || selection.isInside) return null;
+  const activeSelection = selectedPoint?.isInside === false ? selectedPoint : null;
+  const motion = usePopupMotion(activeSelection);
+  const selection = motion.content;
+  if (!selection) return null;
   return (
-    <Modal transparent animationType={reduceMotion ? 'none' : 'fade'} statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
-      <View style={s.container}>
+    <Modal transparent animationType="none" statusBarTranslucent navigationBarTranslucent
+      onRequestClose={() => { if (activeSelection) onClose(); }}>
+      <Animated.View {...motion.interactionProps} style={[s.container, { opacity: motion.opacity }]}>
         <Pressable style={s.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="안내 닫기" />
         <NoteSelectionHighlight key={selection.key} point={selection.point} isInside={false} screenPoint={selection.screenPoint} />
-        <View style={[s.card, { transform: [{ translateY: height * 0.04 }] }]} accessibilityViewIsModal>
+        <Animated.View key={selection.key} style={[s.card, { transform: [{ translateY: height * 0.04 }, { scale: motion.scale }] }]}
+          accessibilityViewIsModal onAccessibilityEscape={onClose}>
           <View style={s.badge}>
             <Image source={require('../../../assets/images/map-note-lock.svg')} style={s.lock} contentFit="contain" accessible={false} />
           </View>
@@ -27,8 +31,8 @@ export function NoteLockedDialog({ selection, onClose }: { selection: NoteMapSel
           <Pressable onPress={onClose} accessibilityRole="button" style={({ pressed }) => [s.confirm, pressed && s.pressed]}>
             <Text style={s.confirmText}>확인</Text>
           </Pressable>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }

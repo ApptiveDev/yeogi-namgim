@@ -1,9 +1,11 @@
 import { useFonts } from 'expo-font';
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams, useIsFocused } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { SelectionPulse } from '@/components/ui/selection-pulse';
 import { Toast } from '@/components/ui/toast';
 import { useNoteDetail } from '@/hooks/use-note-detail';
 
@@ -44,7 +46,7 @@ export default function NoteDetailScreen() {
           </Pressable>
         </View>
         {detail.loading || (!fontsLoaded && !fontError) ? (
-          <View style={s.status}><ActivityIndicator color="#D6F65A" accessibilityLabel="쪽지 불러오는 중" /></View>
+          <View style={s.status}><LoadingSpinner color="#D6F65A" accessibilityLabel="쪽지 불러오는 중" /></View>
         ) : note ? <>
           <View style={s.paper}>
             <Image source={ASSETS.grid} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} />
@@ -62,9 +64,13 @@ export default function NoteDetailScreen() {
             <View style={s.actions}>
               <Pressable onPress={detail.toggleSaved} disabled={note.isMine || detail.saving} accessibilityRole="button"
                 accessibilityLabel={note.isMine ? '내 쪽지' : note.isSaved ? '저장 취소' : '저장하기'}
-                accessibilityState={{ disabled: note.isMine || detail.saving, busy: detail.saving }}
+                accessibilityState={{ disabled: note.isMine || detail.saving, busy: detail.saving, selected: note.isSaved }}
                 style={({ pressed }) => [s.action, s.save, (pressed || note.isMine || detail.saving) && s.dimmed]}>
-                {detail.saving ? <ActivityIndicator color="#0E0E0E" /> : <Image source={ASSETS.bookmark} style={s.icon22} contentFit="contain" accessible={false} />}
+                <SelectionPulse key={note.noteId} selected={note.isSaved}>
+                  {detail.saving
+                    ? <LoadingSpinner color="#0E0E0E" accessibilityLabel="저장 상태 변경 중" />
+                    : <Image source={ASSETS.bookmark} style={s.icon22} contentFit="contain" accessible={false} />}
+                </SelectionPulse>
                 <Text style={s.actionText}>{note.isMine ? '내 쪽지' : note.isSaved ? '저장 취소' : '저장하기'}</Text>
               </Pressable>
               <Pressable disabled accessibilityRole="button" accessibilityLabel="공유하기" accessibilityState={{ disabled: true }} style={[s.action, s.share]}>
