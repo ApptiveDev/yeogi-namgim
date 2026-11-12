@@ -30,7 +30,18 @@ type NearbyRequest = {
   range: number; page: number; hasNext: boolean; busy: boolean; notes: Map<string, MapNotePreview>;
   hasNotes: boolean; allLocked: boolean; locationRequired: boolean; nearestLocked: number | null;
   targetCount: number | null; visibleCount: number;
+  bookmarkChanges: ReadonlyMap<string, boolean>;
 };
+
+function updateNearbyNote(request: NearbyRequest, note: MapNotePreview) {
+  const isSaved = request.bookmarkChanges.get(note.noteId);
+  if (isSaved === false && (request.filter === 'SAVED' || !note.isMine
+    && (note.distanceMeters === null || note.distanceMeters > NOTE_READ_RADIUS_METERS))) {
+    request.notes.delete(note.noteId);
+  } else {
+    request.notes.set(note.noteId, isSaved === undefined ? note : { ...note, isSaved });
+  }
+}
 
 const nearbyPreviews = (request: NearbyRequest) => [...request.notes.values()]
   .slice(0, request.visibleCount)
@@ -139,10 +150,12 @@ export function useHomeMap({
   useEffect(() => subscribeBookmarkChanges(({ owner, noteId, isSaved }) => {
     const request = nearbyRequest.current;
     if (!request || owner !== request.owner || owner !== getMemberSessionKey()) return;
+    request.bookmarkChanges = new Map(request.bookmarkChanges).set(noteId, isSaved);
     const note = request.notes.get(noteId);
-    if (note) request.notes.set(noteId, { ...note, isSaved });
+    if (note) updateNearbyNote(request, note);
     setNearby((previous) => previous?.key === request.key
-      ? { ...previous, notes: nearbyPreviews(request) } : previous);
+      ? { ...previous, notes: nearbyPreviews(request),
+        hasNext: request.hasNext || request.notes.size > request.visibleCount } : previous);
   }), []);
 
   const showListCamera = (request: NearbyRequest) => {
@@ -170,6 +183,7 @@ export function useHomeMap({
   const fetchNearbyNotes = async (request: NearbyRequest) => {
     if (request.busy) return;
     request.busy = true;
+    const bookmarkChanges = request.bookmarkChanges;
     const active = () => nearbyRequest.current === request && request.owner === getMemberSessionKey()
       && AppState.currentState !== 'background' && AppState.currentState !== 'inactive';
     const previousCount = Math.min(request.notes.size, request.visibleCount);
@@ -191,10 +205,12 @@ export function useHomeMap({
             request.nearestLocked = Math.min(request.nearestLocked ?? Infinity, marker.distanceMeters);
           }
         }
-        for (const note of page.openableNotes ?? []) request.notes.set(note.noteId, note);
+        for (const note of page.openableNotes ?? []) updateNearbyNote(request, note);
         if (page.hasNext) request.page = page.page + 1;
         else { request.range += 1; request.page = 0; }
         request.hasNext = request.range < request.bounds.length;
+        // Do not fetch another page just to replace a card removed during this request.
+        if (request.bookmarkChanges !== bookmarkChanges) break;
       }
 
       if (!active()) return;
@@ -257,7 +273,7 @@ export function useHomeMap({
         location: { latitude: userCoordinates.latitude, longitude: userCoordinates.longitude },
         range: 0, page: 0, hasNext: true, busy: false, notes: new Map(), hasNotes: false,
         allLocked: true, locationRequired: false, nearestLocked: null, targetCount: null,
-        visibleCount: filter === 'MINE' || filter === 'SAVED' ? 0 : Infinity };
+        visibleCount: filter === 'MINE' || filter === 'SAVED' ? 0 : Infinity, bookmarkChanges: new Map() };
       nearbyRequest.current = request;
       await fetchNearbyNotes(request);
     } catch (error) {
