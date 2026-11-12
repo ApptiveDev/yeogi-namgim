@@ -1,13 +1,16 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   ActivityIndicator, BackHandler, Keyboard, KeyboardAvoidingView,
   Platform, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export interface NoteDraft { content: string }
-export const INITIAL_NOTE_DRAFT: NoteDraft = { content: '' };
+import type { NoteCreateRequest } from '@/api/types';
+import { NoteVisibilityPicker } from '@/components/notes/NoteVisibilityPicker';
+
+export interface NoteDraft { content: string; visibility: NoteCreateRequest['visibility'] }
+export const INITIAL_NOTE_DRAFT: NoteDraft = { content: '', visibility: 'PUBLIC' };
 // Repeat at whole 18px cells so the exported grid joins without gaps.
 const GRID_TILE_WIDTH = 324;
 const GRID_TILE_HEIGHT = 378;
@@ -39,7 +42,7 @@ export interface NoteComposeSheetProps {
   locationReady: boolean;
   placeName: string;
   onPlaceNameChange: (value: string) => void;
-  onChange: (draft: NoteDraft) => void;
+  onChange: Dispatch<SetStateAction<NoteDraft>>;
   onClose: () => void;
   onSubmit: (draft: NoteDraft) => void;
   isSubmitting: boolean;
@@ -75,7 +78,8 @@ export function NoteComposeSheet({
             {isSubmitting ? <ActivityIndicator color="#0E0E0E" /> : <><Text style={s.submitText}>남기기</Text><Image source={A.arrow} style={s.icon16} contentFit="contain" /></>}
           </Pressable>
         </View>
-        <Text style={s.hint}>✦ 꾸미는 그대로 지도에 남겨져요</Text>
+        <NoteVisibilityPicker value={draft.visibility} disabled={isSubmitting}
+          onChange={(visibility) => onChange((previous) => ({ ...previous, visibility }))} />
         <View style={s.paperArea}>
           <View style={s.paper}>
             <View pointerEvents="none" style={s.grid} onLayout={(event) => setPaperSize(event.nativeEvent.layout)} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -85,7 +89,7 @@ export function NoteComposeSheet({
                     <Image source={A.grid} style={s.gridImage} contentFit="fill" accessible={false} />
                   </View>))}
             </View>
-            <TextInput accessibilityLabel="쪽지 내용" value={draft.content} onChangeText={(content) => onChange({ content })}
+            <TextInput accessibilityLabel="쪽지 내용" value={draft.content} onChangeText={(content) => onChange((previous) => ({ ...previous, content }))}
               placeholder="이 장소에 남길 이야기를 적어주세요." placeholderTextColor="#8C8577" multiline scrollEnabled maxLength={500}
               editable={!isSubmitting} textAlignVertical="top" selectionColor="#D6F65A" style={s.input} />
             <Text style={s.count}>{draft.content.length} / 500</Text>
@@ -126,21 +130,20 @@ export function NoteComposeSheet({
 const s = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFill, zIndex: 30, backgroundColor: 'rgba(0,0,0,0.88)' },
   content: { flex: 1, paddingHorizontal: 24 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 44, marginBottom: 12 },
-  hint: { fontFamily: 'NotoSansKR-Medium', fontSize: 12, lineHeight: 18, letterSpacing: -0.2, color: '#8E8E93', textAlign: 'center', marginBottom: 17 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 44 },
   close: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(44,44,46,0.85)', alignItems: 'center', justifyContent: 'center' },
   submit: { minWidth: 91, height: 40, borderRadius: 24, backgroundColor: '#D6F65A', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 14 },
   submitText: { fontFamily: 'NotoSansKR-Bold', fontSize: 15, color: '#0E0E0E' },
   disabled: { opacity: 0.5 },
   icon16: { width: 16, height: 16 }, icon20: { width: 20, height: 20 }, icon24: { width: 24, height: 24 },
-  paperArea: { flex: 1, minHeight: 80, marginBottom: 20, marginHorizontal: 8 },
-  paper: { flex: 1, backgroundColor: '#EEE6D3', transform: [{ rotate: '1.5deg' }], shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 9, elevation: 8 },
+  paperArea: { flex: 1, minHeight: 80, marginTop: 12, marginBottom: 20, marginHorizontal: 8 },
+  paper: { flex: 1, backgroundColor: '#EEE6D3', transformOrigin: 'center top', transform: [{ rotate: '1.5deg' }], shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 9, elevation: 8 },
   grid: { ...StyleSheet.absoluteFill, overflow: 'hidden' },
   gridTile: { position: 'absolute', width: GRID_TILE_WIDTH, height: GRID_TILE_HEIGHT, overflow: 'hidden' },
   gridImage: { width: 329.5, height: 392.5 },
   input: { flex: 1, paddingHorizontal: 22, paddingTop: 36, paddingBottom: 24, fontFamily: 'NanumPen', fontSize: 23, lineHeight: 31, color: '#1C1C1E' },
   count: { position: 'absolute', right: 12, bottom: 6, fontSize: 10, color: '#8C8577' },
-  tape: { position: 'absolute', left: -3, top: -20, width: 86, height: 26, backgroundColor: '#3A6FD8', transform: [{ rotate: '-10deg' }] },
+  tape: { position: 'absolute', left: 4, top: -4, width: 86, height: 26, backgroundColor: '#3A6FD8', transform: [{ rotate: '-10deg' }] },
   location: { height: 48, flexShrink: 0, borderRadius: 16, backgroundColor: '#2C2C2E', flexDirection: 'row', alignItems: 'center', paddingLeft: 14, marginBottom: 12, gap: 8 },
   locationText: { flex: 1, minWidth: 0 },
   placeName: { height: 20, padding: 0, fontFamily: 'NotoSansKR-Bold', fontSize: 14, lineHeight: 20, includeFontPadding: false, textAlignVertical: 'center', color: '#FFF' },

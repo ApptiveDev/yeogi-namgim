@@ -7,6 +7,7 @@ type Snapshot = {
   calendar: ArchiveCalendar | null;
   notes: readonly StorageNote[];
   next: ArchivePosition | null;
+  hasLoaded: boolean;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
@@ -33,10 +34,9 @@ function reconcileNotes(previous: readonly StorageNote[], incoming: readonly Sto
 
 export function createArchiveStore(owner: number | null, selection: ArchiveSelection,
   readCalendar = () => runMemberRequest((token) => getArchiveCalendar(token, selection.month))) {
-  let snapshot: Snapshot = { calendar: null, notes: [], next: null, loading: true, refreshing: false, error: null };
+  let snapshot: Snapshot = { calendar: null, notes: [], next: null, hasLoaded: false, loading: true, refreshing: false, error: null };
   let pending: { refresh: boolean } | null = null;
   let stale = true;
-  let hasLoaded = false;
   let retryRefresh = true;
   const listeners = new Set<() => void>();
   const isOwner = () => owner !== null && owner === getMemberSessionKey() && getAuthState().status === 'authenticated';
@@ -53,7 +53,7 @@ export function createArchiveStore(owner: number | null, selection: ArchiveSelec
     pending = request;
     const isCurrent = () => pending === request && isOwner();
     const position = refresh ? { dayIndex: 0, cursor: null } : snapshot.next!;
-    update({ loading: !hasLoaded || !refresh, refreshing: refresh && hasLoaded && !background, error: null });
+    update({ loading: !snapshot.hasLoaded || !refresh, refreshing: refresh && snapshot.hasLoaded && !background, error: null });
     try {
       const calendar = refresh ? await readCalendar() : snapshot.calendar!;
       if (!isCurrent()) return;
@@ -65,12 +65,11 @@ export function createArchiveStore(owner: number | null, selection: ArchiveSelec
       const byId = new Map((refresh ? [] : snapshot.notes).map((note) => [note.id, note]));
       result.notes.forEach((note) => byId.set(note.id, note));
       stale = false;
-      hasLoaded = true;
       const next = snapshot.next?.dayIndex === result.next?.dayIndex && snapshot.next?.cursor === result.next?.cursor ? snapshot.next : result.next;
       update({
         calendar: sameCalendar(snapshot.calendar, calendar) ? snapshot.calendar : calendar,
         notes: reconcileNotes(snapshot.notes, [...byId.values()]), next,
-        loading: false, refreshing: false, error: null,
+        hasLoaded: true, loading: false, refreshing: false, error: null,
       });
     } catch (error) {
       if (isCurrent()) {

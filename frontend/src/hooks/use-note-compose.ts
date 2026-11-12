@@ -66,12 +66,12 @@ export function useNoteCompose({
     try {
       await runMemberRequest((token) => createNote({
         content, latitude: composeCoordinates.latitude, longitude: composeCoordinates.longitude,
-        visibility: 'PUBLIC',
+        visibility: submittedDraft.visibility,
         ...(placeName.trim() && { placeName: placeName.trim() }),
         ...(neighborhood && { neighborhood }),
       }, token));
       if (requestId !== composeRequest.current) return;
-      setDraft(INITIAL_NOTE_DRAFT);
+      setDraft({ ...INITIAL_NOTE_DRAFT, visibility: submittedDraft.visibility });
       submitting.current = false;
       closeCompose();
       setNotesRefreshKey((key) => key + 1);

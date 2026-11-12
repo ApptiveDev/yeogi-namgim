@@ -1,13 +1,15 @@
 import { Image } from 'expo-image';
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { FriendAvatar } from '@/components/friends/FriendAvatar';
 import { ComposeIcon } from '@/components/notes/ComposeIcon';
+import { Skeleton, SkeletonBlock } from '@/components/ui/skeleton';
 import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
 import type { FriendActivity } from '@/types/friends';
 
-export function FriendActivityCard({ activity, timeLabel, showExamplePreview }: {
+export const FriendActivityCard = memo(function FriendActivityCard({ activity, timeLabel, showExamplePreview }: {
   activity: FriendActivity;
   timeLabel: string;
   showExamplePreview: boolean;
@@ -44,12 +46,31 @@ export function FriendActivityCard({ activity, timeLabel, showExamplePreview }: 
       ) : null}
     </View>
   );
+});
+
+export function FriendActivitiesSkeleton() {
+  return (
+    <Skeleton label="친구 쪽지 소식">
+      {[0, 1, 2].map((row) => (
+        <View key={row} style={s.card}>
+          <View style={s.header}>
+            <SkeletonBlock style={{ width: 34, height: 34, borderRadius: 17 }} />
+            <View style={[s.content, s.placeholderContent]}>
+              <SkeletonBlock style={{ width: '74%', height: 14 }} />
+              <SkeletonBlock style={{ width: '45%', height: 10 }} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </Skeleton>
+  );
 }
 
 const s = StyleSheet.create({
   card: { gap: 12, marginTop: 12, padding: 14, backgroundColor: C.surface, borderRadius: 22, boxShadow: '0px 2px 12px rgba(0, 0, 0, 0.06)' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   content: { flex: 1, minWidth: 0 },
+  placeholderContent: { gap: 4 },
   message: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 14, lineHeight: 20, color: C.ink, includeFontPadding: false },
   metadata: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   location: { flexShrink: 1, fontFamily: FontFamilies.notoSansKrMedium, fontSize: 11, lineHeight: 14, color: '#8E8E93', includeFontPadding: false },

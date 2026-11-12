@@ -1,7 +1,7 @@
 import { useFonts } from 'expo-font';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, AppState, FlatList, Pressable, StyleSheet, Text, View, type ListRenderItem } from 'react-native';
+import { AppState, FlatList, Pressable, StyleSheet, Text, View, type ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomTabBar from '@/components/navigation/BottomTabBar';
@@ -10,7 +10,7 @@ import { StorageCalendar } from '@/components/storage/StorageCalendar';
 import { StorageEmptyState } from '@/components/storage/StorageEmptyState';
 import { StorageFilters } from '@/components/storage/StorageFilters';
 import { StorageHeader } from '@/components/storage/StorageHeader';
-import { StorageNoteCard } from '@/components/storage/StorageNoteCard';
+import { StorageNoteCard, StorageNotesSkeleton } from '@/components/storage/StorageNoteCard';
 import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
 import { STORAGE_FILTERS } from '@/constants/storage';
@@ -64,7 +64,8 @@ export default function StorageScreen() {
   const archive = useArchiveNotes(monthKey, storage.selectedDate, filter);
   const isFriends = filter === 'friends';
   const [today, setToday] = useState(getSeoulToday);
-  const isLoading = !fontsLoaded && !fontError;
+  const preparing = !fontsLoaded && !fontError;
+  const notesLoading = preparing || (!isFriends && !archive.hasLoaded && archive.loading);
   const emptyState = storage.selectedDate ? EMPTY_DAY : storage.activeFilter;
 
   useFocusEffect(useCallback(() => {
@@ -88,53 +89,47 @@ export default function StorageScreen() {
   return (
     <View style={s.screen}>
       <Stack.Screen options={SCREEN_OPTIONS} />
-      {isLoading ? (
-        <View style={s.loading}>
-          <ActivityIndicator color={C.blue} accessibilityLabel="보관함 준비 중" />
-        </View>
-      ) : (
-        <FlatList
-          data={isFriends ? EMPTY_NOTES : archive.notes}
-          keyExtractor={noteKey}
-          renderItem={renderNote}
-          showsVerticalScrollIndicator={false}
-          refreshing={!isFriends && archive.refreshing}
-          onRefresh={isFriends ? undefined : () => { void archive.refresh(); }}
-          contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 94 }]}
-          ListHeaderComponent={(
-            <>
-              <StorageHeader />
-              <StorageFilters selected={storage.filter} counts={archive.counts} onSelect={selectFilter} />
-              <StorageCalendar
-                month={storage.month}
-                today={today}
-                selectedDate={storage.selectedDate}
-                markedDates={isFriends ? EMPTY_DATES : archive.markedDates}
-                onChangeMonth={storage.changeMonth}
-                onSelectDate={storage.selectDate}
-                onSelectMonth={storage.selectMonth}
-              />
-            </>
-          )}
-          ListEmptyComponent={isFriends || (!archive.loading && !archive.error && !archive.next) ? (
-            <StorageEmptyState
-              title={emptyState.emptyTitle}
-              description={emptyState.emptyDescription}
-              onCompose={openCompose}
+      <FlatList
+        data={isFriends || notesLoading ? EMPTY_NOTES : archive.notes}
+        keyExtractor={noteKey}
+        renderItem={renderNote}
+        showsVerticalScrollIndicator={false}
+        refreshing={!isFriends && archive.refreshing}
+        onRefresh={isFriends || notesLoading ? undefined : () => { void archive.refresh(); }}
+        contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 94 }]}
+        ListHeaderComponent={(
+          <>
+            <StorageHeader />
+            <StorageFilters selected={storage.filter} counts={archive.counts} onSelect={selectFilter} />
+            <StorageCalendar
+              month={storage.month}
+              today={today}
+              selectedDate={storage.selectedDate}
+              markedDates={isFriends ? EMPTY_DATES : archive.markedDates}
+              onChangeMonth={storage.changeMonth}
+              onSelectDate={storage.selectDate}
+              onSelectMonth={storage.selectMonth}
             />
-          ) : null}
-          ListFooterComponent={isFriends ? null : (
-            <>
-              <AccountLoadState loading={archive.loading} error={archive.error} onRetry={() => { void archive.retry(); }} label="보관함" />
-              {archive.next && !archive.loading && !archive.error ? (
-                <Pressable accessibilityRole="button" accessibilityLabel="보관함 쪽지 더 보기" onPress={() => { void archive.loadMore(); }} style={s.more}>
-                  <Text style={s.moreText}>더 보기</Text>
-                </Pressable>
-              ) : null}
-            </>
-          )}
-        />
-      )}
+          </>
+        )}
+        ListEmptyComponent={notesLoading ? <StorageNotesSkeleton /> : isFriends || (!archive.error && !archive.next) ? (
+          <StorageEmptyState
+            title={emptyState.emptyTitle}
+            description={emptyState.emptyDescription}
+            onCompose={openCompose}
+          />
+        ) : null}
+        ListFooterComponent={isFriends || notesLoading ? null : (
+          <>
+            <AccountLoadState loading={archive.loading} error={archive.error} onRetry={() => { void archive.retry(); }} label="보관함" />
+            {archive.next && !archive.loading && !archive.error ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="보관함 쪽지 더 보기" onPress={() => { void archive.loadMore(); }} style={s.more}>
+                <Text style={s.moreText}>더 보기</Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+      />
       <BottomTabBar selectedTab="storage" onAddPress={openCompose} />
     </View>
   );
@@ -143,7 +138,6 @@ export default function StorageScreen() {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.background },
   content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 24 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   more: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: C.lime, marginTop: 16 },
   moreText: { fontFamily: FontFamilies.notoSansKrBold, color: C.ink, fontSize: 14 },
 });
