@@ -4,12 +4,14 @@ import { memo, useMemo, useRef } from 'react';
 import { Alert } from 'react-native';
 
 import type { MapClusterMarker } from '@/api/types';
+import { NEARBY_CLUSTER_MIN_ZOOM, NOTE_READ_RADIUS_METERS } from '@/constants/home-map';
 import { CLUSTER_PROPERTIES, createNoteMapData, getNoteMapPoint, getServerClusters, type NoteMapPoint } from '@/utils/note-map-clusters';
 
 export type { NoteMapPoint } from '@/utils/note-map-clusters';
 
 type Props = {
   clusters: readonly MapClusterMarker[];
+  userPoint?: GeoJSON.Point | null;
   onPointPress?: (point: NoteMapPoint, loadClusters?: () => Promise<readonly MapClusterMarker[]>) => void;
   id?: string;
   afterId?: string;
@@ -17,12 +19,19 @@ type Props = {
 
 const COUNT: ExpressionSpecification = ['get', 'noteCount'];
 
-export const NoteMapLayer = memo(function NoteMapLayer({ clusters, onPointPress, id = 'notes', afterId }: Props) {
+export const NoteMapLayer = memo(function NoteMapLayer({ clusters, userPoint, onPointPress, id = 'notes', afterId }: Props) {
   const sourceRef = useRef<GeoJSONSourceRef>(null);
   const byId = useMemo(() => new Map(clusters.map((cluster) => [cluster.id, cluster])), [clusters]);
   const currentData = useRef(byId);
   currentData.current = byId;
   const data = useMemo(() => createNoteMapData(clusters), [clusters]);
+  // Evaluate the rendered point so native clusters use their final center, not their members.
+  const isNearby: ExpressionSpecification = userPoint
+    ? ['<=', ['distance', userPoint], NOTE_READ_RADIUS_METERS] : ['literal', false];
+  const fillColor: ExpressionSpecification = ['step', ['zoom'], '#2350FF', NEARBY_CLUSTER_MIN_ZOOM,
+    ['case', isNearby, '#D6F65A', '#2350FF']];
+  const foregroundColor: ExpressionSpecification = ['step', ['zoom'], '#FFFFFF', NEARBY_CLUSTER_MIN_ZOOM,
+    ['case', isNearby, '#0E0E0E', '#FFFFFF']];
 
   return (
     <GeoJSONSource
@@ -56,14 +65,14 @@ export const NoteMapLayer = memo(function NoteMapLayer({ clusters, onPointPress,
     >
       <Layer id={`${id}-circles`} type="circle" afterId={afterId} paint={{
         'circle-radius': ['step', COUNT, 19, 100, 23, 10000, 29],
-        'circle-color': '#2350FF', 'circle-stroke-color': '#FFFFFF', 'circle-stroke-width': 3,
+        'circle-color': fillColor, 'circle-stroke-color': foregroundColor, 'circle-stroke-width': 3,
         'circle-pitch-alignment': 'viewport', 'circle-pitch-scale': 'viewport',
       }} />
       <Layer id={`${id}-symbols`} type="symbol" afterId={`${id}-circles`} layout={{
         'text-field': ['to-string', COUNT], 'text-font': ['Noto Sans Bold'], 'text-size': 16,
         'text-anchor': 'center', 'text-allow-overlap': true, 'text-ignore-placement': true,
         'text-pitch-alignment': 'viewport', 'text-rotation-alignment': 'viewport',
-      }} paint={{ 'text-color': '#FFFFFF' }} />
+      }} paint={{ 'text-color': foregroundColor }} />
     </GeoJSONSource>
   );
 });

@@ -121,6 +121,7 @@ export function HomeMap({ map, initialCenter, cameraRef, isComposeOpen, onCompos
 
         <NoteMapLayer
           clusters={mapClusters}
+          userPoint={userPoint}
           afterId={userPoint ? 'user-location-marker' : userCircle ? 'user-radius-outline' : BASE_MAP_TOP_LAYER}
           onPointPress={(point, loadClusters) => { void map.handleNotePointPress(point, loadClusters); }}
         />

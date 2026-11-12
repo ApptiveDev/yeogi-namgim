@@ -10,7 +10,7 @@ import { getNoteMarkers, MAP_NOTES_LIST_PAGE_SIZE, MAP_NOTES_PAGE_SIZE } from '@
 import type { MapBounds, MapClusterMarker, MapFilter, MapNoteLocation, MapNotePreview, MapViewport } from '@/api/types';
 import { getAuthState, getMemberSessionKey, runMemberRequest, subscribeAuth } from '@/auth/member-session';
 import type { NoteMapPoint } from '@/components/notes/NoteMapLayer';
-import { CAMERA_RETURN_DURATION, DEFAULT_MAP_VIEW, NOTE_READ_RADIUS_METERS, USER_RADIUS_METERS } from '@/constants/home-map';
+import { CAMERA_RETURN_DURATION, DEFAULT_MAP_VIEW, NOTE_READ_RADIUS_METERS } from '@/constants/home-map';
 import { useNoteMarkers } from '@/hooks/use-note-markers';
 import { subscribeBookmarkChanges } from '@/state/note-bookmarks';
 import { createLocationCircle } from '@/utils/location-circle';
@@ -87,8 +87,8 @@ export function useHomeMap({
     type: 'Point', coordinates: [composeCoordinates.longitude, composeCoordinates.latitude],
   } : null, [composeCoordinates]);
   const userCircle = useMemo(() => userCoordinates ? createLocationCircle(
-    userCoordinates.longitude, userCoordinates.latitude, isComposeOpen ? USER_RADIUS_METERS : NOTE_READ_RADIUS_METERS,
-  ) : null, [userCoordinates, isComposeOpen]);
+    userCoordinates.longitude, userCoordinates.latitude, NOTE_READ_RADIUS_METERS,
+  ) : null, [userCoordinates]);
 
   useEffect(() => {
     if (!isMapRendered || !isFollowingUser || isComposeOpen || !userPoint) return;
