@@ -46,7 +46,7 @@ const s = StyleSheet.create({
   tagPlaceholder: { width: '42%', height: 12, marginTop: 15 },
   bioPlaceholder: { width: '75%', height: 12, marginTop: 10 },
   nameBadge: { maxWidth: '100%', minWidth: 122, height: 36, paddingHorizontal: 12, gap: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 18, borderWidth: 2, borderColor: C.ink, backgroundColor: C.lime, transform: [{ rotate: '-6deg' }], boxShadow: '0px 2px 0px #0E0E0E' },
-  name: { flexShrink: 1, color: C.ink, fontFamily: FontFamilies.archivoBlack, fontSize: 20, lineHeight: 26, includeFontPadding: false },
+  name: { flexShrink: 1, color: C.ink, fontFamily: FontFamilies.notoSansKrBold, fontSize: 20, lineHeight: 26, includeFontPadding: false },
   star: { color: C.ink, fontSize: 18, lineHeight: 24 },
   tag: { alignSelf: 'stretch', marginTop: 12, fontFamily: FontFamilies.notoSansKrMedium, fontSize: 12, lineHeight: 18, color: C.muted, includeFontPadding: false },
   bio: { alignSelf: 'stretch', marginTop: 4, fontFamily: FontFamilies.notoSansKrMedium, fontSize: 12, lineHeight: 18, color: C.muted, includeFontPadding: false },

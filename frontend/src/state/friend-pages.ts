@@ -28,6 +28,7 @@ function createFriendPageStore<Item extends { id: string }, Response extends Pag
   getPage: (token: string, page: number) => Promise<Response>,
   toItems: (page: Response) => readonly Item[],
   equal: (previous: Item, incoming: Item) => boolean,
+  { discardUnverifiedOnError = false } = {},
 ) {
   let snapshot: Snapshot<Item> = EMPTY_FRIEND_PAGE;
   let lastPage = -1;
@@ -61,12 +62,12 @@ function createFriendPageStore<Item extends { id: string }, Response extends Pag
 
     async function fetchPages(): Promise<void> {
       const isCurrent = () => pending === request && owner === getMemberOwner();
+      const previous = snapshot.items;
+      const oldById = new Map(previous.map((item) => [item.id, item]));
+      const byId = mode === 'more' ? new Map(oldById) : new Map<string, Item>();
+      let page = start;
+      let hasNext = false;
       try {
-        const previous = snapshot.items;
-        const oldById = new Map(previous.map((item) => [item.id, item]));
-        const byId = mode === 'more' ? new Map(oldById) : new Map<string, Item>();
-        let page = start;
-        let hasNext = false;
         for (; page <= end; page += 1) {
           const result = await runMemberRequest((token) => getPage(token, page));
           if (!isCurrent()) return;
@@ -86,9 +87,17 @@ function createFriendPageStore<Item extends { id: string }, Response extends Pag
       } catch (error) {
         if (!isCurrent()) return;
         const forbidden = error instanceof ApiError && (error.status === 401 || error.status === 403);
-        if (forbidden) lastPage = -1;
-        retryMode = mode === 'more' && !forbidden ? 'more' : 'refresh';
-        update({ ...(forbidden ? EMPTY_FRIEND_PAGE : {}), loading: false, refreshing: false, error: friendErrorMessage(error) });
+        let retained: Partial<Snapshot<Item>> = {};
+        if (forbidden) {
+          lastPage = -1;
+          retained = EMPTY_FRIEND_PAGE;
+        } else if (discardUnverifiedOnError && mode !== 'more') {
+          // Retry from the failed page and display only the pages confirmed by this revalidation.
+          lastPage = page - 1;
+          retained = { items: [...byId.values()], hasLoaded: lastPage >= 0, hasNext };
+        }
+        retryMode = !forbidden && (mode === 'more' || retained.hasNext) ? 'more' : 'refresh';
+        update({ ...retained, loading: false, refreshing: false, error: friendErrorMessage(error) });
       } finally {
         if (pending === request) pending = null;
       }
@@ -134,5 +143,5 @@ function sameActivity(a: FriendActivity, b: FriendActivity) {
 
 export const getFriendPages = createMemberCache((owner) => ({
   friends: createFriendPageStore(owner, getFriends, friendsFromPage, sameFriend),
-  activities: createFriendPageStore(owner, getFriendActivities, activitiesFromPage, sameActivity),
+  activities: createFriendPageStore(owner, getFriendActivities, activitiesFromPage, sameActivity, { discardUnverifiedOnError: true }),
 }));

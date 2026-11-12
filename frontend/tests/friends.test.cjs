@@ -337,6 +337,44 @@ test('returning to the feed quietly revalidates all loaded pages and changes onl
   assert.equal(changes, 1);
 });
 
+test('a failed feed revalidation keeps only the confirmed pages and retries the missing page', async () => {
+  const { activities: store } = require('../src/state/friend-pages.ts').getFriendPages();
+  const revoked = { noteId: 'revoked', friendId: friend.friendId, nickname: friend.nickname,
+    placeName: '서울숲', neighborhood: null, createdAt: '2026-11-01T00:00:00Z' };
+  const current = { ...revoked, noteId: 'current' };
+  const older = { ...revoked, noteId: 'older' };
+  const page = (activities, index, hasNext) => ok({ activities, page: index, size: 20, hasNext });
+
+  respond = ({ query }) => query.get('page') === '0' ? page([revoked, current], 0, true) : page([older], 1, false);
+  await store.revalidate();
+  await store.loadMore();
+  const previous = store.getSnapshot();
+
+  respond = ({ query }) => query.get('page') === '0' ? page([current], 0, true) : fail(503, 'UNAVAILABLE');
+  await store.revalidate();
+  const partial = store.getSnapshot();
+  assert.ok(partial.error);
+  assert.equal(partial.hasNext, true);
+  assert.deepEqual(partial.items, [previous.items[1]]);
+  assert.equal(partial.items[0], previous.items[1]);
+
+  respond = () => page([older], 1, false);
+  await store.retry();
+  assert.deepEqual(calls.map(({ query }) => query.get('page')), ['0', '1', '0', '1', '1']);
+  assert.deepEqual(store.getSnapshot().items.map(({ id }) => id), ['current', 'older']);
+  assert.equal(store.getSnapshot().error, null);
+
+  respond = () => fail(503, 'UNAVAILABLE');
+  await store.reload();
+  assert.deepEqual(store.getSnapshot().items, []);
+  assert.ok(store.getSnapshot().error);
+
+  respond = () => page([current], 0, false);
+  await store.retry();
+  assert.equal(calls.at(-1).query.get('page'), '0');
+  assert.deepEqual(store.getSnapshot().items.map(({ id }) => id), ['current']);
+});
+
 test('malformed success payloads never report creation, preview or acceptance as complete', async () => {
   const flow = createFlow();
   respond = () => ok({ code: 'invalid', expiresAt: expiry() });

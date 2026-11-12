@@ -2,13 +2,14 @@ import { useFonts } from 'expo-font';
 import { Image } from 'expo-image';
 import { router, Stack } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MemberProfile } from '@/api/auth';
 import { AccountLoadState } from '@/components/my/AccountLoadState';
 import { BackButton } from '@/components/navigation/BackButton';
 import { ProfileVisibilityPicker } from '@/components/settings/ProfileVisibilityPicker';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Skeleton, SkeletonBlock } from '@/components/ui/skeleton';
 import { FontFamilies } from '@/constants/fonts';
 import { SettingsColors as C, StorageColors } from '@/constants/colors';
@@ -149,7 +150,8 @@ function BioPreviewField({ disabled }: { disabled: boolean }) {
 }
 
 function ProfileForm({ profile }: { profile: MemberProfile }) {
-  const [nickname, setNickname] = useState(profile.nickname);
+  const [nicknameDraft, setNicknameDraft] = useState<string | null>(null);
+  const nickname = nicknameDraft ?? profile.nickname;
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const saving = useRef(false);
@@ -164,12 +166,17 @@ function ProfileForm({ profile }: { profile: MemberProfile }) {
   }, []);
 
   function changeNickname(value: string) {
-    setNickname(value);
+    setNicknameDraft(value);
     setError(null);
   }
 
   function save() {
     if (saving.current) return;
+    if (nickname.trim() === profile.nickname.trim()) {
+      Keyboard.dismiss();
+      closeEditor();
+      return;
+    }
     const validation = nicknameLength > NICKNAME_LIMIT
       ? `닉네임은 ${NICKNAME_LIMIT}자까지 입력할 수 있어요.`
       : validateNickname(nickname, NICKNAME_LIMIT);
@@ -252,7 +259,7 @@ export default function ProfileEditScreen() {
         <BackButton accessibilityLabel="설정으로 돌아가기" onPress={closeEditor} />
         <Text accessibilityRole="header" style={[s.title, !fontsLoaded && s.fallbackTitle]}>프로필 편집</Text>
         {!loading && profile.loading ? (
-          <ActivityIndicator style={s.refreshing} color={C.ink} accessibilityLabel="프로필 새로고침 중" />
+          <LoadingSpinner style={s.refreshing} color={C.ink} accessibilityLabel="프로필 새로고침 중" />
         ) : null}
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.container, s.content, { paddingBottom: insets.bottom + 24 }]}>
