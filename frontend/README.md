@@ -127,6 +127,7 @@ frontend/
 ```
 
 협업 규칙은 [협업 가이드](../docs/CONTRIBUTING.md)를 참고합니다.
+화면과 컴포넌트의 애니메이션은 [공통 UI 모션 가이드](../docs/UI_MOTION_GUIDE.md)를 참고합니다.
 
 ## 화면 구성
 
