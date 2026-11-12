@@ -100,7 +100,7 @@ export default function StorageScreen() {
         ListHeaderComponent={(
           <>
             <StorageHeader />
-            <StorageFilters selected={storage.filter} counts={archive.counts} onSelect={selectFilter} />
+            <StorageFilters selected={storage.filter} counts={archive.counts} fontsReady={!preparing} onSelect={selectFilter} />
             <StorageCalendar
               month={storage.month}
               today={today}
