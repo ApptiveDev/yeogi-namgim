@@ -137,7 +137,7 @@ const s = StyleSheet.create({
   disabled: { opacity: 0.5 },
   icon16: { width: 16, height: 16 }, icon20: { width: 20, height: 20 }, icon24: { width: 24, height: 24 },
   paperArea: { flex: 1, minHeight: 80, marginTop: 12, marginBottom: 20, marginHorizontal: 8 },
-  paper: { flex: 1, backgroundColor: '#EEE6D3', transform: [{ rotate: '1.5deg' }], shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 9, elevation: 8 },
+  paper: { flex: 1, backgroundColor: '#EEE6D3', transformOrigin: 'center top', transform: [{ rotate: '1.5deg' }], shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 9, elevation: 8 },
   grid: { ...StyleSheet.absoluteFill, overflow: 'hidden' },
   gridTile: { position: 'absolute', width: GRID_TILE_WIDTH, height: GRID_TILE_HEIGHT, overflow: 'hidden' },
   gridImage: { width: 329.5, height: 392.5 },
