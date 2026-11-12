@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   ActivityIndicator, BackHandler, Keyboard, KeyboardAvoidingView,
   Platform, Pressable, StyleSheet, Text, TextInput, View,
@@ -42,7 +42,7 @@ export interface NoteComposeSheetProps {
   locationReady: boolean;
   placeName: string;
   onPlaceNameChange: (value: string) => void;
-  onChange: (draft: NoteDraft) => void;
+  onChange: Dispatch<SetStateAction<NoteDraft>>;
   onClose: () => void;
   onSubmit: (draft: NoteDraft) => void;
   isSubmitting: boolean;
@@ -79,7 +79,7 @@ export function NoteComposeSheet({
           </Pressable>
         </View>
         <NoteVisibilityPicker value={draft.visibility} disabled={isSubmitting}
-          onChange={(visibility) => onChange({ ...draft, visibility })} />
+          onChange={(visibility) => onChange((previous) => ({ ...previous, visibility }))} />
         <View style={s.paperArea}>
           <View style={s.paper}>
             <View pointerEvents="none" style={s.grid} onLayout={(event) => setPaperSize(event.nativeEvent.layout)} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -89,7 +89,7 @@ export function NoteComposeSheet({
                     <Image source={A.grid} style={s.gridImage} contentFit="fill" accessible={false} />
                   </View>))}
             </View>
-            <TextInput accessibilityLabel="쪽지 내용" value={draft.content} onChangeText={(content) => onChange({ ...draft, content })}
+            <TextInput accessibilityLabel="쪽지 내용" value={draft.content} onChangeText={(content) => onChange((previous) => ({ ...previous, content }))}
               placeholder="이 장소에 남길 이야기를 적어주세요." placeholderTextColor="#8C8577" multiline scrollEnabled maxLength={500}
               editable={!isSubmitting} textAlignVertical="top" selectionColor="#D6F65A" style={s.input} />
             <Text style={s.count}>{draft.content.length} / 500</Text>
