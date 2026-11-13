@@ -63,7 +63,7 @@ test('popover follows the heading and stays within narrow and wide safe areas', 
   }
 });
 
-function createStorageRenderer(notes) {
+function createCalendarRenderer() {
   const states = [];
   let cursor = 0;
 
@@ -87,17 +87,16 @@ function createStorageRenderer(notes) {
       return [states[index], (next) => { states[index] = typeof next === 'function' ? next(states[index]) : next; }];
     },
   };
-  const { useStorageNotes } = loadSource('hooks/use-storage-notes.ts', { react });
+  const { useStorageCalendar } = loadSource('hooks/use-storage-calendar.ts', { react });
   return (filter) => {
     cursor = 0;
-    return useStorageNotes(notes, filter);
+    return useStorageCalendar(filter);
   };
 }
 
 test('confirming a month normalizes its first day, clears date selection and retains the filter', () => {
   const year = new Date().getFullYear();
-  const notes = [{ id: 'mine', title: 'record', createdAt: new Date(year, 1, 28, 12).toISOString(), author: 'me', isSaved: false }];
-  const renderStorage = createStorageRenderer(notes);
+  const renderStorage = createCalendarRenderer();
   const render = () => renderStorage('mine');
   let state = render();
   state.selectDate(new Date(year, 9, 30));
@@ -111,8 +110,6 @@ test('confirming a month normalizes its first day, clears date selection and ret
   assert.equal(state.month.getHours(), 0);
   assert.equal(state.selectedDate, null);
   assert.equal(state.filter, 'mine');
-  assert.deepEqual(state.visibleNotes.map((note) => note.id), ['mine']);
-  assert.deepEqual([...state.markedDates], [`${year}-02-28`]);
 
   state.selectMonth(new Date(2025, 0, 1));
   state = render();
@@ -140,42 +137,19 @@ test('confirming a month normalizes its first day, clears date selection and ret
   assert.equal(state.selectedDate, null);
 });
 
-test('monthly badges and filtered markers stay stable while day selection narrows the newest-first list', () => {
-  const createdAt = (month, day, hour) => new Date(2025, month, day, hour).toISOString();
-  const notes = [
-    { id: 'saved-friend', createdAt: createdAt(1, 3, 9), author: 'friend', isSaved: true },
-    { id: 'mine', createdAt: createdAt(1, 4, 10), author: 'me', isSaved: false },
-    { id: 'newer-saved', createdAt: createdAt(1, 3, 17), author: 'anonymous', isSaved: true },
-    { id: 'another-month', createdAt: createdAt(2, 1, 10), author: 'friend', isSaved: true },
-  ];
-  const render = createStorageRenderer(notes);
-  render('all').selectMonth(new Date(2025, 1, 1));
-
-  const saved = render('saved');
-  assert.deepEqual(saved.counts, { all: 3, saved: 2, mine: 1, friends: 1 });
-  assert.deepEqual(saved.visibleNotes.map((note) => note.id), ['newer-saved', 'saved-friend']);
-  assert.deepEqual([...saved.markedDates], ['2025-02-03']);
-
-  saved.selectDate(new Date(2025, 1, 4));
-  const selected = render('saved');
-  assert.equal(selected.selectedDate, '2025-02-04');
-  assert.deepEqual(selected.visibleNotes, []);
-  assert.equal(selected.counts, saved.counts);
-  assert.equal(selected.markedDates, saved.markedDates);
+test('changing the filter retains the selected day, and tapping it again clears the selection', () => {
+  const render = createCalendarRenderer();
+  render('saved').selectMonth(new Date(2025, 1, 1));
+  render('saved').selectDate(new Date(2025, 1, 4));
+  assert.equal(render('saved').selectedDate, '2025-02-04');
 
   const all = render('all');
-  assert.deepEqual(all.visibleNotes.map((note) => note.id), ['mine']);
-  assert.equal(all.counts, saved.counts);
-  assert.deepEqual([...all.markedDates].sort(), ['2025-02-03', '2025-02-04']);
-
+  assert.equal(all.selectedDate, '2025-02-04');
   all.selectDate(new Date(2025, 1, 4));
-  const cleared = render('all');
-  assert.equal(cleared.selectedDate, null);
-  assert.deepEqual(cleared.visibleNotes.map((note) => note.id), ['mine', 'newer-saved', 'saved-friend']);
+  assert.equal(render('all').selectedDate, null);
 
-  cleared.selectDate(new Date(2025, 2, 1));
+  render('all').selectDate(new Date(2025, 2, 1));
   const adjacentMonth = render('all');
   assert.equal(adjacentMonth.month.getMonth(), 2);
   assert.equal(adjacentMonth.selectedDate, '2025-03-01');
-  assert.deepEqual(adjacentMonth.visibleNotes.map((note) => note.id), ['another-month']);
 });
