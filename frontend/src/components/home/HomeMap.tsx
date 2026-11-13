@@ -41,7 +41,7 @@ export function HomeMap({ map, initialCenter, cameraRef, onComposeCameraIdle }: 
         logo={false}
         attribution={false}
         onRegionWillChange={handleRegionWillChange}
-        onPress={map.clearMapSelection}
+        onPress={map.dismissMapSelection}
         onDidFinishLoadingMap={() => {
           setIsMapReady(true);
           void updateMapBounds();

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { authErrorMessage } from '@/api/auth';
 import { signOut } from '@/auth/member-session';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { FontFamilies } from '@/constants/fonts';
 import { SettingsColors as C } from '@/constants/colors';
+import { usePopupMotion } from '@/hooks/use-ui-motion';
 
 import { SettingsRow } from './SettingsRow';
 
@@ -15,7 +16,7 @@ export function SettingsSignOutRow() {
   const [error, setError] = useState<string | null>(null);
   const busy = useRef(false);
   const mounted = useRef(false);
-  const reduceMotion = useReducedMotion();
+  const motion = usePopupMotion(isOpen ? true : null);
 
   useEffect(() => {
     mounted.current = true;
@@ -29,9 +30,8 @@ export function SettingsSignOutRow() {
   }
 
   function closeConfirmation() {
-    if (busy.current) return;
+    if (!isOpen || busy.current) return;
     setIsOpen(false);
-    setError(null);
   }
 
   async function confirmSignOut() {
@@ -58,17 +58,17 @@ export function SettingsSignOutRow() {
         accessibilityHint="로그아웃 확인 창을 엽니다"
         onPress={openConfirmation}
       />
-      <Modal
-        visible={isOpen}
+      {motion.content && <Modal
         transparent
-        animationType={reduceMotion ? 'none' : 'fade'}
+        animationType="none"
         statusBarTranslucent
         navigationBarTranslucent
         onRequestClose={closeConfirmation}
       >
-        <View style={s.overlay}>
+        <Animated.View {...motion.interactionProps} style={[s.overlay, { opacity: motion.opacity }]}>
           <Pressable style={s.backdrop} onPress={closeConfirmation} disabled={isSigningOut} accessible={false} />
-          <View style={s.card} accessibilityViewIsModal onAccessibilityEscape={closeConfirmation}>
+          <Animated.View style={[s.card, { transform: [{ scale: motion.scale }] }]}
+            accessibilityViewIsModal onAccessibilityEscape={closeConfirmation}>
             <Text style={s.title} accessibilityRole="header">로그아웃할까요?</Text>
             <Text style={s.description}>{'다시 로그인하면 쪽지와 스티커는\n그대로 남아 있어요'}</Text>
             {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={s.error}>{error}</Text> : null}
@@ -91,12 +91,12 @@ export function SettingsSignOutRow() {
                 onPress={() => { void confirmSignOut(); }}
                 style={({ pressed }) => [s.button, s.confirm, pressed && s.pressed]}
               >
-                {isSigningOut ? <ActivityIndicator color={C.surface} /> : <Text style={[s.buttonText, s.confirmText]}>로그아웃하기</Text>}
+                {isSigningOut ? <LoadingSpinner color={C.surface} accessibilityLabel="로그아웃 중" active={isOpen} /> : <Text style={[s.buttonText, s.confirmText]}>로그아웃하기</Text>}
               </Pressable>
             </View>
-          </View>
-        </View>
-      </Modal>
+          </Animated.View>
+        </Animated.View>
+      </Modal>}
     </>
   );
 }

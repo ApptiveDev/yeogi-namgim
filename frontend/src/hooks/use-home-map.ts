@@ -2,7 +2,6 @@ import * as Location from 'expo-location';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { Alert, AppState, type NativeSyntheticEvent } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
 import type { CameraRef, MapRef, ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
 
 import { ApiError } from '@/api/client';
@@ -10,7 +9,8 @@ import { getNoteMarkers, MAP_NOTES_LIST_PAGE_SIZE, MAP_NOTES_PAGE_SIZE } from '@
 import type { MapBounds, MapClusterMarker, MapFilter, MapNoteLocation, MapNotePreview, MapViewport } from '@/api/types';
 import { getAuthState, getMemberSessionKey, runMemberRequest, subscribeAuth } from '@/auth/member-session';
 import type { NoteMapPoint } from '@/components/notes/NoteMapLayer';
-import { CAMERA_RETURN_DURATION, DEFAULT_MAP_VIEW, NOTE_READ_RADIUS_METERS } from '@/constants/home-map';
+import { CAMERA_RETURN_DURATION, DEFAULT_MAP_VIEW, NEARBY_CAMERA_RETURN_DURATION, NOTE_READ_RADIUS_METERS } from '@/constants/home-map';
+import { useMotionPreference } from '@/hooks/use-motion-preference';
 import { useNoteMarkers } from '@/hooks/use-note-markers';
 import { subscribeBookmarkChanges } from '@/state/note-bookmarks';
 import { createLocationCircle } from '@/utils/location-circle';
@@ -69,7 +69,7 @@ export function useHomeMap({
   const openingDetail = useRef(false);
   const listAnchor = useRef<[number, number] | null>(null);
   const listCameraTransition = useRef(false);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionPreference();
   const [filter, setFilter] = useState<MapFilter>('ALL');
   const [isMapReady, setIsMapReady] = useState(false);
   const [isMapRendered, setIsMapRendered] = useState(false);
@@ -78,6 +78,9 @@ export function useHomeMap({
   const [moving, setMoving] = useState(false);
   const [selection, setSelection] = useState<{ owner: number; value: NoteMapSelection } | null>(null);
   const [nearby, setNearby] = useState<(NearbyNoteList & { owner: number }) | null>(null);
+  const owner = getMemberSessionKey();
+  const nearbyNotes = !isComposeOpen && nearby?.owner === owner ? nearby : null;
+  const nearbyKey = nearbyNotes?.key;
   const { clusters: mapClusters, error: notesError, initialLoading: notesInitialLoading, retry: retryNotes }
     = useNoteMarkers(viewport, notesRefreshKey, moving, filter);
 
@@ -103,12 +106,12 @@ export function useHomeMap({
       padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: CAMERA_RETURN_DURATION, easing: 'ease' });
   }, [isMapRendered, isFollowingUser, isComposeOpen, userPoint, cameraRef]);
 
-  const restoreMapPadding = useCallback(() => {
+  const restoreMapPadding = useCallback((duration = 0) => {
     const center = listAnchor.current;
     if (!center) return;
     listAnchor.current = null;
     listCameraTransition.current = true;
-    cameraRef.current?.easeTo({ center, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 0 });
+    cameraRef.current?.easeTo({ center, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration });
   }, [cameraRef]);
 
   const discardMapSelection = useCallback(() => {
@@ -122,6 +125,19 @@ export function useHomeMap({
     discardMapSelection();
     restoreMapPadding();
   }, [discardMapSelection, restoreMapPadding]);
+
+  const dismissMapSelection = useCallback(() => {
+    if (nearbyKey === undefined) {
+      clearMapSelection();
+      return;
+    }
+    discardMapSelection();
+    restoreMapPadding(reduceMotion ? 0 : NEARBY_CAMERA_RETURN_DURATION);
+  }, [clearMapSelection, discardMapSelection, nearbyKey, reduceMotion, restoreMapPadding]);
+
+  const dismissNearbyNotes = useCallback((key: number) => {
+    if (nearbyKey === key && nearbyRequest.current?.key === key) dismissMapSelection();
+  }, [dismissMapSelection, nearbyKey]);
 
   useEffect(() => {
     if (!isComposeOpen) return;
@@ -341,17 +357,22 @@ export function useHomeMap({
     },
     mapRef, setIsMapReady, isMapReady, isMapRendered, setIsMapRendered, setMapError, startupError: mapError,
     userPoint, userCircle, mapClusters, handleNotePointPress,
-    notesError, notesInitialLoading, retryNotes, clearMapSelection,
-    selectedMapPoint: !isComposeOpen && selection?.owner === getMemberSessionKey() ? selection.value : null,
-    nearbyNotes: !isComposeOpen && nearby?.owner === getMemberSessionKey() ? nearby : null,
+    notesError, notesInitialLoading, retryNotes, clearMapSelection, dismissMapSelection,
+    selectedMapPoint: !isComposeOpen && selection?.owner === owner ? selection.value : null,
+    nearbyNotes,
+    dismissNearbyNotes,
     loadMoreNearbyNotes: () => { if (nearbyRequest.current) void fetchNearbyNotes(nearbyRequest.current); },
-    openNoteDetail: (note: MapNotePreview) => {
+    openNoteDetail: (key: number, noteId: string) => {
       const request = nearbyRequest.current;
-      if (openingDetail.current || !request || request.owner !== getMemberSessionKey() || !userCoordinates) return;
+      if (openingDetail.current || nearbyKey !== key || request?.key !== key
+        || request.owner !== getMemberSessionKey() || !userCoordinates) return false;
+      const note = request.notes.get(noteId);
+      if (!note) return false;
       openingDetail.current = true;
       router.push({ pathname: '/note/[noteId]', params: { noteId: note.noteId,
         skipLocation: String(note.isMine || note.isSaved === true),
         latitude: String(userCoordinates.latitude), longitude: String(userCoordinates.longitude) } });
+      return true;
     },
     handleRegionWillChange, handleRegionDidChange, updateMapBounds, moveToCurrentLocation,
   };

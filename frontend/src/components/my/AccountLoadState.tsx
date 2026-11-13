@@ -1,12 +1,13 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { FontFamilies } from '@/constants/fonts';
 import { ScreenColors as C } from '@/constants/colors';
 
 type Props = { loading: boolean; error: string | null; onRetry: () => void; label: string };
 
 export function AccountLoadState({ loading, error, onRetry, label }: Props) {
-  if (loading) return <ActivityIndicator style={s.status} color={C.blue} accessibilityLabel={`${label} 불러오는 중`} />;
+  if (loading) return <LoadingSpinner style={s.status} color={C.blue} accessibilityLabel={`${label} 불러오는 중`} />;
   if (!error) return null;
   return (
     <View style={s.status}>

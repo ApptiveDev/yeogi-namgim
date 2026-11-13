@@ -48,7 +48,7 @@ const s = StyleSheet.create({
   card: { minHeight: 68, marginTop: 14, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 20, backgroundColor: C.surface, flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 42, height: 42, borderRadius: 21, overflow: 'hidden', flexShrink: 0 },
   identity: { flex: 1, minWidth: 0, gap: 4 },
-  name: { fontFamily: FontFamilies.archivoBlack, fontSize: 16, lineHeight: 20, color: C.ink, includeFontPadding: false },
+  name: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 16, lineHeight: 20, color: C.ink, includeFontPadding: false },
   metadata: { fontFamily: FontFamilies.notoSansKrRegular, fontSize: 12, lineHeight: 18, color: C.muted, includeFontPadding: false },
   editTouchArea: { width: 46, minHeight: 44, justifyContent: 'center', flexShrink: 0 },
   editBadge: { minHeight: 26, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 13, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },

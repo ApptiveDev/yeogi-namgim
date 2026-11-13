@@ -16,6 +16,7 @@ import type { StorageFilter, StorageFilterCounts } from '@/types/storage';
 type Props = {
   selected: StorageFilter;
   counts: Partial<StorageFilterCounts>;
+  fontsReady: boolean;
   onSelect: (filter: StorageFilter) => void;
 };
 
@@ -31,11 +32,11 @@ const INDICATOR_ANIMATION = {
   reduceMotion: ReduceMotion.System,
 };
 
-export function StorageFilters({ selected, counts, onSelect }: Props) {
-  const [trackSize, setTrackSize] = useState<TrackSize>('regular');
+export function StorageFilters({ selected, counts, fontsReady, onSelect }: Props) {
+  const [trackSize, setTrackSize] = useState<TrackSize | null>(null);
   const measurements = useRef<Partial<Record<StorageFilter, TabMeasurements>>>({});
   const selectedTab = useRef(selected);
-  const indicatorTarget = useRef<TabLayout | null>(null);
+  const indicatorTarget = useRef<(TabLayout & { id: StorageFilter }) | null>(null);
   const indicatorX = useSharedValue(0);
   const indicatorWidth = useSharedValue(0);
   const narrow = trackSize === 'narrow';
@@ -48,16 +49,17 @@ export function StorageFilters({ selected, counts, onSelect }: Props) {
     const x = layout.slot.x + layout.content.x - INDICATOR_EXTRA_PADDING;
     const width = layout.content.width + INDICATOR_EXTRA_PADDING * 2;
     const previous = indicatorTarget.current;
-    if (previous?.x === x && previous.width === width) return;
+    if (previous?.id === id && previous.x === x && previous.width === width) return;
 
-    indicatorTarget.current = { x, width };
-    if (!previous) {
-      indicatorX.set(x);
-      indicatorWidth.set(width);
+    indicatorTarget.current = { id, x, width };
+    // Animate tab changes only. Font, count and track reflows update the target immediately.
+    if (previous && previous.id !== id) {
+      indicatorX.set(withTiming(x, INDICATOR_ANIMATION));
+      indicatorWidth.set(withTiming(width, INDICATOR_ANIMATION));
       return;
     }
-    indicatorX.set(withTiming(x, INDICATOR_ANIMATION));
-    indicatorWidth.set(withTiming(width, INDICATOR_ANIMATION));
+    indicatorX.set(x);
+    indicatorWidth.set(width);
   }, [indicatorX, indicatorWidth]);
 
   useLayoutEffect(() => {
@@ -76,6 +78,7 @@ export function StorageFilters({ selected, counts, onSelect }: Props) {
 
   function measureTrack(event: LayoutChangeEvent) {
     const { width } = event.nativeEvent.layout;
+    if (width <= 0) return;
     if (width < 314) setTrackSize('narrow');
     else if (width < 338) setTrackSize('compact');
     else setTrackSize('regular');
@@ -90,6 +93,8 @@ export function StorageFilters({ selected, counts, onSelect }: Props) {
     measurements.current[id] = { ...layout, [part]: { x, width } };
     if (id === selectedTab.current) syncIndicator(id);
   }
+
+  if (trackSize === null || !fontsReady) return <View style={s.track} onLayout={measureTrack} />;
 
   return (
     <View style={s.track} accessibilityRole="tablist" onLayout={measureTrack}>

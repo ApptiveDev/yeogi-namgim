@@ -1,13 +1,13 @@
 import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AccountLoadState } from '@/components/my/AccountLoadState';
 import { MyComingSoonSections } from '@/components/my/MyComingSoonSections';
 import { MyHeader } from '@/components/my/MyHeader';
-import { MyNoteStats } from '@/components/my/MyNoteStats';
-import { MyProfile } from '@/components/my/MyProfile';
+import { MyNoteStats, MyNoteStatsSkeleton } from '@/components/my/MyNoteStats';
+import { MyProfile, MyProfileSkeleton } from '@/components/my/MyProfile';
 import BottomTabBar from '@/components/navigation/BottomTabBar';
 import { FontFamilies } from '@/constants/fonts';
 import { ScreenColors as C } from '@/constants/colors';
@@ -26,36 +26,34 @@ function openCompose() {
 
 export default function MyScreen() {
   const insets = useSafeAreaInsets();
-  const { profile, stats, reload } = useMemberAccount({ includeStats: true, keepPreviousData: true });
+  const { profile, stats, reload, reloadStats } = useMemberAccount({ includeStats: true });
   const [fontsLoaded, fontError] = useFonts(MY_FONTS);
-  const preparing = (!fontsLoaded && !fontError)
-    || (profile.loading && !profile.data)
-    || (stats.loading && !stats.data);
-  const displayName = profile.data?.nickname;
-  const written = stats.data?.writtenNoteCount ?? null;
-  const saved = stats.data?.savedNoteCount ?? null;
-  const profileCard = displayName === undefined ? null : <MyProfile displayName={displayName} />;
-  const noteStats = <MyNoteStats written={written} saved={saved} />;
+  const preparing = !fontsLoaded && !fontError;
+  const profileLoading = preparing || (profile.loading && !profile.data);
+  const statsLoading = preparing || (stats.loading && !stats.data);
+  const refreshing = !preparing && ((profile.data !== null && profile.loading) || (stats.data !== null && stats.loading));
 
   return (
     <View style={s.screen}>
-      {preparing ? (
-        <View style={s.loading}>
-          <ActivityIndicator color={C.blue} accessibilityLabel="마이 페이지 준비 중" />
-        </View>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 94 }]}
-        >
-          <MyHeader />
-          <AccountLoadState loading={false} error={profile.error} label="회원 프로필" onRetry={reload} />
-          {profileCard}
-          {noteStats}
-          <AccountLoadState loading={false} error={stats.error} label="활동 통계" onRetry={reload} />
-          <MyComingSoonSections />
-        </ScrollView>
-      )}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 94 }]}
+      >
+        <MyHeader refreshing={refreshing} />
+        {profileLoading ? <MyProfileSkeleton /> : (
+          <>
+            {profile.data ? <MyProfile displayName={profile.data.nickname} /> : null}
+            <AccountLoadState loading={false} error={profile.error} label="회원 프로필" onRetry={reload} />
+          </>
+        )}
+        {statsLoading ? <MyNoteStatsSkeleton /> : (
+          <>
+            {stats.data ? <MyNoteStats written={stats.data.writtenNoteCount} saved={stats.data.savedNoteCount} /> : null}
+            <AccountLoadState loading={false} error={stats.error} label="활동 통계" onRetry={reloadStats} />
+          </>
+        )}
+        <MyComingSoonSections />
+      </ScrollView>
       <BottomTabBar selectedTab="my" onAddPress={openCompose} />
     </View>
   );
@@ -64,5 +62,4 @@ export default function MyScreen() {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.background },
   content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 24 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

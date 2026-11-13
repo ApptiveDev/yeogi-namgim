@@ -2,13 +2,15 @@ import { useFonts } from 'expo-font';
 import { Image } from 'expo-image';
 import { router, Stack } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MemberProfile } from '@/api/auth';
 import { AccountLoadState } from '@/components/my/AccountLoadState';
 import { BackButton } from '@/components/navigation/BackButton';
 import { ProfileVisibilityPicker } from '@/components/settings/ProfileVisibilityPicker';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Skeleton, SkeletonBlock } from '@/components/ui/skeleton';
 import { FontFamilies } from '@/constants/fonts';
 import { SettingsColors as C, StorageColors } from '@/constants/colors';
 import { useMemberAccount } from '@/hooks/use-member-account';
@@ -32,6 +34,7 @@ const EDITOR_GESTURES = {
 };
 const NICKNAME_LIMIT = 12;
 const BIO_LIMIT = 40;
+const FORM_FIELDS = ['nickname', 'handle', 'bio', 'visibility', 'email'] as const;
 const INPUT_APPEARANCE = Platform.select({
   android: {
     cursorColor: StorageColors.blue,
@@ -61,6 +64,32 @@ function ProfilePhoto() {
         <Text style={s.photoButtonText}>사진 변경</Text>
       </View>
     </View>
+  );
+}
+
+function ProfileFormSkeleton() {
+  return (
+    <Skeleton label="프로필 편집" containerStyle={s.skeletonContainer} style={s.form}>
+      <View style={s.photo}>
+        <SkeletonBlock style={s.photoSkeleton} />
+        <View style={s.photoButton}>
+          <SkeletonBlock style={{ width: 58, height: 12 }} />
+        </View>
+      </View>
+      {FORM_FIELDS.map((field) => (
+        <View key={field} style={s.field}>
+          <SkeletonBlock style={s.labelSkeleton} />
+          {field === 'visibility' ? <SkeletonBlock style={s.visibilitySkeleton} /> : (
+            <View style={[s.fieldBox, field === 'bio' && s.bioBox]}>
+              <SkeletonBlock style={{ width: field === 'email' ? '58%' : '40%', height: 14 }} />
+            </View>
+          )}
+        </View>
+      ))}
+      <View style={s.footer}>
+        <SkeletonBlock style={s.buttonSkeleton} />
+      </View>
+    </Skeleton>
   );
 }
 
@@ -121,7 +150,8 @@ function BioPreviewField({ disabled }: { disabled: boolean }) {
 }
 
 function ProfileForm({ profile }: { profile: MemberProfile }) {
-  const [nickname, setNickname] = useState(profile.nickname);
+  const [nicknameDraft, setNicknameDraft] = useState<string | null>(null);
+  const nickname = nicknameDraft ?? profile.nickname;
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const saving = useRef(false);
@@ -136,12 +166,17 @@ function ProfileForm({ profile }: { profile: MemberProfile }) {
   }, []);
 
   function changeNickname(value: string) {
-    setNickname(value);
+    setNicknameDraft(value);
     setError(null);
   }
 
   function save() {
     if (saving.current) return;
+    if (nickname.trim() === profile.nickname.trim()) {
+      Keyboard.dismiss();
+      closeEditor();
+      return;
+    }
     const validation = nicknameLength > NICKNAME_LIMIT
       ? `닉네임은 ${NICKNAME_LIMIT}자까지 입력할 수 있어요.`
       : validateNickname(nickname, NICKNAME_LIMIT);
@@ -216,21 +251,25 @@ export default function ProfileEditScreen() {
   const insets = useSafeAreaInsets();
   const { profile, reload } = useMemberAccount();
   const [fontsLoaded, fontError] = useFonts(PROFILE_FONTS);
+  const loading = (!fontsLoaded && !fontError) || (profile.loading && !profile.data);
   return (
     <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <Stack.Screen options={EDITOR_SCREEN_OPTIONS} />
       <View style={[s.container, s.header, { paddingTop: insets.top + 10 }]}>
         <BackButton accessibilityLabel="설정으로 돌아가기" onPress={closeEditor} />
         <Text accessibilityRole="header" style={[s.title, !fontsLoaded && s.fallbackTitle]}>프로필 편집</Text>
+        {!loading && profile.loading ? (
+          <LoadingSpinner style={s.refreshing} color={C.ink} accessibilityLabel="프로필 새로고침 중" />
+        ) : null}
       </View>
-      {fontsLoaded || fontError ? (
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.container, s.content, { paddingBottom: insets.bottom + 24 }]}>
-          <AccountLoadState loading={profile.loading} error={profile.error} label="회원 프로필" onRetry={reload} />
-          {profile.data ? <ProfileForm key={profile.owner} profile={profile.data} /> : null}
-        </ScrollView>
-      ) : (
-        <ActivityIndicator style={s.loading} color={C.ink} accessibilityLabel="프로필 편집 화면 준비 중" />
-      )}
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.container, s.content, { paddingBottom: insets.bottom + 24 }]}>
+        {loading ? <ProfileFormSkeleton /> : (
+          <>
+            <AccountLoadState loading={false} error={profile.error} label="회원 프로필" onRetry={reload} />
+            {profile.data ? <ProfileForm key={profile.owner} profile={profile.data} /> : null}
+          </>
+        )}
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -242,8 +281,13 @@ const s = StyleSheet.create({
   title: { flex: 1, marginRight: 44, textAlign: 'center', fontFamily: FontFamilies.notoSansKrBold, fontSize: 18, lineHeight: 26, color: C.ink, includeFontPadding: false },
   fallbackTitle: { fontFamily: undefined, fontWeight: 'bold' },
   content: { flexGrow: 1, paddingTop: 12 },
-  loading: { marginTop: 12 },
+  refreshing: { position: 'absolute', right: 24, bottom: 24 },
   form: { flexGrow: 1, gap: 12 },
+  skeletonContainer: { flexGrow: 1 },
+  photoSkeleton: { width: 92, height: 92, borderRadius: 46 },
+  labelSkeleton: { width: 52, height: 14, marginLeft: 8 },
+  visibilitySkeleton: { height: 44, borderRadius: 999 },
+  buttonSkeleton: { height: 52, borderRadius: 999 },
   photo: { alignItems: 'center', gap: 6, marginBottom: 2 },
   avatarFrame: { borderWidth: 4, borderColor: C.surface, borderRadius: 46, backgroundColor: C.surface, boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.12)' },
   avatar: { width: 84, height: 84, borderRadius: 42 },

@@ -1,30 +1,22 @@
-import { memo, useCallback, useEffect, useRef } from 'react';
-import { type NativeScrollEvent, type NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { type NativeScrollEvent, type NativeSyntheticEvent, Platform, Pressable, type ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, {
-  cancelAnimation,
   type DerivedValue,
-  Easing,
   useAnimatedRef,
   useAnimatedStyle,
   useDerivedValue,
-  useReducedMotion,
   useScrollOffset,
   useSharedValue,
-  withSpring,
-  withTiming,
 } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
 
 import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
+import { useMotionPreference } from '@/hooks/use-motion-preference';
 import {
   MONTH_PICKER_ROW_HEIGHT as ROW_HEIGHT,
-  MONTH_PICKER_SPRING,
   MONTH_PICKER_WHEEL_HEIGHT,
   MONTH_PICKER_WHEEL_PADDING,
   monthPickerIndex,
-  monthPickerRelease,
 } from '@/utils/storage-month-picker';
 
 type Props = {
@@ -38,7 +30,11 @@ type Props = {
 };
 
 const IS_WEB = Platform.OS === 'web';
-const JUMP_ANIMATION = { duration: 240, easing: Easing.out(Easing.cubic) };
+const SNAP_TOLERANCE = 1;
+const webWheelStyle = { flex: 1, scrollSnapType: 'y mandatory' };
+const webRowStyle: ViewStyle & { scrollSnapAlign: string } = { scrollSnapAlign: 'center' };
+type ScrollPhase = 'idle' | 'dragging' | 'settling' | { target: number };
+type ScrollEvent = NativeSyntheticEvent<NativeScrollEvent>;
 
 export const MonthPickerWheel = memo(function MonthPickerWheel({
   label,
@@ -50,103 +46,80 @@ export const MonthPickerWheel = memo(function MonthPickerWheel({
   onScrollingChange,
 }: Props) {
   const scrollRef = useAnimatedRef<ScrollView>();
-  const lastReportedRef = useRef(value);
+  const lastReported = useRef(value);
   const selectedIndex = Math.max(0, values.indexOf(value));
-  const initializedRef = useRef(false);
-  const programmaticTargetRef = useRef<number | null>(null);
-  const currentOffsetRef = useRef(selectedIndex * ROW_HEIGHT);
-  const scrollOffset = useSharedValue(selectedIndex * ROW_HEIGHT);
-  const centeredIndex = useDerivedValue(() => Math.round(scrollOffset.get() / ROW_HEIGHT));
-  const previousTranslationY = useSharedValue(0);
-  const maxOffset = (values.length - 1) * ROW_HEIGHT;
-  useScrollOffset(IS_WEB ? scrollRef : null, scrollOffset);
-  const reducedMotion = useReducedMotion();
+  const [initialOffset] = useState(() => ({ x: 0, y: selectedIndex * ROW_HEIGHT }));
+  const currentOffset = useRef(initialOffset.y);
+  const phase = useRef<ScrollPhase>('idle');
+  const webInitialized = useRef(false);
+  const scrollOffset = useSharedValue(initialOffset.y);
+  const count = values.length;
+  const centeredIndex = useDerivedValue(() => monthPickerIndex(scrollOffset.get(), count));
+  const snapOffsets = useMemo(() => values.map((_, index) => index * ROW_HEIGHT), [values]);
+  const reduceMotion = useMotionPreference();
+  useScrollOffset(scrollRef, scrollOffset);
 
   const scrollToIndex = useCallback((index: number) => {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
     const y = index * ROW_HEIGHT;
-    if (!IS_WEB) {
-      onScrollingChange(true);
-      scrollOffset.set(withTiming(y, JUMP_ANIMATION, (finished) => {
-        if (finished) scheduleOnRN(onScrollingChange, false);
-      }));
-      return;
-    }
-    const animated = !reducedMotion && Math.abs(currentOffsetRef.current - y) > 0.5;
-    programmaticTargetRef.current = animated ? y : null;
+    const animated = !reduceMotion && Math.abs(currentOffset.current - y) > SNAP_TOLERANCE;
+    phase.current = animated ? { target: y } : 'idle';
+    if (!animated) currentOffset.current = y;
     onScrollingChange(animated);
-    scrollRef.current?.scrollTo({ y, animated });
-  }, [onScrollingChange, reducedMotion, scrollOffset, scrollRef]);
+    scroll.scrollTo({ y, animated });
+  }, [onScrollingChange, reduceMotion, scrollRef]);
 
-  // 드래그로 보고한 값은 다시 스크롤하지 않아 관성 스크롤을 방해하지 않습니다.
-  useEffect(() => {
-    if (value === lastReportedRef.current) return;
-    lastReportedRef.current = value;
+  // '오늘'처럼 바깥에서 바뀐 값만 휠로 반영합니다.
+  useLayoutEffect(() => {
+    if (value === lastReported.current) return;
+    lastReported.current = value;
     scrollToIndex(selectedIndex);
   }, [scrollToIndex, selectedIndex, value]);
 
   function select(nextIndex: number) {
     const index = Math.max(0, Math.min(values.length - 1, nextIndex));
-    const nextValue = values[index];
-    lastReportedRef.current = nextValue;
+    commitIndex(index);
     scrollToIndex(index);
-    onChange(nextValue);
-  }
-
-  function reportScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
-    const offset = event.nativeEvent.contentOffset.y;
-    currentOffsetRef.current = offset;
-    if (programmaticTargetRef.current !== null) {
-      if (Math.abs(offset - programmaticTargetRef.current) <= 0.5) {
-        programmaticTargetRef.current = null;
-        onScrollingChange(false);
-      }
-      // '오늘'로 이동하는 동안 중간 행이 목표 값을 덮어쓰지 않도록 합니다.
-      return;
-    }
-    commitIndex(monthPickerIndex(offset, values.length));
   }
 
   function commitIndex(index: number) {
     const nextValue = values[index];
-    if (nextValue === lastReportedRef.current) return;
-    lastReportedRef.current = nextValue;
+    if (nextValue === lastReported.current) return;
+    lastReported.current = nextValue;
     onChange(nextValue);
   }
 
-  function finishGesture(index: number) {
-    commitIndex(index);
+  function finishScroll(offset: number) {
+    currentOffset.current = offset;
+    phase.current = 'idle';
+    commitIndex(monthPickerIndex(offset, count));
     onScrollingChange(false);
   }
 
-  const pan = Gesture.Pan()
-    .activeOffsetY([-4, 4])
-    .failOffsetX([-16, 16])
-    .maxPointers(1)
-    .onStart(({ translationY }) => {
-      cancelAnimation(scrollOffset);
-      previousTranslationY.set(translationY);
-      scheduleOnRN(onScrollingChange, true);
-    })
-    .onUpdate(({ translationY }) => {
-      const deltaY = translationY - previousTranslationY.get();
-      previousTranslationY.set(translationY);
-      scrollOffset.set(Math.max(0, Math.min(maxOffset, scrollOffset.get() - deltaY)));
-    })
-    .onEnd(({ velocityY }, success) => {
-      const { index, springVelocity } = monthPickerRelease(scrollOffset.get(), success ? -velocityY : 0, values.length);
-      scrollOffset.set(withSpring(index * ROW_HEIGHT, { ...MONTH_PICKER_SPRING, velocity: springVelocity }, (finished) => {
-        if (finished) scheduleOnRN(finishGesture, index);
-      }));
-    });
+  function reportScroll({ nativeEvent }: ScrollEvent) {
+    const offset = nativeEvent.contentOffset.y;
+    currentOffset.current = offset;
+    const scrolling = phase.current;
+    if (typeof scrolling === 'object') {
+      // Android's scrollTo does not emit momentum end, so unlock at the requested row.
+      if (Math.abs(offset - scrolling.target) <= SNAP_TOLERANCE) finishScroll(offset);
+    } else if (IS_WEB) {
+      commitIndex(monthPickerIndex(offset, count));
+    }
+  }
 
-  const trackStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -scrollOffset.get() }] }));
-  const items = values.map((item, index) => (
-    <Pressable key={item} onPress={() => select(index)} style={s.item} accessible={false}>
-      <View style={kind === 'year' ? s.yearLabel : s.monthLabel}>
-        <WheelLabel index={index} centeredIndex={centeredIndex} text={format(item, false)} selectedText={format(item, true)} />
-      </View>
-    </Pressable>
-  ));
+  function endDrag({ nativeEvent }: ScrollEvent) {
+    if (phase.current !== 'dragging') return;
+    const offset = nativeEvent.contentOffset.y;
+    const target = nativeEvent.targetContentOffset?.y;
+    if (Platform.OS === 'ios' && target !== undefined && Math.abs(target - offset) <= SNAP_TOLERANCE) {
+      // iOS emits no momentum end if the drag stops at its current position.
+      finishScroll(offset);
+    } else {
+      phase.current = 'settling';
+    }
+  }
 
   return (
     <View
@@ -166,32 +139,49 @@ export const MonthPickerWheel = memo(function MonthPickerWheel({
         else if (event.nativeEvent.actionName === 'decrement') select(selectedIndex - 1);
       }}
     >
-      {IS_WEB ? (
-        <Animated.ScrollView
-          ref={scrollRef}
-          style={s.scroll}
-          contentContainerStyle={s.items}
-          showsVerticalScrollIndicator={false}
-          snapToInterval={ROW_HEIGHT}
-          scrollEventThrottle={16}
-          onContentSizeChange={() => {
-            if (initializedRef.current) return;
-            initializedRef.current = true;
-            scrollRef.current?.scrollTo({ y: selectedIndex * ROW_HEIGHT, animated: false });
-          }}
-          onScroll={reportScroll}
-          importantForAccessibility="no-hide-descendants"
-          accessibilityElementsHidden
-        >
-          {items}
-        </Animated.ScrollView>
-      ) : (
-        <GestureDetector gesture={pan}>
-          <View style={s.viewport} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-            <Animated.View style={[s.items, trackStyle]}>{items}</Animated.View>
-          </View>
-        </GestureDetector>
-      )}
+      <Animated.ScrollView
+        ref={scrollRef}
+        style={IS_WEB ? webWheelStyle : s.scroll}
+        contentContainerStyle={s.items}
+        contentOffset={IS_WEB ? undefined : initialOffset}
+        onContentSizeChange={IS_WEB ? () => {
+          if (webInitialized.current) return;
+          webInitialized.current = true;
+          scrollRef.current?.scrollTo({ y: selectedIndex * ROW_HEIGHT, animated: false });
+        } : undefined}
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}
+        scrollsToTop={false}
+        bounces={false}
+        overScrollMode="never"
+        decelerationRate="fast"
+        snapToOffsets={IS_WEB ? undefined : snapOffsets}
+        scrollEventThrottle={16}
+        onScroll={reportScroll}
+        onScrollBeginDrag={IS_WEB ? undefined : () => {
+          phase.current = 'dragging';
+          onScrollingChange(true);
+        }}
+        onScrollEndDrag={IS_WEB ? undefined : endDrag}
+        onMomentumScrollBegin={IS_WEB ? undefined : () => {
+          if (phase.current !== 'idle') return;
+          phase.current = 'settling';
+          onScrollingChange(true);
+        }}
+        onMomentumScrollEnd={IS_WEB ? undefined : ({ nativeEvent }) => {
+          if (phase.current === 'settling') finishScroll(nativeEvent.contentOffset.y);
+        }}
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden
+      >
+        {values.map((item, index) => (
+          <Pressable key={item} onPress={() => select(index)} style={[s.item, IS_WEB && webRowStyle]} accessible={false}>
+            <View style={kind === 'year' ? s.yearLabel : s.monthLabel}>
+              <WheelLabel index={index} centeredIndex={centeredIndex} text={format(item, false)} selectedText={format(item, true)} />
+            </View>
+          </Pressable>
+        ))}
+      </Animated.ScrollView>
     </View>
   );
 });
@@ -230,7 +220,6 @@ const s = StyleSheet.create({
   yearColumn: { width: '42.424242%', height: MONTH_PICKER_WHEEL_HEIGHT },
   monthColumn: { flex: 1, height: MONTH_PICKER_WHEEL_HEIGHT },
   scroll: { flex: 1 },
-  viewport: { flex: 1, overflow: 'hidden' },
   items: { paddingVertical: MONTH_PICKER_WHEEL_PADDING },
   item: { height: ROW_HEIGHT, justifyContent: 'center' },
   yearLabel: { width: '64.285714%', alignSelf: 'flex-end' },
