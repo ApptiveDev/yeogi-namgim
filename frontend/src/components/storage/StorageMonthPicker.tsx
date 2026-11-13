@@ -1,7 +1,6 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MonthPickerWheel } from '@/components/storage/MonthPickerWheel';
@@ -79,7 +78,7 @@ function MonthPickerContent({ month, anchor, onConfirm, onClose, motion, visible
       navigationBarTranslucent
       onRequestClose={() => { if (visible) onClose(); }}
     >
-      <GestureHandlerRootView style={s.overlay} {...motion.interactionProps}>
+      <View style={s.overlay} {...motion.interactionProps}>
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}
@@ -143,7 +142,7 @@ function MonthPickerContent({ month, anchor, onConfirm, onClose, motion, visible
             </Pressable>
           </View>
         </Animated.View>
-      </GestureHandlerRootView>
+      </View>
     </Modal>
   );
 }

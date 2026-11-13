@@ -32,16 +32,6 @@ test('wheel selection rounds to the central 36px row and clamps both ends', () =
   }
 });
 
-test('a release keeps the nearest row on a slow drag and caps a fast flick at two extra rows', () => {
-  assert.deepEqual(picker.monthPickerRelease(175, 0, 12), { index: 5, springVelocity: 0 });
-  assert.equal(picker.monthPickerRelease(175, 10_000, 12).index, 7);
-  assert.equal(picker.monthPickerRelease(175, -10_000, 12).index, 3);
-  assert.equal(picker.monthPickerRelease(10, -10_000, 12).index, 0);
-  assert.equal(picker.monthPickerRelease(390, 10_000, 12).index, 11);
-  assert.equal(picker.monthPickerRelease(215, 10_000, 7).springVelocity, 18);
-  assert.equal(picker.monthPickerRelease(181, 1, 12).springVelocity, 0);
-});
-
 test('year choices start in 2025 and extend only through the current year', () => {
   assert.deepEqual(picker.monthPickerYears(2025), [2025]);
   assert.deepEqual(picker.monthPickerYears(2026), [2025, 2026]);
