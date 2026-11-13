@@ -1,5 +1,5 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Animated, PanResponder } from 'react-native';
+import { useLayoutEffect, useState } from 'react';
+import { Animated } from 'react-native';
 
 import { MOTION_EASING, MOTION_NATIVE_DRIVER, UI_MOTION } from '@/constants/ui-motion';
 import { useMotionPreference } from '@/hooks/use-motion-preference';
@@ -62,84 +62,6 @@ export function useSlideMotion<T>(value: T | null, distance: number, timing: { e
     outputRange: [distance, 0],
   });
   return { ...motion, slideStyle: { transform: [{ translateY }] } };
-}
-
-export function useSheetDrag({ sheetKey, height, progress, reduceMotion, onDismiss }: {
-  sheetKey: number | null;
-  height: number;
-  progress: Animated.Value;
-  reduceMotion: boolean;
-  onDismiss: () => void;
-}) {
-  const drag = useRef<{ startProgress: number | null; dy: number } | null>(null);
-  const { panHandlers, cancelDrag } = useMemo(() => {
-    function followFinger() {
-      const current = drag.current;
-      if (!current || current.startProgress === null) return;
-      progress.setValue(Math.max(0, current.startProgress - Math.max(0, current.dy) / height));
-    }
-
-    function returnToOpen() {
-      if (!drag.current) return;
-      drag.current = null;
-      if (reduceMotion) {
-        progress.setValue(1);
-        return;
-      }
-      Animated.timing(progress, {
-        toValue: 1,
-        duration: UI_MOTION.sheet.exit,
-        easing: MOTION_EASING.enter,
-        useNativeDriver: MOTION_NATIVE_DRIVER,
-        isInteraction: false,
-      }).start();
-    }
-
-    // PanResponder registers these callbacks now and reads the ref only during gestures.
-    // eslint-disable-next-line react-hooks/refs
-    const pan = PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, { dx, dy, numberActiveTouches }) => (
-        sheetKey !== null && height > 0 && numberActiveTouches === 1 && dy > 8 && dy > Math.abs(dx)
-      ),
-      onPanResponderGrant: () => {
-        const current = { startProgress: null, dy: 0 };
-        drag.current = current;
-        progress.stopAnimation((value) => {
-          if (drag.current !== current) return;
-          drag.current.startProgress = value;
-          followFinger();
-        });
-      },
-      onPanResponderMove: (_, { dy }) => {
-        if (!drag.current) return;
-        drag.current.dy = dy;
-        followFinger();
-      },
-      onPanResponderRelease: (_, { dy, vy }) => {
-        if (!drag.current) return;
-        if (dy >= 60 || (dy >= 16 && vy > 0.7)) {
-          // Start the exit at the position where the finger released the sheet.
-          drag.current = null;
-          onDismiss();
-        } else {
-          returnToOpen();
-        }
-      },
-      onPanResponderTerminate: returnToOpen,
-    });
-
-    return {
-      panHandlers: pan.panHandlers,
-      cancelDrag() {
-        if (!drag.current) return;
-        drag.current = null;
-        progress.setValue(1);
-      },
-    };
-  }, [height, onDismiss, progress, reduceMotion, sheetKey]);
-
-  useLayoutEffect(() => cancelDrag, [cancelDrag]);
-  return panHandlers;
 }
 
 export function usePopupMotion<T>(value: T | null) {

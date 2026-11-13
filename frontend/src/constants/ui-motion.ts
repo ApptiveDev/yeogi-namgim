@@ -10,7 +10,6 @@ export const MOTION_EASING = {
 export const UI_MOTION = {
   toast: { enter: 160, exit: 140, hold: 3000 },
   popup: { enter: 220, exit: 150, initialScale: 0.94 },
-  sheet: { enter: 280, exit: 200, exitEasing: MOTION_EASING.enter },
   snackbar: { enter: 220, exit: 160 },
   text: { duration: 160, lineDelay: 50 },
   spinner: { revolution: 800 },

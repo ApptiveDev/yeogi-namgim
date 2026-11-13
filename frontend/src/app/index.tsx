@@ -36,7 +36,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   const { height } = useWindowDimensions();
   const cameraRef = useRef<CameraRef>(null);
   const resumeFollowingAfterClose = useRef(false);
-  const nearbySheetHeight = Math.min(height * 506 / 852, height - insets.top - 140);
+  const nearbySheetHeight = Math.max(1, Math.min(height * 506 / 852, height - insets.top - 140));
   const [fontsLoaded, fontError] = useFonts({
     NanumPen: require('../../assets/fonts/NanumPenScript-Regular.ttf'),
     'Pretendard-Bold': require('../../assets/fonts/Pretendard-Bold.ttf'),
@@ -149,8 +149,8 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         />
       )}
       <NoteLockedDialog selection={map.selectedMapPoint} onClose={map.clearMapSelection} />
-      <NearbyNotesSheet list={map.nearbyNotes} closingKey={map.closingNearbyKey} height={nearbySheetHeight}
-        onClose={map.dismissMapSelection} onRetry={map.loadMoreNearbyNotes} onLoadMore={map.loadMoreNearbyNotes}
+      <NearbyNotesSheet list={map.nearbyNotes} height={nearbySheetHeight}
+        onClose={map.dismissNearbyNotes} onLoadMore={map.loadMoreNearbyNotes}
         onOpen={map.openNoteDetail} />
       </View>
       </View>
