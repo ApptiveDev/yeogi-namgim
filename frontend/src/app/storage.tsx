@@ -1,7 +1,7 @@
 import { useFonts } from 'expo-font';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { AppState, FlatList, Pressable, StyleSheet, Text, View, type ListRenderItem } from 'react-native';
+import { AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View, type ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomTabBar from '@/components/navigation/BottomTabBar';
@@ -66,6 +66,7 @@ export default function StorageScreen() {
   const [today, setToday] = useState(getSeoulToday);
   const preparing = !fontsLoaded && !fontError;
   const notesLoading = preparing || (!isFriends && !archive.hasLoaded && archive.loading);
+  const canRefresh = !isFriends && !notesLoading;
   const emptyState = storage.selectedDate ? EMPTY_DAY : storage.activeFilter;
 
   useFocusEffect(useCallback(() => {
@@ -94,8 +95,14 @@ export default function StorageScreen() {
         keyExtractor={noteKey}
         renderItem={renderNote}
         showsVerticalScrollIndicator={false}
-        refreshing={!isFriends && archive.refreshing}
-        onRefresh={isFriends || notesLoading ? undefined : () => { void archive.refresh(); }}
+        // Keep the Android scroll wrapper mounted so date loads preserve the filter indicator.
+        refreshControl={(
+          <RefreshControl
+            enabled={canRefresh}
+            refreshing={!isFriends && archive.refreshing}
+            onRefresh={canRefresh ? () => { void archive.refresh(); } : undefined}
+          />
+        )}
         contentContainerStyle={[s.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 94 }]}
         ListHeaderComponent={(
           <>
