@@ -1,13 +1,15 @@
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Animated, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { FriendInvitation, FriendInvitationPreview } from '@/api/friends';
 import { ComposeIcon } from '@/components/notes/ComposeIcon';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
+import { usePopupMotion } from '@/hooks/use-ui-motion';
 import { createFriendInvitationFlow } from '@/state/friend-invitation';
 import { FRIEND_INVITATION_CODE_LENGTH, LEGACY_FRIEND_INVITATION_CODE_LENGTH } from '@/utils/friends';
 
@@ -16,7 +18,7 @@ import { friendActionStyles as action } from './friendActionStyles';
 
 export type FriendAddMode = 'options' | 'create' | 'enter';
 
-type Props = { onClose: () => void; initialMode?: FriendAddMode };
+type Props = { onClose: () => void; initialMode: FriendAddMode | null };
 type CodeAction = 'copy' | 'share';
 
 const TITLES: Record<FriendAddMode, string> = {
@@ -68,7 +70,19 @@ function useInvitationRemainingSeconds(expiresAt: string | undefined) {
   return useSyncExternalStore(subscribe, getSnapshot, () => 0);
 }
 
-export function FriendAddDialog({ onClose, initialMode = 'options' }: Props) {
+export function FriendAddDialog({ onClose, initialMode }: Props) {
+  const motion = usePopupMotion(initialMode);
+  if (!motion.content) return null;
+  return <FriendAddDialogContent key={motion.content} initialMode={motion.content} onClose={onClose}
+    visible={initialMode !== null} motion={motion} />;
+}
+
+function FriendAddDialogContent({ onClose, initialMode, visible, motion }: {
+  onClose: () => void;
+  initialMode: FriendAddMode;
+  visible: boolean;
+  motion: ReturnType<typeof usePopupMotion<FriendAddMode>>;
+}) {
   const insets = useSafeAreaInsets();
   const [flow] = useState(createFriendInvitationFlow);
   const state = useSyncExternalStore(flow.subscribe, flow.getState, flow.getState);
@@ -106,7 +120,7 @@ export function FriendAddDialog({ onClose, initialMode = 'options' }: Props) {
   }, [enteringCode, flow]);
 
   function closeDialog() {
-    if (!canClose) return;
+    if (!visible || !canClose) return;
     Keyboard.dismiss();
     onClose();
   }
@@ -175,12 +189,13 @@ export function FriendAddDialog({ onClose, initialMode = 'options' }: Props) {
   const error = state.error || actionError;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={closeDialog}>
-      <View style={s.overlay}>
+    <Modal transparent animationType="none" onRequestClose={closeDialog}>
+      <Animated.View {...motion.interactionProps} style={[s.overlay, { opacity: motion.opacity }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={closeDialog} disabled={!canClose} accessibilityRole="button" accessibilityLabel="친구 추가 창 닫기" />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled={Platform.OS === 'ios'} pointerEvents="box-none"
           style={[s.layout, { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 16) }]}>
-          <View style={[s.dialog, enteringCode && s.enterDialog]} accessibilityViewIsModal onAccessibilityEscape={closeDialog}>
+          <Animated.View style={[s.dialog, enteringCode && s.enterDialog, { transform: [{ scale: motion.scale }] }]}
+            accessibilityViewIsModal onAccessibilityEscape={closeDialog}>
             <View style={[s.header, enteringCode && s.enterHeader]}>
               <Text accessibilityRole="header" style={[s.title, enteringCode && s.enterTitle]}>{TITLES[mode]}</Text>
               {!enteringCode ? <Pressable onPress={closeDialog} disabled={sharing} accessibilityRole="button" accessibilityLabel="친구 추가 창 닫기" accessibilityState={{ disabled: sharing }} style={s.close}>
@@ -197,7 +212,7 @@ export function FriendAddDialog({ onClose, initialMode = 'options' }: Props) {
                   previewRemainingSeconds={previewRemainingSeconds}
                   onChangeCode={flow.setInput} onSubmit={() => { void submitCode(); }} onClose={closeDialog} />
               ) : null}
-              {state.busy ? <ActivityIndicator color={C.blue} style={s.status} accessibilityLabel={REQUEST_LABELS[state.busy]} /> : null}
+              {state.busy ? <LoadingSpinner color={C.blue} style={s.status} accessibilityLabel={REQUEST_LABELS[state.busy]} active={visible} /> : null}
               {error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}
             </ScrollView>
             {enteringCode ? <Image
@@ -207,10 +222,10 @@ export function FriendAddDialog({ onClose, initialMode = 'options' }: Props) {
               accessible={false}
               pointerEvents="none"
             /> : null}
-          </View>
+          </Animated.View>
           {enteringCode ? <View style={s.enterOffset} pointerEvents="none" /> : null}
         </KeyboardAvoidingView>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

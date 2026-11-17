@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Skeleton, SkeletonBlock } from '@/components/ui/skeleton';
 import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
 import type { StorageNote } from '@/types/storage';
@@ -30,6 +31,23 @@ export function StorageNoteCard({ note, onPress }: { note: StorageNote; onPress?
         accessibilityLabel={note.isSaved ? '저장한 노트' : '저장하지 않은 노트'}
       />
     </Pressable>
+  );
+}
+
+export function StorageNotesSkeleton() {
+  return (
+    <Skeleton label="보관함 쪽지 목록">
+      {[0, 1, 2].map((row) => (
+        <View key={row} style={s.card}>
+          <SkeletonBlock style={s.thumbnail} />
+          <View style={s.content}>
+            <SkeletonBlock style={{ width: '72%', height: 16 }} />
+            <SkeletonBlock style={{ width: '50%', height: 12 }} />
+          </View>
+          <SkeletonBlock style={s.bookmark} />
+        </View>
+      ))}
+    </Skeleton>
   );
 }
 

@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useCallback, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { Keyboard, type NativeSyntheticEvent } from 'react-native';
 import type { CameraRef, MapRef, ViewState, ViewStateChangeEvent } from '@maplibre/maplibre-react-native';
 
@@ -30,11 +30,22 @@ export function useNoteCompose({
   const placeEdited = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [pendingSuccessToast, setPendingSuccessToast] = useState<{ requestId: number; duration: number } | null>(null);
   const [draft, setDraft] = useState<NoteDraft>(INITIAL_NOTE_DRAFT);
   const [composeCoordinates, setComposeCoordinates] = useState<Location.LocationObjectCoords | null>(null);
   const [composeLocationLabel, setComposeLocationLabel] = useState('현재 위치를 확인하고 있어요');
   const [placeName, setPlaceName] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
+
+  useEffect(() => {
+    if (isComposeOpen || !pendingSuccessToast) return;
+    const timer = setTimeout(() => {
+      if (composeRequest.current !== pendingSuccessToast.requestId) return;
+      showToast('쪽지를 남겼어요', 'success');
+      setPendingSuccessToast(null);
+    }, pendingSuccessToast.duration);
+    return () => clearTimeout(timer);
+  }, [isComposeOpen, pendingSuccessToast]);
 
   const closeCompose = useCallback(() => {
     if (submitting.current) return;
@@ -47,12 +58,15 @@ export function useNoteCompose({
     setComposeCoordinates(null);
     const coordinates = userCoordinates ?? composeCoordinates;
     resumeFollowingAfterCloseRef.current = Boolean(coordinates);
-    if (coordinates) {
-      cameraRef.current?.easeTo({
+    const camera = cameraRef.current;
+    if (coordinates && camera) {
+      camera.easeTo({
         center: [coordinates.longitude, coordinates.latitude], zoom: DEFAULT_MAP_VIEW.zoom,
         padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: CAMERA_RETURN_DURATION, easing: 'ease',
       });
+      return CAMERA_RETURN_DURATION;
     }
+    return 0;
   }, [userCoordinates, composeCoordinates, cameraRef, resumeFollowingAfterCloseRef]);
 
   const submitNote = async (submittedDraft: NoteDraft) => {
@@ -72,9 +86,9 @@ export function useNoteCompose({
       if (requestId !== composeRequest.current) return;
       setDraft({ ...INITIAL_NOTE_DRAFT, visibility: submittedDraft.visibility });
       submitting.current = false;
-      closeCompose();
+      const duration = closeCompose() ?? 0;
       setNotesRefreshKey((key) => key + 1);
-      showToast('쪽지를 남겼어요.');
+      setPendingSuccessToast({ requestId: composeRequest.current, duration });
     } catch (error) {
       showToast(error instanceof Error ? error.message : '쪽지를 남기지 못했어요. 다시 시도해 주세요.');
     } finally {
@@ -108,6 +122,7 @@ export function useNoteCompose({
     setIsComposeOpening(true);
     resumeFollowingAfterCloseRef.current = false;
     const requestId = ++composeRequest.current;
+    setPendingSuccessToast(null);
     placeEdited.current = false;
     setIsFollowingUser(false);
     setComposeCoordinates(null);

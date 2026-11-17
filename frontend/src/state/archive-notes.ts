@@ -2,15 +2,19 @@ import { getArchiveCalendar, type ArchiveCalendar } from '../api/archive';
 import { getAuthState, getMemberSessionKey, runMemberRequest } from '../auth/member-session';
 import { ARCHIVE_PAGE_SIZE, archiveDates, loadArchivePage, type ArchivePosition, type ArchiveSelection } from '../data/archive';
 import type { StorageNote } from '../types/storage';
+import { seoulDateKey } from '../utils/storage-calendar';
 
 type Snapshot = {
   calendar: ArchiveCalendar | null;
   notes: readonly StorageNote[];
   next: ArchivePosition | null;
+  hasLoaded: boolean;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
 };
+
+type LoadedArchive = Pick<Snapshot, 'calendar' | 'notes' | 'next'>;
 
 function sameCalendar(previous: ArchiveCalendar | null, incoming: ArchiveCalendar) {
   return previous?.month === incoming.month && previous.days.length === incoming.days.length
@@ -32,11 +36,13 @@ function reconcileNotes(previous: readonly StorageNote[], incoming: readonly Sto
 }
 
 export function createArchiveStore(owner: number | null, selection: ArchiveSelection,
-  readCalendar = () => runMemberRequest((token) => getArchiveCalendar(token, selection.month))) {
-  let snapshot: Snapshot = { calendar: null, notes: [], next: null, loading: true, refreshing: false, error: null };
+  readCalendar = () => runMemberRequest((token) => getArchiveCalendar(token, selection.month)), initial?: LoadedArchive) {
+  let snapshot: Snapshot = {
+    calendar: null, notes: [], next: null, ...initial,
+    hasLoaded: initial !== undefined, loading: initial === undefined, refreshing: false, error: null,
+  };
   let pending: { refresh: boolean } | null = null;
-  let stale = true;
-  let hasLoaded = false;
+  let stale = initial === undefined;
   let retryRefresh = true;
   const listeners = new Set<() => void>();
   const isOwner = () => owner !== null && owner === getMemberSessionKey() && getAuthState().status === 'authenticated';
@@ -47,13 +53,30 @@ export function createArchiveStore(owner: number | null, selection: ArchiveSelec
     listeners.forEach((listener) => listener());
   }
 
+  function getLoadedDay(date: string): LoadedArchive | undefined {
+    const { calendar, notes, next, error } = snapshot;
+    if (!isOwner() || stale || error || !calendar || selection.date !== null) return;
+
+    const dayIndex = archiveDates(selection, calendar.days).indexOf(date);
+    if (dayIndex < 0 || (next && dayIndex > next.dayIndex)) return;
+    const continuation = next?.dayIndex === dayIndex ? next : null;
+    // A null cursor at the next day means pagination has not reached it yet.
+    if (continuation && continuation.cursor === null) return;
+
+    return {
+      calendar,
+      notes: notes.filter((note) => seoulDateKey(new Date(note.createdAt)) === date),
+      next: continuation && { dayIndex: 0, cursor: continuation.cursor },
+    };
+  }
+
   async function load(refresh: boolean, background = false) {
     if (!isOwner() || (pending && !refresh) || (!refresh && !snapshot.next)) return;
     const request = { refresh };
     pending = request;
     const isCurrent = () => pending === request && isOwner();
     const position = refresh ? { dayIndex: 0, cursor: null } : snapshot.next!;
-    update({ loading: !hasLoaded || !refresh, refreshing: refresh && hasLoaded && !background, error: null });
+    update({ loading: !snapshot.hasLoaded || !refresh, refreshing: refresh && snapshot.hasLoaded && !background, error: null });
     try {
       const calendar = refresh ? await readCalendar() : snapshot.calendar!;
       if (!isCurrent()) return;
@@ -65,12 +88,11 @@ export function createArchiveStore(owner: number | null, selection: ArchiveSelec
       const byId = new Map((refresh ? [] : snapshot.notes).map((note) => [note.id, note]));
       result.notes.forEach((note) => byId.set(note.id, note));
       stale = false;
-      hasLoaded = true;
       const next = snapshot.next?.dayIndex === result.next?.dayIndex && snapshot.next?.cursor === result.next?.cursor ? snapshot.next : result.next;
       update({
         calendar: sameCalendar(snapshot.calendar, calendar) ? snapshot.calendar : calendar,
         notes: reconcileNotes(snapshot.notes, [...byId.values()]), next,
-        loading: false, refreshing: false, error: null,
+        hasLoaded: true, loading: false, refreshing: false, error: null,
       });
     } catch (error) {
       if (isCurrent()) {
@@ -85,6 +107,7 @@ export function createArchiveStore(owner: number | null, selection: ArchiveSelec
 
   return {
     getSnapshot: () => snapshot,
+    getLoadedDay,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     refresh: () => load(true),
     ensureLoaded: () => stale && !pending ? load(true, true) : Promise.resolve(),
@@ -92,6 +115,10 @@ export function createArchiveStore(owner: number | null, selection: ArchiveSelec
     retry: () => load(retryRefresh),
     invalidate() { stale = true; pending = null; },
   };
+}
+
+function archiveSelectionKey({ month, date, type }: ArchiveSelection) {
+  return JSON.stringify([month, date, type]);
 }
 
 // Month/date selections share the calendar; all three filters share ALL pages.
@@ -122,10 +149,13 @@ export function createArchiveCache(owner: number | null) {
 
   return {
     get(selection: ArchiveSelection) {
-      const key = JSON.stringify(selection);
+      const key = archiveSelectionKey(selection);
       let store = stores.get(key);
       if (!store) {
-        store = createArchiveStore(owner, selection, () => readCalendar(selection.month));
+        const monthStore = selection.date === null ? undefined
+          : stores.get(archiveSelectionKey({ ...selection, date: null }));
+        const initial = selection.date === null ? undefined : monthStore?.getLoadedDay(selection.date);
+        store = createArchiveStore(owner, selection, () => readCalendar(selection.month), initial);
         stores.set(key, store);
       }
       return store;

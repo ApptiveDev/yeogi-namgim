@@ -12,6 +12,7 @@ import { MapSelector } from '@/components/home/MapSelector';
 import { NoteComposeSheet } from '@/components/notes/NoteComposeSheet';
 import { NoteLockedDialog } from '@/components/notes/NoteLockedDialog';
 import { NearbyNotesSheet } from '@/components/notes/NearbyNotesSheet';
+import { Snackbar } from '@/components/ui/snackbar';
 import { useHomeMap } from '@/hooks/use-home-map';
 import { useNoteCompose } from '@/hooks/use-note-compose';
 import { useUserLocation } from '@/hooks/use-user-location';
@@ -35,7 +36,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   const { height } = useWindowDimensions();
   const cameraRef = useRef<CameraRef>(null);
   const resumeFollowingAfterClose = useRef(false);
-  const nearbySheetHeight = Math.min(height * 506 / 852, height - insets.top - 140);
+  const nearbySheetHeight = Math.max(1, Math.min(height * 506 / 852, height - insets.top - 140));
   const [fontsLoaded, fontError] = useFonts({
     NanumPen: require('../../assets/fonts/NanumPenScript-Regular.ttf'),
     'Pretendard-Bold': require('../../assets/fonts/Pretendard-Bold.ttf'),
@@ -107,18 +108,17 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         insets={insets}
       />
 
-      {!isComposeOpen && (map.notesInitialLoading || map.notesError) && (
+      {!isComposeOpen && map.notesInitialLoading && (
         <View style={[styles.notesStatus, { top: insets.top + 72 }]} accessibilityLiveRegion="polite">
-          <Text style={styles.notesStatusText}>
-            {map.notesError ?? '쪽지를 불러오는 중이에요.'}
-          </Text>
-          {map.notesError && (
-            <Pressable onPress={map.retryNotes} accessibilityRole="button" style={styles.notesRetryButton}>
-              <Text style={styles.notesRetryText}>다시 시도</Text>
-            </Pressable>
-          )}
+          <Text style={styles.notesStatusText}>쪽지를 불러오는 중이에요.</Text>
         </View>
       )}
+      <Snackbar
+        message={homeReady && !isReadingNote && !isComposeOpen && !map.nearbyNotes && !map.selectedMapPoint ? map.notesError : null}
+        bottom={insets.bottom + 96}
+        actionLabel="다시 시도"
+        onAction={map.retryNotes}
+      />
 
       {!isComposeOpen && !map.nearbyNotes && <Pressable
         style={[
@@ -149,9 +149,9 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         />
       )}
       <NoteLockedDialog selection={map.selectedMapPoint} onClose={map.clearMapSelection} />
-      {map.nearbyNotes && <NearbyNotesSheet key={map.nearbyNotes.key} list={map.nearbyNotes} height={nearbySheetHeight}
-        onClose={map.clearMapSelection} onRetry={map.loadMoreNearbyNotes} onLoadMore={map.loadMoreNearbyNotes}
-        onOpen={map.openNoteDetail} />}
+      <NearbyNotesSheet list={map.nearbyNotes} height={nearbySheetHeight}
+        onClose={map.dismissNearbyNotes} onLoadMore={map.loadMoreNearbyNotes}
+        onOpen={map.openNoteDetail} />
       </View>
       </View>
       {!homeReady && (

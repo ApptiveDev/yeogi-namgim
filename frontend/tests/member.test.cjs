@@ -42,7 +42,7 @@ beforeEach(async () => {
     calls.push(request);
     return respond(request);
   };
-  for (const path of ['../src/api/client.ts', '../src/api/auth.ts', '../src/api/member.ts', '../src/auth/member-session.ts', '../src/state/member-account.ts']) {
+  for (const path of ['../src/api/client.ts', '../src/api/auth.ts', '../src/api/member.ts', '../src/auth/member-session.ts', '../src/state/member-account.ts', '../src/state/member-cache.ts']) {
     delete require.cache[require.resolve(path)];
   }
   authApi = require('../src/api/auth.ts');
@@ -73,7 +73,9 @@ test('member profile and stats preserve the API values and distinguish missing c
 });
 
 test('overlapping account reads share one request per resource and completed reads can reload', async () => {
-  const { loadMemberProfile, loadMemberStats } = require('../src/state/member-account.ts');
+  const account = require('../src/state/member-account.ts').getMemberAccount();
+  const loadMemberProfile = account.profile.load;
+  const loadMemberStats = account.stats.load;
   respond = ({ path }) => ok(path.endsWith('/stats') ? stats : profile);
 
   const pendingProfile = loadMemberProfile();
@@ -89,7 +91,9 @@ test('overlapping account reads share one request per resource and completed rea
 });
 
 test('saving a nickname prevents the next screen from joining a read started before the save', async () => {
-  const { loadMemberProfile, saveMemberNickname } = require('../src/state/member-account.ts');
+  const { getMemberAccount, saveMemberNickname } = require('../src/state/member-account.ts');
+  const account = getMemberAccount();
+  const loadMemberProfile = account.profile.load;
   const updated = { ...profile, nickname: '새이름' };
   let finishPreviousRead;
   let finishNextRead;
@@ -98,16 +102,49 @@ test('saving a nickname prevents the next screen from joining a read started bef
 
   respond = () => ok(updated);
   await saveMemberNickname(updated.nickname);
+  const saved = account.profile.getSnapshot().data;
+  assert.deepEqual(saved, updated);
   respond = () => new Promise((resolve) => { finishNextRead = resolve; });
   const nextRead = loadMemberProfile();
   assert.notEqual(nextRead, previousRead);
 
   finishPreviousRead(ok(profile));
   await previousRead;
+  assert.equal(account.profile.getSnapshot().data, saved);
   assert.equal(loadMemberProfile(), nextRead);
   finishNextRead(ok(updated));
   assert.deepEqual(await nextRead, updated);
   assert.deepEqual(calls.map(({ method }) => method), ['GET', 'PATCH', 'GET']);
+});
+
+test('returning to my page keeps visible data and only notifies the resource whose values changed', async () => {
+  const { getMemberAccount } = require('../src/state/member-account.ts');
+  const account = getMemberAccount();
+  respond = ({ path }) => ok(path.endsWith('/stats') ? stats : profile);
+  await Promise.all([account.profile.load(true), account.stats.load(true)]);
+  const originalProfile = account.profile.getSnapshot();
+  const originalStats = account.stats.getSnapshot();
+  let profileChanges = 0, statsChanges = 0;
+  account.profile.subscribe(() => { profileChanges += 1; });
+  account.stats.subscribe(() => { statsChanges += 1; });
+  const updates = { ...stats, savedNoteCount: 0 };
+  let finishStats;
+  respond = ({ path }) => path.endsWith('/stats') ? new Promise((resolve) => { finishStats = resolve; }) : ok(profile);
+  const pending = account.stats.load(true);
+  await account.profile.load(true);
+  assert.equal(getMemberAccount(), account);
+  assert.equal(account.profile.getSnapshot(), originalProfile);
+  assert.equal(account.stats.getSnapshot(), originalStats);
+  finishStats(ok(updates));
+  await pending;
+  assert.deepEqual(account.stats.getSnapshot().data, updates);
+  assert.equal(profileChanges, 0);
+  assert.equal(statsChanges, 1);
+
+  respond = () => fail(503);
+  await assert.rejects(account.profile.load(true));
+  assert.equal(account.profile.getSnapshot().data, originalProfile.data);
+  assert.ok(account.profile.getSnapshot().error);
 });
 
 test('nickname editing sends only the normalized nickname and returns the saved profile', async () => {
@@ -187,7 +224,7 @@ test('a revoked refreshed token signs out after one retry; a server failure keep
 });
 
 test('responses from a previous login are discarded after logout and another login', async () => {
-  const { loadMemberProfile } = require('../src/state/member-account.ts');
+  const { getMemberAccount } = require('../src/state/member-account.ts');
   const otherProfile = { ...profile, userId: 'member-b', email: 'other@example.test', nickname: '다른회원' };
   let finishProfile;
   respond = ({ path, headers }) => path.endsWith('/logout') ? ok({ loggedOut: true })
@@ -195,10 +232,14 @@ test('responses from a previous login are discarded after logout and another log
     : headers.Authorization === 'Bearer other-access' ? ok(otherProfile)
     : new Promise((resolve) => { finishProfile = resolve; });
   const owner = session.getMemberSessionKey();
-  const pending = loadMemberProfile();
+  const previousAccount = getMemberAccount();
+  const pending = previousAccount.profile.load();
   await session.signOut();
   await session.signIn('other@example.test', 'Pass123!');
-  const otherRead = loadMemberProfile();
+  const otherAccount = getMemberAccount();
+  assert.notEqual(otherAccount, previousAccount);
+  assert.equal(otherAccount.profile.getSnapshot().data, null);
+  const otherRead = otherAccount.profile.load();
   finishProfile(ok(profile));
   await assert.rejects(pending, /로그인 정보를 확인/);
   assert.deepEqual(await otherRead, otherProfile);

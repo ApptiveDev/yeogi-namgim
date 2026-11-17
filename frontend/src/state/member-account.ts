@@ -1,35 +1,75 @@
-import { getMemberProfile, updateMemberProfile } from '../api/auth';
-import { getMemberStats } from '../api/member';
-import { getMemberSessionKey, runMemberRequest } from '../auth/member-session';
+import { getMemberProfile, updateMemberProfile, type MemberProfile } from '../api/auth';
+import { ApiError } from '../api/client';
+import { getMemberStats, type MemberStats } from '../api/member';
+import { runMemberRequest } from '../auth/member-session';
+import { createMemberCache, getMemberOwner } from './member-cache';
 
-function sharePendingRequest<T>(request: (token: string) => Promise<T>) {
-  let pending: { owner: number; promise: Promise<T> } | null = null;
+type LoadState<T> = { owner: number | null; data: T | null; loading: boolean; error: string | null };
 
-  function load() {
-    const owner = getMemberSessionKey();
-    if (pending?.owner === owner) return pending.promise;
+function createAccountResource<T>(owner: number | null, fetch: (token: string) => Promise<T>, equal: (a: T, b: T) => boolean) {
+  let snapshot: LoadState<T> = { owner, data: null, loading: true, error: null };
+  let pending: Promise<T> | null = null;
+  const listeners = new Set<() => void>();
 
-    const promise = runMemberRequest(request).finally(() => {
-      if (pending?.promise === promise) pending = null;
+  function update(data: T | null, loading: boolean, error: string | null) {
+    if (snapshot.data === data && snapshot.loading === loading && snapshot.error === error) return;
+    snapshot = { owner, data, loading, error };
+    listeners.forEach((listener) => listener());
+  }
+
+  function commit(data: T) {
+    update(snapshot.data !== null && equal(snapshot.data, data) ? snapshot.data : data, false, null);
+  }
+
+  function load(background = false) {
+    if (owner === null || owner !== getMemberOwner()) return Promise.reject(new Error('로그인 정보를 확인해 주세요.'));
+    if (pending) {
+      if (!background) update(snapshot.data, true, null);
+      return pending;
+    }
+
+    const isCurrent = () => pending === request && owner === getMemberOwner();
+    const request = runMemberRequest(fetch).then((data) => {
+      if (isCurrent()) commit(data);
+      return data;
+    }, (error: unknown) => {
+      if (isCurrent()) {
+        const forbidden = error instanceof ApiError && (error.status === 401 || error.status === 403);
+        update(forbidden ? null : snapshot.data, false, error instanceof Error ? error.message : '정보를 불러오지 못했어요.');
+      }
+      throw error;
+    }).finally(() => {
+      if (pending === request) pending = null;
     });
-    pending = { owner, promise };
-    return promise;
+    pending = request;
+    if (!background || snapshot.data === null) update(snapshot.data, true, null);
+    return request;
   }
 
-  function invalidate(owner: number) {
-    if (pending?.owner === owner) pending = null;
-  }
-
-  return { load, invalidate };
+  return {
+    getSnapshot: () => snapshot,
+    subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    load,
+    replace(data: T) { pending = null; commit(data); },
+  };
 }
 
-const profileRequest = sharePendingRequest(getMemberProfile);
-export const loadMemberProfile = profileRequest.load;
-export const loadMemberStats = sharePendingRequest(getMemberStats).load;
+function sameProfile(a: MemberProfile, b: MemberProfile) {
+  return a.userId === b.userId && a.nickname === b.nickname && a.email === b.email && a.createdAt === b.createdAt;
+}
+
+function sameStats(a: MemberStats, b: MemberStats) {
+  return a.writtenNoteCount === b.writtenNoteCount && a.savedNoteCount === b.savedNoteCount && a.friendCount === b.friendCount;
+}
+
+export const getMemberAccount = createMemberCache((owner) => ({
+  profile: createAccountResource(owner, getMemberProfile, sameProfile),
+  stats: createAccountResource(owner, getMemberStats, sameStats),
+}));
 
 export async function saveMemberNickname(nickname: string) {
-  const owner = getMemberSessionKey();
-  await runMemberRequest((token) => updateMemberProfile(nickname, token));
-  // 편집 화면을 닫고 돌아갈 때는 저장 전에 시작된 프로필 요청을 공유하지 않습니다.
-  profileRequest.invalidate(owner);
+  const account = getMemberAccount();
+  const profile = await runMemberRequest((token) => updateMemberProfile(nickname, token));
+  // Publish the save response and prevent any pre-save read from replacing it.
+  if (account === getMemberAccount()) account.profile.replace(profile);
 }

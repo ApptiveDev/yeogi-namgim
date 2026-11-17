@@ -389,6 +389,83 @@ test('selected dates share monthly counts and query even a day absent from an ol
   assert.deepEqual(cache.getCalendar('2026-11'), calendar);
 });
 
+test('selecting and reselecting a fully loaded date immediately reuses its monthly cards', async () => {
+  const date = '2026-11-10';
+  const cache = state.createArchiveCache(session.getMemberSessionKey());
+  const monthStore = cache.get(selection);
+  const recent = { ...note(2), createdAt: '2026-11-09T15:00:00Z' };
+  const older = note(1, 'WRITTEN', '2026-11-09');
+  respond = (request) => request.path.endsWith('/calendar') ? ok({ ...calendar, days: [
+    { date, writtenCount: 1, savedCount: 0 }, { date: '2026-11-09', writtenCount: 1, savedCount: 0 },
+  ] }) : page(request, [request.query.get('date') === date ? recent : older]);
+  await monthStore.ensureLoaded();
+  const requestCount = calls.length;
+  const dayStore = cache.get({ ...selection, date });
+  const day = dayStore.getSnapshot();
+  assert.equal(day.hasLoaded, true);
+  assert.equal(day.loading, false);
+  assert.equal(day.next, null);
+  assert.deepEqual(day.notes, [monthStore.getSnapshot().notes[0]]);
+  assert.equal(day.notes[0], monthStore.getSnapshot().notes[0]);
+  await dayStore.ensureLoaded();
+  await cache.get(selection).ensureLoaded();
+  await cache.get({ ...selection, date }).ensureLoaded();
+  assert.equal(calls.length, requestCount);
+});
+
+test('a partially loaded monthly date continues at its daily cursor', async () => {
+  const date = '2026-11-09';
+  const cache = state.createArchiveCache(session.getMemberSessionKey());
+  const records = Array.from({ length: 20 }, (_, index) => note(20 - index, 'WRITTEN', date));
+  respond = (request) => {
+    if (request.path.endsWith('/calendar')) return ok({ ...calendar, days: [
+      { date: '2026-11-10', writtenCount: 1, savedCount: 0 }, { date, writtenCount: records.length, savedCount: 0 },
+    ] });
+    if (request.query.get('date') !== date) return page(request, [note(21)]);
+    return request.query.has('cursor') ? page(request, records.slice(19)) : page(request, records.slice(0, 19), 'daily-cursor');
+  };
+  const monthStore = cache.get(selection);
+  await monthStore.ensureLoaded();
+  assert.deepEqual(monthStore.getSnapshot().next, { dayIndex: 1, cursor: 'daily-cursor' });
+
+  const dayStore = cache.get({ ...selection, date });
+  const day = dayStore.getSnapshot();
+  assert.equal(day.hasLoaded, true);
+  assert.equal(day.notes.length, 19);
+  assert.deepEqual(day.next, { dayIndex: 0, cursor: 'daily-cursor' });
+  const requestCount = calls.length;
+  await dayStore.ensureLoaded();
+  assert.equal(calls.length, requestCount);
+  await dayStore.loadMore();
+  assert.equal(calls.at(-1).query.get('date'), date);
+  assert.equal(calls.at(-1).query.get('cursor'), 'daily-cursor');
+  assert.deepEqual(dayStore.getSnapshot().notes.map((card) => card.id), records.map((record) => record.noteId));
+  assert.equal(dayStore.getSnapshot().next, null);
+});
+
+test('dates the month has not reached or whose data was invalidated still load from the API', async () => {
+  const recent = '2026-11-10';
+  const older = '2026-11-09';
+  const cache = state.createArchiveCache(session.getMemberSessionKey());
+  respond = (request) => request.path.endsWith('/calendar') ? ok({ ...calendar, days: [
+    { date: recent, writtenCount: 20, savedCount: 0 }, { date: older, writtenCount: 1, savedCount: 0 },
+  ] }) : page(request, request.query.get('date') === recent
+    ? Array.from({ length: 20 }, (_, index) => note(21 - index)) : [note(1, 'WRITTEN', older)]);
+  const monthStore = cache.get(selection);
+  await monthStore.ensureLoaded();
+  assert.deepEqual(monthStore.getSnapshot().next, { dayIndex: 1, cursor: null });
+  const olderStore = cache.get({ ...selection, date: older });
+  assert.equal(olderStore.getSnapshot().hasLoaded, false);
+  await olderStore.ensureLoaded();
+  assert.equal(calls.at(-1).query.get('date'), older);
+
+  cache.invalidate();
+  const recentStore = cache.get({ ...selection, date: recent });
+  assert.equal(recentStore.getSnapshot().hasLoaded, false);
+  await recentStore.ensureLoaded();
+  assert.equal(calls.at(-1).query.get('date'), recent);
+});
+
 test('manual refresh retains badges while loading and replaces removed notes', async () => {
   const cache = state.createArchiveCache(session.getMemberSessionKey());
   const store = cache.get(selection);

@@ -3,6 +3,7 @@ import { memo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FriendAvatar } from '@/components/friends/FriendAvatar';
+import { Skeleton, SkeletonBlock } from '@/components/ui/skeleton';
 import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
 import type { FriendProfile } from '@/types/friends';
@@ -110,6 +111,21 @@ export function FriendsHeader({ friends, selectedFriend, onSelectFriend, onAddFr
   );
 }
 
+export function FriendsListSkeleton() {
+  return (
+    <Skeleton label="친구 목록" style={[s.stories, s.profilePlaceholders]}>
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((index) => (
+        <View key={index} style={s.profile}>
+          <SkeletonBlock style={s.addCircle} />
+          <View style={s.namePlaceholder}>
+            <SkeletonBlock style={{ width: 42, height: 10 }} />
+          </View>
+        </View>
+      ))}
+    </Skeleton>
+  );
+}
+
 function ProfileSeparator() {
   return <View style={s.profileSeparator} />;
 }
@@ -150,12 +166,14 @@ const s = StyleSheet.create({
   addIcon: { width: 28, height: 28 },
   addLabel: { fontFamily: FontFamilies.notoSansKrBold, fontSize: 12, lineHeight: 18, color: C.ink, includeFontPadding: false },
   stories: { marginRight: -24, paddingBottom: 4 },
+  profilePlaceholders: { flexDirection: 'row', gap: PROFILE_GAP, overflow: 'hidden' },
   profiles: { paddingRight: 24 },
   addProfile: { marginEnd: PROFILE_GAP },
   profileSeparator: { width: PROFILE_GAP },
   profile: { width: PROFILE_SIZE, flexShrink: 0, alignItems: 'center', gap: 4 },
   activityDot: { position: 'absolute', top: 0, right: 0, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: C.background, backgroundColor: '#F23527' },
   name: { maxWidth: '100%', fontFamily: FontFamilies.notoSansKrBold, fontSize: 12, lineHeight: 18, color: C.ink, includeFontPadding: false },
+  namePlaceholder: { height: 18, justifyContent: 'center' },
   selectedName: { fontFamily: FontFamilies.notoSansKrBold, color: C.blue },
   pressed: { opacity: 0.65 },
   feedHeading: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },

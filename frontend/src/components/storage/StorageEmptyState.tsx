@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { RevealText } from '@/components/ui/reveal-text';
 import { FontFamilies } from '@/constants/fonts';
 import { StorageColors as C } from '@/constants/colors';
 
@@ -18,8 +19,10 @@ export function StorageEmptyState({ title, description, onCompose }: Props) {
         </View>
         <View style={s.plusCircle}><Text style={s.plus}>+</Text></View>
       </View>
-      <Text style={s.title} accessibilityLiveRegion="polite">{title}</Text>
-      <Text style={s.description}>{description}</Text>
+      <RevealText style={s.title} accessibilityRole="header" accessibilityLiveRegion="polite">{title}</RevealText>
+      {description.split('\n').map((line, index) => (
+        <RevealText key={index} order={index + 1} style={s.description}>{line}</RevealText>
+      ))}
       <Pressable onPress={onCompose} accessibilityRole="button" style={({ pressed }) => [s.button, pressed && s.pressed]}>
         <Text style={s.buttonText}>노트 남기기</Text>
         <Text style={s.buttonArrow} accessible={false}>↗</Text>
