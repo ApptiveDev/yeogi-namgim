@@ -17,3 +17,9 @@
 지도 `GET /api/v1/notes`의 `isSaved`와 `SAVED` 필터는 실제 저장 데이터를 사용한다. 저장 건수는 `BookmarkQueryService.countSavedNotes()`로 조회하며, 현재 공개 범위에서 노출 가능한 기록만 센다. 지도 `isRead`는 [읽음·발견 API](DISCOVERY_API.md)의 실제 데이터로 표시한다.
 
 Flyway `V11__create_note_bookmarks.sql`은 `(user_id, note_id)` 기본 키와 저장 시각을 둔다. 회원이나 쪽지를 삭제하면 저장 행도 삭제된다. 위치 정확도와 측정 시각의 수치 기준은 미확정이므로 임의의 제한값을 적용하지 않는다.
+
+## 3차 세미나 기준
+
+남의 쪽지 저장과 확인 후 저장 취소는 기존 API를 그대로 사용한다. 확인 팝업은 프론트 책임이며, 취소 API는 저장 기록이 없어도 성공하는 멱등 계약을 유지한다. 내 쪽지는 저장할 수 없고 작성자 조건으로 보관함에 자동 포함한다.
+
+3차에서 추가된 작성자 쪽지 삭제는 북마크 취소와 다른 기능이다. `DELETE /api/v1/notes/{noteId}`가 구현되면 원본 삭제의 외래 키 연쇄 동작으로 모든 사용자의 해당 북마크가 제거되어야 한다. 상세 정책은 [3차 세미나 백엔드 계획](THIRD_SEMINAR_BACKEND_PLAN.md)을 따른다.

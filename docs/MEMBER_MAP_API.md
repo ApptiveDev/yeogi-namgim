@@ -49,8 +49,8 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
       "visibility": "PUBLIC",
       "accessStatus": "OPENABLE",
       "distanceMeters": 100.0,
-      "isSaved": null,
-      "isRead": null
+      "isSaved": false,
+      "isRead": false
     }
   ],
   "openableNotes": [
@@ -65,8 +65,8 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
       "neighborhood": "동네명",
       "createdAt": "2026-10-28T00:00:00Z",
       "savedAt": null,
-      "isSaved": null,
-      "isRead": null,
+      "isSaved": false,
+      "isRead": false,
       "authorNickname": null
     }
   ],
@@ -79,7 +79,7 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 - `notes`는 지도용이다. 현재 위치에서 열지 못하는 LOCKED/LOCATION_REQUIRED도 위치 표시용으로 포함할 수 있지만, 본문·미리보기·작성자 회원 ID·닉네임은 넣지 않는다.
 - `openableNotes`는 동일 페이지의 OPENABLE 쪽지만 포함한다. 잠긴 쪽지나 위치가 필요한 쪽지는 목록에 넣지 않는다. 미리보기는 최대 100 유니코드 코드 포인트다.
 - ALL 목록은 친구의 쪽지도 익명(`authorNickname=null`)이다. FRIENDS 목록에서만 친구 이름을 반환한다.
-- `isSaved/isRead=null`은 해당 조회 소스가 아직 연결되지 않아 상태를 알 수 없다는 뜻이다. 소스 연결 후 실제 상태에 따라 true/false와 `savedAt`을 제공한다.
+- 현재 `main`은 실제 저장·읽음 소스가 연결되어 `isSaved/isRead`를 true/false로 제공한다. DTO는 소스가 등록되지 않은 비정상 구성과의 호환을 위해 nullable이지만, 운영에서 null을 ‘저장 안 함/안 읽음’으로 해석하지 않는다.
 - `hasNext=true`이면 같은 bounds/filter/location에서 다음 페이지를 조회한다. 페이지가 덜 온 상태에서 전체 개수나 ‘열람 가능 한 개’를 확정하지 않는다. 필터·범위·위치가 바뀌면 페이지를 초기화한다. 오프셋 조회이므로 페이지 사이 새 기록·저장이 생기면 경계가 달라질 수 있다.
 - 접근 불가 PRIVATE/비친구 FRIENDS는 위치·개수에도 포함하지 않는다. 지도 조회·미리보기로 읽음이나 저장 기록을 만들지 않는다.
 
@@ -110,7 +110,7 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 
 저장 필터에는 BookmarkQueryService와 BookmarkMapQueryService 둘 다 필요하다. 없으면 `503 MAP_DATA_UNAVAILABLE`다. 저장 페이지 소스는 화면 범위·공개 범위를 적용하고 `savedAt DESC, noteId DESC` 정렬 후 요청 size 이내의 `(noteId, savedAt)`와 `hasNext`를 반환한다. 서버는 받은 ID에도 범위·공개 권한을 다시 적용한다. 너무 큰 페이지·범위/공개 권한 위반 ID·저장 상태 불일치도 503으로 처리하며, 기존 비회원 쪽지는 회원 지도에 섞지 않는다. `hasNext`의 의미가 유지되도록 권한 필터는 저장 소스에서도 페이지 제한 전에 적용해야 한다.
 
-현재 main에는 실제 저장·읽음 구현이 없다. 이 연결은 테스트에서만 Mock으로 검증했으며 SAVED·저장 거리 예외·읽음 상태까지 운영 연결 완료라고 표시하지 않는다.
+PR #95·#96 병합 후 실제 `BookmarkQueryService`, `BookmarkMapQueryService`, `NoteDiscoveryQueryService` 구현이 운영 코드에 연결됐다. 일반 지도는 실제 `isSaved/isRead`, 저장 필터와 현재 공개 권한 안의 저장 거리 예외를 제공한다. 데이터 소스 오류를 빈 상태로 숨기지 않는 원칙은 유지한다.
 
 ## 인계와 검증
 
@@ -176,4 +176,14 @@ Authorization: Bearer <accessToken>
 
 서버는 기존 공간 인덱스와 공개 범위 조건을 사용해 DB에서 `GROUP BY/COUNT/AVG`로 집계한다. 쪽지 전체를 앱이나 Java 메모리로 가져오지 않는다. 정확한 전체 개수 계산 자체에는 범위 내 데이터 양에 비례하는 DB 작업이 필요하며 대규모 운영 데이터의 지연 시간은 별도 부하 측정 대상이다. [PostgreSQL 집계 함수 문서](https://www.postgresql.org/docs/current/functions-aggregate.html)를 참고한다. 새 마이그레이션은 필요하지 않다.
 
-프론트 화면 수정과 배포는 포함하지 않는다. 프론트는 위 경로 연결 후 반복 조회·1만 개 제한 안내를 교체해야 한다. 백엔드 통합 테스트는 10,001개 집계, 공개 범위·친구 해제·필터, 단일/복수 묶음, 화면 경계·세계 범위·같은 좌표, 빈 결과, 잘못된 입력, 회원 인증과 기존 비회원 데이터 격리를 검증한다.
+백엔드 #112·PR #117과 프론트 #140이 `main`에 병합되어 서버 클러스터 응답을 지도에 연결했다. 백엔드 통합 테스트는 10,001개 집계, 공개 범위·친구 해제·필터, 단일/복수 묶음, 화면 경계·세계 범위·같은 좌표, 빈 결과, 잘못된 입력, 회원 인증과 기존 비회원 데이터 격리를 검증한다.
+
+## 3차 세미나 후속 지도 계약
+
+2026-11-15 회의 기준의 공개 지도와 친구 지도는 현재 필터 의미와 차이가 있다. 세부 계획은 [3차 세미나 백엔드 계획](THIRD_SEMINAR_BACKEND_PLAN.md)을 따른다.
+
+- 현재 `ALL`은 내 쪽지·타인의 `PUBLIC`·현재 친구의 `FRIENDS`를 함께 반환한다. 공개 지도 전용 `PUBLIC` 필터를 새로 추가하고 기존 `ALL`은 호환을 위해 유지한다.
+- 현재 `FRIENDS`는 친구의 `FRIENDS`만 반환한다. 3차에서는 내 `FRIENDS`도 포함하고 친구의 `PUBLIC`과 모든 `PRIVATE`는 계속 제외한다.
+- 공개 지도에만 고정 태그 복수 필터를 추가한다. 같은 조건을 개별 지도와 클러스터에 적용한다.
+- 현재 클러스터 응답에는 `count`만 있다. 친구 지도 묶음에는 현재 회원 기준 `unreadCount`를 DB에서 함께 집계한다.
+- 지도 보관함의 모든 작성·저장 쪽지를 한 화면에 맞추려면 현재 화면 bounds 기반 `MINE/SAVED` 조회 외에 전체 bounds/위치 계약이 필요하다.

@@ -30,7 +30,7 @@
 | --- | --- | --- |
 | writtenNoteCount | long | 본인이 작성한 회원 쪽지 수. PUBLIC/FRIENDS/PRIVATE 모두 포함하며 지도 영역·거리와 무관하다. 다른 회원·비회원의 쪽지는 제외한다. |
 | friendCount | long | 기존 FriendshipQueryService.countFriends로 조회한 현재 친구 수 |
-| savedNoteCount | Long 또는 null | BookmarkQueryService.countSavedNotes의 결과. 구현 Bean이 없을 때만 null이다. 연결된 소스가 반환한 0은 실제 0건이다. |
+| savedNoteCount | Long 또는 null | BookmarkQueryService.countSavedNotes의 결과. 구현 Bean이 없을 때만 null이다. 현재 `main`에는 저장 구현이 연결되어 정상 실행 시 0 이상의 값이다. 연결된 소스가 반환한 0은 실제 0건이다. |
 
 저장 소스의 조회 실패는 정상 응답의 0이나 null로 숨기지 않고 오류로 전파한다. 저장 쪽지의 집계 정책은 저장 담당 서비스가 관리하며, 여기서 저장 테이블을 직접 조회하거나 내 작성 수를 저장 수에 합산하지 않는다.
 
