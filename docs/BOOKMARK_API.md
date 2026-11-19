@@ -16,6 +16,8 @@
 
 지도 `GET /api/v1/notes`의 `isSaved`와 `SAVED` 필터는 실제 저장 데이터를 사용한다. 저장 건수는 `BookmarkQueryService.countSavedNotes()`로 조회하며, 현재 공개 범위에서 노출 가능한 기록만 센다. 지도 `isRead`는 [읽음·발견 API](DISCOVERY_API.md)의 실제 데이터로 표시한다.
 
+서버 클러스터 `GET /api/v1/notes/clusters?filter=SAVED`도 현재 회원의 저장 쪽지를 화면 범위와 현재 공개 권한으로 제한한 뒤 페이지 없이 DB에서 전체 집계한다. 기존 클러스터 응답의 격자·대표 좌표·개수·`totalCount` 계약을 유지하며, 저장 목록 페이지를 반복 호출해 부분 집계하지 않는다.
+
 Flyway `V11__create_note_bookmarks.sql`은 `(user_id, note_id)` 기본 키와 저장 시각을 둔다. 회원이나 쪽지를 삭제하면 저장 행도 삭제된다. 위치 정확도와 측정 시각의 수치 기준은 미확정이므로 임의의 제한값을 적용하지 않는다.
 
 ## 3차 세미나 기준
