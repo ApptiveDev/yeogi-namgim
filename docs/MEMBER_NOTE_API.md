@@ -107,7 +107,7 @@
 
 `POST /api/v1/notes/{noteId}/open`에 회원 토큰과 `{}`를 전달한다. 내 쪽지는 위치 없이, 또는 멀리 떨어진 위치에서도 열람할 수 있다. 본문 생략도 허용한다. 좌표를 보낼 때는 두 필드를 함께 보내며 범위를 검증한다.
 
-기존 `noteId/content/isMine/createdAt`에 `visibility/color/placeName/neighborhood`를 추가한 `data`를 반환한다. 익명 작성자 UUID는 포함하지 않는다.
+기존 `noteId/content/isMine/createdAt`에 `visibility/color/placeName/neighborhood/isSaved/isRead/authorCategory/authorNickname`을 추가한 `data`를 반환한다. `authorCategory`는 `MINE/FRIEND/ANONYMOUS`이며, 현재 친구가 작성한 `FRIENDS` 쪽지에만 `authorNickname`을 제공한다. `PUBLIC` 쪽지는 작성자가 현재 친구여도 `ANONYMOUS`와 `authorNickname: null`을 반환한다. 작성자 UUID·이메일은 포함하지 않는다.
 
 - 작성·조회 담당: `NoteService`, `Note`, `NoteRepository`, 작성·목록 DTO.
 - 열람 담당: 분리한 `NoteOpenService`에서 타인 권한, 친구·저장 거리 예외, 읽음 기록을 확장한다. 회원 본인 열람은 이미 제공한다.

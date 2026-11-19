@@ -6,8 +6,9 @@ import com.yeoginamgim.note.domain.NoteVisibility;
 
 public record NoteOpenResponse(UUID noteId, String content, boolean isMine, Instant createdAt,
 	NoteVisibility visibility, String color, String placeName, String neighborhood,
-	boolean isSaved, boolean isRead) {
+	boolean isSaved, boolean isRead, NoteAuthorCategory authorCategory, String authorNickname) {
 	public NoteOpenResponse(UUID noteId, String content, boolean isMine, Instant createdAt) {
-		this(noteId, content, isMine, createdAt, NoteVisibility.PUBLIC, null, null, null, false, false);
+		this(noteId, content, isMine, createdAt, NoteVisibility.PUBLIC, null, null, null, false, false,
+			isMine ? NoteAuthorCategory.MINE : NoteAuthorCategory.ANONYMOUS, null);
 	}
 }
