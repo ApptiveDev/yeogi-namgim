@@ -14,6 +14,7 @@ import com.yeoginamgim.note.dto.NotePageRequest;
 import com.yeoginamgim.note.domain.Note;
 import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
+import com.yeoginamgim.note.dto.NoteDeleteResponse;
 import com.yeoginamgim.note.repository.NoteRepository;
 
 @Service
@@ -39,6 +40,15 @@ public class NoteService {
 		noteRepository.save(note);
 
 		return new NoteCreateResponse(note.getId(), createdAt);
+	}
+
+	@Transactional
+	public NoteDeleteResponse delete(String token, UUID noteId) {
+		UUID userId = actors.identify(token).id();
+		Note note = noteRepository.findByIdAndAuthorUserId(noteId, userId)
+			.orElseThrow(NoteNotFoundException::new);
+		noteRepository.delete(note);
+		return new NoteDeleteResponse(noteId, true);
 	}
 
 	@Transactional(readOnly = true)
