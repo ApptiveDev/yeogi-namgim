@@ -59,7 +59,7 @@
 - [x] 저장한 쪽지 목록: `GET /api/v1/users/me/bookmarks` — #92, [저장 API](BOOKMARK_API.md)
 - [x] 발견·읽음 기록 목록: `GET /api/v1/users/me/discovered-notes` — #93, [PR #96](https://github.com/ApptiveDev/yeogi-namgim/pull/96)
 - [x] 지도 조회의 저장·읽음 상태 일괄 제공 및 저장 쪽지 거리 예외 — #92·#93
-- [x] 저장 필터 서버 클러스터 전체 집계: `GET /api/v1/notes/clusters?filter=SAVED` — [#130](https://github.com/ApptiveDev/yeogi-namgim/issues/130)
+- [ ] 저장 필터 서버 클러스터 전체 집계: `GET /api/v1/notes/clusters?filter=SAVED` — 구현 완료, PR [#148](https://github.com/ApptiveDev/yeogi-namgim/pull/148) 병합 대기
 
 ### 보관함·통계·알림
 
@@ -71,7 +71,8 @@
 
 ## 서버 지도 클러스터 추가 작업
 
-- [x] `GET /api/v1/notes/clusters`: 화면 범위의 노출 가능한 쪽지를 전부 집계해 대표 좌표·개수·전체 수를 반환한다. 1만 개 제한은 없고 `ALL/FRIENDS/MINE/SAVED`를 지원한다. 백엔드 #112·#130과 프론트 #140이 연결한다. 3차의 `unreadCount`는 후속 작업이다. [요청·응답과 연결 방법](MEMBER_MAP_API.md#서버-클러스터-조회--2026-11-03).
+- [x] `GET /api/v1/notes/clusters`: 화면 범위의 노출 가능한 쪽지를 전부 집계해 대표 좌표·개수·전체 수를 반환한다. 1만 개 제한은 없고 `ALL/FRIENDS/MINE`을 지원한다. 백엔드 #112와 프론트 #140이 연결한다.
+- [ ] `GET /api/v1/notes/clusters?filter=SAVED`: 저장 쪽지 전체 집계 — 구현 완료, PR [#148](https://github.com/ApptiveDev/yeogi-namgim/pull/148) 병합 대기. 3차의 `unreadCount`는 후속 작업이다. [요청·응답과 연결 방법](MEMBER_MAP_API.md#서버-클러스터-조회--2026-11-03).
 
 ## 3차 세미나 후속 백엔드
 
