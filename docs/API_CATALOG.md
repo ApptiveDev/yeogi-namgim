@@ -74,9 +74,9 @@
 
 ## 3차 세미나 후속 백엔드
 
-- [ ] 공개 지도 전용 `PUBLIC` 필터와 친구 지도에 내 `FRIENDS` 쪽지 포함
+- [ ] 공개 지도 전용 `PUBLIC` 필터와 친구 지도에 내 `FRIENDS` 쪽지 포함 — 담당 A, [#150](https://github.com/ApptiveDev/yeogi-namgim/issues/150)
 - [ ] 고정 태그 6개 저장·작성 검증·공개 지도 복수 태그 필터
-- [ ] 친구 지도 클러스터의 `unreadCount`
+- [ ] 친구 지도 클러스터의 `unreadCount` — 담당 A, [#150](https://github.com/ApptiveDev/yeogi-namgim/issues/150)
 - [ ] 지도 보관함 전체 위치·bounds 조회 계약
 - [ ] 작성자 쪽지 삭제: `DELETE /api/v1/notes/{noteId}`
 - [x] 상세 이동 분류 정보: 상세 응답의 `isMine/isSaved/visibility/createdAt` 재사용
