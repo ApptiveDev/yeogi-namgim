@@ -18,7 +18,9 @@ import com.yeoginamgim.note.access.LocationInput;
 import com.yeoginamgim.note.access.NoteAccessService;
 import com.yeoginamgim.note.access.NoteAccessStatus;
 import com.yeoginamgim.note.access.NoteAccessTarget;
+import com.yeoginamgim.note.dto.MemberMapClusterResponse.Cluster;
 import com.yeoginamgim.note.dto.NoteMapBoundsRequest;
+import com.yeoginamgim.note.dto.NoteMapClusterRequest;
 import com.yeoginamgim.note.dto.NotePageRequest;
 import com.yeoginamgim.note.repository.NoteRepository;
 import com.yeoginamgim.note.service.InvalidNoteRequestException;
@@ -56,6 +58,12 @@ public class DatabaseBookmarkService implements BookmarkQueryService, BookmarkMa
 	public SavedNotePage findSavedInBounds(UUID userId, NoteMapBoundsRequest query) {
 		var found = bookmarks.findVisibleInBounds(userId, query);
 		return new SavedNotePage(found.stream().limit(query.size()).toList(), found.size() > query.size());
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<Cluster> findSavedClusters(UUID userId, NoteMapClusterRequest query) {
+		return bookmarks.findVisibleClusters(userId, query);
 	}
 
 	@Transactional

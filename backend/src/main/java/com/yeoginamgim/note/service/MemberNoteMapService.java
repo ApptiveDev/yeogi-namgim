@@ -99,12 +99,17 @@ public class MemberNoteMapService {
 
 	@Transactional(readOnly = true)
 	public MemberMapClusterResponse findClusters(UUID userId, NoteMapClusterRequest query) {
-		// The current bookmark contract provides pages, not a complete aggregate source.
-		// Never return a partial count or treat an unavailable source as an empty map.
-		if (query.filter() == NoteMapFilter.SAVED) throw new MapDataUnavailableException();
-		var clusters = notes.findClusters(userId, query);
+		var clusters = query.filter() == NoteMapFilter.SAVED
+			? savedClusters(userId, query)
+			: notes.findClusters(userId, query);
 		long totalCount = clusters.stream().mapToLong(MemberMapClusterResponse.Cluster::count).sum();
 		return new MemberMapClusterResponse(clusters, totalCount, query.gridSize());
+	}
+
+	private List<MemberMapClusterResponse.Cluster> savedClusters(UUID userId, NoteMapClusterRequest query) {
+		BookmarkMapQueryService source = savedMaps.getIfAvailable();
+		if (source == null) throw new MapDataUnavailableException();
+		return source.findSavedClusters(userId, query);
 	}
 
 	private String preview(String content) {

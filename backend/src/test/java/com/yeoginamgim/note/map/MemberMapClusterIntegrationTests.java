@@ -19,10 +19,15 @@ class MemberMapClusterIntegrationTests extends MemberMapTestSupport {
 	@Test
 	void moreThanTenThousandNotesAreCountedWithoutTruncation() throws Exception {
 		jdbc.update("""
-			INSERT INTO app.notes (id, author_user_id, content, latitude, longitude, visibility, created_at)
-			SELECT gen_random_uuid(), ?, '많은쪽지', 35 + (i % 20) * 0.0001,
-			    129 + (i % 30) * 0.0001, 'PUBLIC', now() FROM generate_series(1, 10001) AS i
-			""", stranger.getId());
+			WITH inserted AS (
+				INSERT INTO app.notes (id, author_user_id, content, latitude, longitude, visibility, created_at)
+				SELECT gen_random_uuid(), ?, '많은쪽지', 35 + (i % 20) * 0.0001,
+				    129 + (i % 30) * 0.0001, 'PUBLIC', now() FROM generate_series(1, 10001) AS i
+				RETURNING id
+			)
+			INSERT INTO app.note_bookmarks (user_id, note_id, saved_at)
+			SELECT ?, id, now() FROM inserted
+			""", stranger.getId(), me.getId());
 		var response = data(clusters("ALL", Map.of()).andExpect(status().isOk())
 			.andExpect(header().string("Cache-Control", "no-store"))
 			.andExpect(jsonPath("$.data.totalCount").value(10001)));
@@ -31,6 +36,8 @@ class MemberMapClusterIntegrationTests extends MemberMapTestSupport {
 		for (var cluster : response.get("clusters")) sum += cluster.get("count").asLong();
 		assertThat(sum).isEqualTo(10001);
 		assertThat(response.has("hasNext")).isFalse();
+		clusters("SAVED", Map.of()).andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.totalCount").value(10001));
 	}
 
 	@Test
@@ -94,11 +101,30 @@ class MemberMapClusterIntegrationTests extends MemberMapTestSupport {
 	}
 
 	@Test
-	void emptyMapIsZeroAndUnavailableSavedSourceIsNotZero() throws Exception {
+	void emptyMapAndEmptySavedMapAreZero() throws Exception {
 		clusters("ALL", Map.of()).andExpect(status().isOk()).andExpect(jsonPath("$.data.totalCount").value(0))
 			.andExpect(jsonPath("$.data.clusters").isEmpty());
-		clusters("SAVED", Map.of()).andExpect(status().isServiceUnavailable())
-			.andExpect(jsonPath("$.error.code").value("MAP_DATA_UNAVAILABLE"));
+		clusters("SAVED", Map.of()).andExpect(status().isOk()).andExpect(jsonPath("$.data.totalCount").value(0))
+			.andExpect(jsonPath("$.data.clusters").isEmpty());
+	}
+
+	@Test
+	void savedClustersContainOnlyCurrentUsersVisibleSavedNotes() throws Exception {
+		var publicSaved = note(stranger, NoteVisibility.PUBLIC, 20, "저장한공개");
+		var friendSaved = note(friend, NoteVisibility.FRIENDS, 30, "저장한친구");
+		var hiddenSaved = note(stranger, NoteVisibility.PRIVATE, 40, "저장돼도숨김");
+		var otherUsersSaved = note(stranger, NoteVisibility.PUBLIC, 45, "다른회원저장");
+		note(stranger, NoteVisibility.PUBLIC, 50, "저장안함");
+		bookmark(publicSaved, friendSaved, hiddenSaved);
+		jdbc.update("INSERT INTO app.note_bookmarks (user_id, note_id, saved_at) VALUES (?, ?, now())",
+			friend.getId(), otherUsersSaved.getId());
+
+		clusters("SAVED", Map.of()).andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.totalCount").value(2));
+		jdbc.update("DELETE FROM app.friendships WHERE user_low = ? OR user_high = ?", me.getId(), me.getId());
+		clusters("SAVED", Map.of()).andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.totalCount").value(1))
+			.andExpect(jsonPath("$.data.clusters[0].noteId").value(publicSaved.getId().toString()));
 	}
 
 	@Test
@@ -183,6 +209,37 @@ class MemberMapClusterIntegrationTests extends MemberMapTestSupport {
 			.andExpect(jsonPath("$.data.clusters[0].unreadCount").value(0));
 	}
 
+
+	@Test
+	void savedUnreadCountsUseViewerReadStateAndRecheckVisibilityAndBounds() throws Exception {
+		var read = note(friend, NoteVisibility.FRIENDS, 10, "읽은저장");
+		var unread = note(stranger, NoteVisibility.PUBLIC, 20, "안읽은저장");
+		var hidden = note(stranger, NoteVisibility.PRIVATE, 30, "권한없는저장");
+		var outside = note(stranger, NoteVisibility.PUBLIC, 2000, "화면밖저장");
+		var other = note(stranger, NoteVisibility.PUBLIC, 40, "다른회원저장");
+		bookmark(read, unread, hidden, outside);
+		jdbc.update("INSERT INTO app.note_bookmarks (user_id, note_id, saved_at) VALUES (?, ?, now())",
+			friend.getId(), other.getId());
+		markRead(me.getId(), read.getId());
+		markRead(friend.getId(), unread.getId());
+		long before = jdbc.queryForObject("SELECT count(*) FROM app.note_discoveries", Long.class);
+		clusters("SAVED", Map.of("gridSize", "1")).andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.totalCount").value(2))
+			.andExpect(jsonPath("$.data.clusters[0].unreadCount").value(1));
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM app.note_discoveries", Long.class)).isEqualTo(before);
+		markRead(me.getId(), unread.getId());
+		clusters("SAVED", Map.of("gridSize", "1")).andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.clusters[0].unreadCount").value(0));
+		jdbc.update("DELETE FROM app.friendships WHERE user_low = ? OR user_high = ?", me.getId(), me.getId());
+		clusters("SAVED", Map.of("gridSize", "1")).andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.totalCount").value(1))
+			.andExpect(jsonPath("$.data.clusters[0].noteId").value(unread.getId().toString()));
+		jdbc.update("UPDATE app.notes SET visibility = 'PRIVATE' WHERE id = ?", unread.getId());
+		clusters("SAVED", Map.of("gridSize", "1")).andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.totalCount").value(0))
+			.andExpect(jsonPath("$.data.clusters").isEmpty());
+	}
+
 	private void markRead(UUID userId, UUID noteId) {
 		jdbc.update("INSERT INTO app.note_discoveries (user_id, note_id, first_opened_at, last_opened_at) VALUES (?, ?, ?, ?)",
 			userId, noteId, java.sql.Timestamp.from(Instant.now()), java.sql.Timestamp.from(Instant.now()));
@@ -191,6 +248,13 @@ class MemberMapClusterIntegrationTests extends MemberMapTestSupport {
 	private Note at(double latitude, double longitude) {
 		return notes.saveAndFlush(Note.createMember(UUID.randomUUID(), stranger.getId(), "공개쪽지",
 			latitude, longitude, Instant.now(), NoteVisibility.PUBLIC, null, null, null));
+	}
+
+	private void bookmark(Note... saved) {
+		for (Note note : saved) {
+			jdbc.update("INSERT INTO app.note_bookmarks (user_id, note_id, saved_at) VALUES (?, ?, now())",
+				me.getId(), note.getId());
+		}
 	}
 
 	private ResultActions clusters(String filter, Map<String, String> extra) throws Exception {
