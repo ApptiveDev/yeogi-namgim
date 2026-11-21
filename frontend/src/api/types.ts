@@ -65,6 +65,7 @@ export type MapNoteLocation = { latitude: number; longitude: number };
 
 export type MapNotePreview = {
   isSaved: boolean | null;
+  isRead: boolean | null;
   noteId: string;
   preview: string;
   distanceMeters: number | null;

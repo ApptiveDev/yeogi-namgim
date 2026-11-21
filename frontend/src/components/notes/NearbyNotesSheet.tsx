@@ -190,6 +190,7 @@ function NearbyNotesModal({ list, filter, height, onClose, onLoadMore, onOpen, o
                         : <Image source={note.visibility === 'FRIENDS' ? AUTHOR_ICONS.friends : AUTHOR_ICONS.public}
                           style={s.authorIcon} contentFit="contain" accessible={false} />}
                       <Text style={s.author} numberOfLines={1}>{note.isMine ? '내 쪽지' : note.authorNickname || '누군가'}{note.distanceMeters === null ? '' : ` · ${Math.ceil(note.distanceMeters)}m`}</Text>
+                      {note.isRead === true && <Text style={[s.author, s.readLabel]} numberOfLines={1}>· 읽음</Text>}
                     </View>
                   </View>
                   <Pressable onPress={() => close(note.noteId)} accessibilityRole="button" accessibilityLabel="쪽지 열기" style={s.open}>
@@ -233,7 +234,8 @@ const s = StyleSheet.create({
   preview: { fontFamily: 'NotoSansKR-Regular', fontSize: 15, lineHeight: 23, color: '#1C1C1E', includeFontPadding: false },
   metadata: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   authorIcon: { width: 14, height: 14, flexShrink: 0 },
-  author: { flex: 1, fontFamily: 'NotoSansKR-Medium', fontSize: 12, lineHeight: 18, letterSpacing: -0.3, color: '#8E8E93', includeFontPadding: false },
+  author: { flexShrink: 1, fontFamily: 'NotoSansKR-Medium', fontSize: 12, lineHeight: 18, letterSpacing: -0.3, color: '#8E8E93', includeFontPadding: false },
+  readLabel: { flexShrink: 0 },
   open: { width: 76, minHeight: 37, borderRadius: 999, backgroundColor: '#D6F65A', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   openText: { fontFamily: 'NotoSansKR-Bold', fontSize: 14, lineHeight: 21, letterSpacing: -0.3, color: '#0E0E0E', includeFontPadding: false },
   status: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },

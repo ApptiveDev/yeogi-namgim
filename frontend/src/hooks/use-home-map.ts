@@ -13,6 +13,7 @@ import { CAMERA_RETURN_DURATION, DEFAULT_MAP_VIEW, NEARBY_CAMERA_RETURN_DURATION
 import { useMotionPreference } from '@/hooks/use-motion-preference';
 import { useNoteMarkers } from '@/hooks/use-note-markers';
 import { subscribeBookmarkChanges } from '@/state/note-bookmarks';
+import { subscribeNoteReads } from '@/state/note-reads';
 import { createLocationCircle } from '@/utils/location-circle';
 
 const SINGLE_NOTE_PAGE_LIMIT = 2;
@@ -42,7 +43,8 @@ function updateNearbyNote(request: NearbyRequest, note: MapNotePreview) {
     && (note.distanceMeters === null || note.distanceMeters > NOTE_READ_RADIUS_METERS))) {
     request.notes.delete(note.noteId);
   } else {
-    request.notes.set(note.noteId, isSaved === undefined ? note : { ...note, isSaved });
+    const isRead = request.notes.get(note.noteId)?.isRead === true ? true : note.isRead;
+    request.notes.set(note.noteId, { ...note, isSaved: isSaved ?? note.isSaved, isRead });
   }
 }
 
@@ -175,6 +177,16 @@ export function useHomeMap({
     setNearby((previous) => previous?.key === request.key
       ? { ...previous, notes: nearbyPreviews(request),
         hasNext: request.hasNext || request.notes.size > request.visibleCount } : previous);
+  }), []);
+
+  useEffect(() => subscribeNoteReads(({ owner, noteId }) => {
+    const request = nearbyRequest.current;
+    if (!request || owner !== request.owner || owner !== getMemberSessionKey()) return;
+    const note = request.notes.get(noteId);
+    if (!note || note.isRead === true) return;
+    request.notes.set(noteId, { ...note, isRead: true });
+    setNearby((previous) => previous?.key === request.key
+      ? { ...previous, notes: nearbyPreviews(request) } : previous);
   }), []);
 
   const showListCamera = (request: NearbyRequest) => {
