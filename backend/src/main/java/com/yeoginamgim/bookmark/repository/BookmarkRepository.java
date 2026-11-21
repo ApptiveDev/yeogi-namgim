@@ -12,7 +12,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.yeoginamgim.bookmark.service.BookmarkMapQueryService.SavedNoteReference;
+import com.yeoginamgim.note.dto.MemberMapClusterResponse.Cluster;
 import com.yeoginamgim.note.dto.NoteMapBoundsRequest;
+import com.yeoginamgim.note.dto.NoteMapClusterRequest;
 import com.yeoginamgim.note.repository.VisibleMemberNoteSql;
 
 @Repository
@@ -72,6 +74,49 @@ public class BookmarkRepository {
 			 AND n.longitude BETWEEN :minLongitude AND :maxLongitude
 			 ORDER BY b.saved_at DESC, b.note_id DESC LIMIT :limit OFFSET :offset
 			 """, params, this::reference);
+	}
+
+	/** Aggregate every currently visible saved note in bounds before any response-size limit. */
+	public List<Cluster> findVisibleClusters(UUID userId, NoteMapClusterRequest query) {
+		Map<String, Object> params = new HashMap<>();
+		params.put("userId", userId);
+		params.put("minLatitude", query.minLatitude());
+		params.put("minLongitude", query.minLongitude());
+		params.put("maxLatitude", query.maxLatitude());
+		params.put("maxLongitude", query.maxLongitude());
+		params.put("gridSize", query.gridSize());
+		String sql = """
+			WITH visible AS (
+				SELECT n.id, n.latitude, n.longitude,
+					n.author_user_id <> :userId AND NOT EXISTS (
+						SELECT 1 FROM app.note_discoveries d
+						WHERE d.user_id = :userId AND d.note_id = n.id
+					) AS unread,
+					LEAST(:gridSize - 1, GREATEST(0, COALESCE(FLOOR(
+						(n.longitude - :minLongitude) / NULLIF(:maxLongitude - :minLongitude, 0)
+						* :gridSize), 0)))::integer AS cell_x,
+					LEAST(:gridSize - 1, GREATEST(0, COALESCE(FLOOR(
+						(n.latitude - :minLatitude) / NULLIF(:maxLatitude - :minLatitude, 0)
+						* :gridSize), 0)))::integer AS cell_y
+			""" + FROM_VISIBLE + """
+				AND n.location::public.geometry && public.ST_MakeEnvelope(:minLongitude, :minLatitude, :maxLongitude, :maxLatitude, 4326)
+				AND n.latitude BETWEEN :minLatitude AND :maxLatitude
+				AND n.longitude BETWEEN :minLongitude AND :maxLongitude
+			)
+			SELECT cell_x, cell_y, COUNT(*) AS note_count,
+				COUNT(*) FILTER (WHERE unread) AS unread_count,
+				AVG(latitude) AS latitude, AVG(longitude) AS longitude,
+				CASE WHEN COUNT(*) = 1 THEN MIN(id::text) ELSE NULL END AS note_id,
+				MIN(latitude) AS min_latitude, MIN(longitude) AS min_longitude,
+				MAX(latitude) AS max_latitude, MAX(longitude) AS max_longitude
+			FROM visible GROUP BY cell_x, cell_y ORDER BY cell_y, cell_x
+			""";
+		return jdbc.query(sql, params, (rs, row) -> new Cluster(
+			rs.getInt("cell_x") + ":" + rs.getInt("cell_y"), rs.getDouble("latitude"),
+			rs.getDouble("longitude"), rs.getLong("note_count"),
+			rs.getString("note_id") == null ? null : UUID.fromString(rs.getString("note_id")),
+			rs.getDouble("min_latitude"), rs.getDouble("min_longitude"),
+			rs.getDouble("max_latitude"), rs.getDouble("max_longitude"), rs.getLong("unread_count")));
 	}
 
 	private SavedNoteReference reference(java.sql.ResultSet rs, int row) throws java.sql.SQLException {

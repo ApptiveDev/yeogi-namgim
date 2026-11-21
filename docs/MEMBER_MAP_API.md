@@ -13,7 +13,7 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 | 입력 | 규칙 |
 | --- | --- |
 | `minLatitude/minLongitude/maxLatitude/maxLongitude` | 필수, 위도 -90~90·경도 -180~180, 최소 ≤ 최대. 화면의 사각형 범위이며 150m 조회 반경이 아님 |
-| `filter` | 기본 `ALL`, `ALL/FRIENDS/MINE/SAVED` |
+| `filter` | 기본 `ALL`, `ALL/PUBLIC/FRIENDS/MINE/SAVED` |
 | `latitude/longitude` | 현재 사용자 위치, 둘 다 생략하거나 둘 다 제공. 화면 중심과 별개 |
 | `accuracyMeters/measuredAt` | 선택적인 측정 정확도(유한한 0 이상)·ISO UTC 시각. 좌표 없이 메타데이터만 제공하면 400 |
 | `page/size` | 기본 0/100, `page=0~10000`, `size=1~500` |
@@ -25,11 +25,12 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 | 필터 | 대상 | 정렬 |
 | --- | --- | --- |
 | `ALL` | 내 쪽지, 타인의 PUBLIC, 현재 친구의 FRIENDS | 위치가 있으면 현재 사용자와 가까운 순 |
-| `FRIENDS` | 현재 친구가 작성한 FRIENDS만. 친구의 PUBLIC·PRIVATE와 내 쪽지는 제외 | 위치가 있으면 가까운 순 |
+| `PUBLIC` | 작성자와 관계없이 PUBLIC만. 공개 지도용 | 위치가 있으면 가까운 순 |
+| `FRIENDS` | 현재 친구와 내가 작성한 FRIENDS만. 친구의 PUBLIC과 모든 PRIVATE는 제외 | 위치가 있으면 가까운 순 |
 | `MINE` | 공개 범위와 관계없이 내 회원 쪽지 | 최신 작성순 |
 | `SAVED` | 저장 소스가 제공한 현재 노출 가능한 회원 쪽지 | 최신 저장순 |
 
-위치 없는 ALL/FRIENDS 조회는 탐색을 유지하기 위해 최신 작성순으로 안정적으로 반환한다. 위치 없는 타인 미저장 쪽지는 목록에 포함하지 않으므로 이 순서를 ‘가까운 순’으로 표시하지 않는다.
+위치 없는 ALL/PUBLIC/FRIENDS 조회는 탐색을 유지하기 위해 최신 작성순으로 안정적으로 반환한다. 위치 없는 타인 미저장 쪽지는 목록에 포함하지 않으므로 이 순서를 ‘가까운 순’으로 표시하지 않는다.
 
 경계 점은 포함한다. 경도 범위가 날짜 변경선을 가로지르면 프론트는 두 범위로 나눠 요청하고 ID로 중복을 제거한다. -180~180처럼 넓은 범위도 지원한다. 회원 지도는 `location::geometry`의 화면 사각형 비교를 사용하며, V10의 부분 GiST 인덱스를 사용한다. 실제 미터 거리와 열람 판정은 저장된 geography 좌표의 타원체 지오데식 거리로 계산한다.
 
@@ -78,7 +79,7 @@ GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLon
 
 - `notes`는 지도용이다. 현재 위치에서 열지 못하는 LOCKED/LOCATION_REQUIRED도 위치 표시용으로 포함할 수 있지만, 본문·미리보기·작성자 회원 ID·닉네임은 넣지 않는다.
 - `openableNotes`는 동일 페이지의 OPENABLE 쪽지만 포함한다. 잠긴 쪽지나 위치가 필요한 쪽지는 목록에 넣지 않는다. 미리보기는 최대 100 유니코드 코드 포인트다.
-- ALL 목록은 친구의 쪽지도 익명(`authorNickname=null`)이다. FRIENDS 목록에서만 친구 이름을 반환한다.
+- ALL/PUBLIC 목록은 친구의 쪽지도 익명(`authorNickname=null`)이다. FRIENDS 목록에서만 친구 이름을 반환한다.
 - 현재 `main`은 실제 저장·읽음 소스가 연결되어 `isSaved/isRead`를 true/false로 제공한다. DTO는 소스가 등록되지 않은 비정상 구성과의 호환을 위해 nullable이지만, 운영에서 null을 ‘저장 안 함/안 읽음’으로 해석하지 않는다.
 - `hasNext=true`이면 같은 bounds/filter/location에서 다음 페이지를 조회한다. 페이지가 덜 온 상태에서 전체 개수나 ‘열람 가능 한 개’를 확정하지 않는다. 필터·범위·위치가 바뀌면 페이지를 초기화한다. 오프셋 조회이므로 페이지 사이 새 기록·저장이 생기면 경계가 달라질 수 있다.
 - 접근 불가 PRIVATE/비친구 FRIENDS는 위치·개수에도 포함하지 않는다. 지도 조회·미리보기로 읽음이나 저장 기록을 만들지 않는다.
@@ -134,8 +135,8 @@ Authorization: Bearer <accessToken>
 ```
 
 - 필수 입력은 화면 사각형의 최소·최대 위도와 경도다. 범위·최소≤최대 규칙은 기존 지도 API와 같으며 경계 점도 포함한다. 현재 사용자 위치는 필요하지 않다.
-- `filter`는 기본 `ALL`이며 `ALL/FRIENDS/MINE`을 지원한다. 공개 범위·현재 친구 관계는 기존 지도와 동일하게 적용한 **후에** 집계한다. 비회원 기록·타인 PRIVATE·비친구 FRIENDS는 개수와 대표 좌표에도 포함하지 않는다.
-- `SAVED`는 저장 소스의 전체 집계 계약이 아직 없어 `503 MAP_DATA_UNAVAILABLE`다. 기존 저장 페이지 API를 반복 호출해 일부만 세거나 임의 저장 테이블을 만들지 않는다. 저장 담당과 별도 집계 조회를 연결해야 한다.
+- `filter`는 기본 `ALL`이며 `ALL/PUBLIC/FRIENDS/MINE/SAVED`를 지원한다. 공개 범위·현재 친구 관계는 기존 지도와 동일하게 적용한 **후에** 집계한다. 비회원 기록·타인 PRIVATE·비친구 FRIENDS는 개수와 대표 좌표에도 포함하지 않는다.
+- `SAVED`는 현재 회원의 실제 저장 관계를 `app.note_bookmarks`에서 화면 범위·현재 공개 권한으로 먼저 제한한 뒤 DB에서 전체 집계한다. 저장 목록 페이지를 반복 호출하거나 일부 페이지만 세지 않는다. 저장 데이터 조회 실패는 빈 지도로 숨기지 않고 서버 오류로 전파한다. 저장 클러스터의 `unreadCount`도 현재 회원의 실제 읽음 기록을 사용한다.
 - `gridSize`는 화면의 위도·경도 범위를 각각 몇 칸으로 나눌지 나타내며 기본 8, 허용 1~32다. 기본 응답은 최대 64개, 최대 설정에서도 1,024개 묶음이다. 이 제한은 **응답 묶음 수**에만 적용하며 쪽지 수는 자르지 않는다. 1만 개를 넘는 쪽지도 모두 포함한다.
 - `page/size`는 이 API의 입력이 아니며 페이지가 없다. 고정 줌 기준이나 150m 열람 조건도 이 API에서 새로 정하지 않는다.
 - 인증·형식 오류는 기존과 같은 401/400이며 성공 응답에 `Cache-Control: no-store`를 적용한다.
@@ -150,6 +151,7 @@ Authorization: Bearer <accessToken>
       "latitude": 35.001,
       "longitude": 129.001,
       "count": 12503,
+      "unreadCount": 8000,
       "noteId": null,
       "minLatitude": 35.0001,
       "minLongitude": 129.0001,
@@ -162,7 +164,7 @@ Authorization: Bearer <accessToken>
 }
 ```
 
-`count`와 `totalCount`는 64비트 정수다. `totalCount`는 화면 범위의 노출 가능한 쪽지 전체 수이며, 항상 모든 `clusters[].count`의 합이다. 빈 지도는 `clusters=[]`, `totalCount=0`이다. 본문·미리보기·작성자 ID·닉네임·읽음·저장 상태는 반환하지 않는다. 조회로 열람·발견·저장 기록을 만들지 않는다.
+`count`, `unreadCount`, `totalCount`는 64비트 정수다. `unreadCount`는 해당 묶음에서 본인 쪽지를 제외하고 현재 회원의 읽음 기록이 없는 쪽지 수다. 지원하는 모든 필터에서 같은 정의를 사용하며 `MINE`에서는 0이다. 다른 회원의 읽음 기록은 영향을 주지 않는다. `totalCount`는 화면 범위의 노출 가능한 쪽지 전체 수이며, 항상 모든 `clusters[].count`의 합이다. 빈 지도는 `clusters=[]`, `totalCount=0`이다. 본문·미리보기·작성자 ID·닉네임·개별 읽음·저장 상태는 반환하지 않는다. 조회로 열람·발견·저장 기록을 만들지 않는다.
 
 ### 묶음과 프론트 연결
 
@@ -178,12 +180,14 @@ Authorization: Bearer <accessToken>
 
 백엔드 #112·PR #117과 프론트 #140이 `main`에 병합되어 서버 클러스터 응답을 지도에 연결했다. 백엔드 통합 테스트는 10,001개 집계, 공개 범위·친구 해제·필터, 단일/복수 묶음, 화면 경계·세계 범위·같은 좌표, 빈 결과, 잘못된 입력, 회원 인증과 기존 비회원 데이터 격리를 검증한다.
 
-## 3차 세미나 후속 지도 계약
+## 3차 세미나 지도 계약 — 이슈 #150
 
-2026-11-15 회의 기준의 공개 지도와 친구 지도는 현재 필터 의미와 차이가 있다. 세부 계획은 [3차 세미나 백엔드 계획](THIRD_SEMINAR_BACKEND_PLAN.md)을 따른다.
+2026-11-15 회의 기준의 공개·친구 지도 정책과 미읽음 집계는 [이슈 #150](https://github.com/ApptiveDev/yeogi-namgim/issues/150)에서 반영한다. 병합 상태는 연결 PR에서 확인한다. 세부 계획은 [3차 세미나 백엔드 계획](THIRD_SEMINAR_BACKEND_PLAN.md)을 따른다.
 
 - 현재 `ALL`은 내 쪽지·타인의 `PUBLIC`·현재 친구의 `FRIENDS`를 함께 반환한다. 공개 지도 전용 `PUBLIC` 필터를 새로 추가하고 기존 `ALL`은 호환을 위해 유지한다.
-- 현재 `FRIENDS`는 친구의 `FRIENDS`만 반환한다. 3차에서는 내 `FRIENDS`도 포함하고 친구의 `PUBLIC`과 모든 `PRIVATE`는 계속 제외한다.
+- `FRIENDS`는 현재 친구와 내가 작성한 `FRIENDS`를 반환한다. 친구의 `PUBLIC`과 모든 `PRIVATE`는 제외한다.
 - 공개 지도에만 고정 태그 복수 필터를 추가한다. 같은 조건을 개별 지도와 클러스터에 적용한다.
-- 현재 클러스터 응답에는 `count`만 있다. 친구 지도 묶음에는 현재 회원 기준 `unreadCount`를 DB에서 함께 집계한다.
+- 클러스터 응답에 현재 회원 기준 `unreadCount`를 DB에서 함께 집계한다. 내 쪽지는 제외하며 읽음 기록을 새로 생성하지 않는다.
 - 지도 보관함의 모든 작성·저장 쪽지를 한 화면에 맞추려면 현재 화면 bounds 기반 `MINE/SAVED` 조회 외에 전체 bounds/위치 계약이 필요하다.
+
+프론트는 공개 지도에서 마커·목록과 클러스터 요청에 모두 `filter=PUBLIC`을 사용한다. 기존 `ALL`은 호환용 혼합 조회로 유지한다. 친구 지도는 `FRIENDS`를 사용하고 묶음의 안 읽은 표시는 `unreadCount`를 사용한다. 친구 소식 목록은 친구의 소식만 제공하므로 본인 쪽지를 포함하는 지도 필터와 구분한다.
