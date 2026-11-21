@@ -11,7 +11,7 @@ import { HomeMap } from '@/components/home/HomeMap';
 import { MapSelector } from '@/components/home/MapSelector';
 import { NoteComposeSheet } from '@/components/notes/NoteComposeSheet';
 import { NoteLockedDialog } from '@/components/notes/NoteLockedDialog';
-import { NearbyNotesSheet } from '@/components/notes/NearbyNotesSheet';
+import { NearbyNotesSheet, SINGLE_NOTE_SHEET_TOP_SPACE } from '@/components/notes/NearbyNotesSheet';
 import { Snackbar } from '@/components/ui/snackbar';
 import { useHomeMap } from '@/hooks/use-home-map';
 import { useNoteCompose } from '@/hooks/use-note-compose';
@@ -36,7 +36,8 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   const { height } = useWindowDimensions();
   const cameraRef = useRef<CameraRef>(null);
   const resumeFollowingAfterClose = useRef(false);
-  const nearbySheetHeight = Math.max(1, Math.min(height * 506 / 852, height - insets.top - 140));
+  const getNearbySheetHeight = (pointCount: number) =>
+    Math.max(1, Math.min(pointCount === 1 ? 424 + SINGLE_NOTE_SHEET_TOP_SPACE : height * 506 / 852, height - insets.top - 140));
   const [fontsLoaded, fontError] = useFonts({
     NanumPen: require('../../assets/fonts/NanumPenScript-Regular.ttf'),
     'Pretendard-Bold': require('../../assets/fonts/Pretendard-Bold.ttf'),
@@ -58,7 +59,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   const map = useHomeMap({
     userCoordinates, isComposeOpen,
     isFollowingUser, setIsFollowingUser, cameraRef, resumeFollowingAfterClose,
-    notesRefreshKey, nearbySheetHeight,
+    notesRefreshKey, getNearbySheetHeight,
   });
 
   if (startup === 'loading') {
@@ -149,7 +150,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         />
       )}
       <NoteLockedDialog selection={map.selectedMapPoint} onClose={map.clearMapSelection} />
-      <NearbyNotesSheet list={map.nearbyNotes} height={nearbySheetHeight}
+      <NearbyNotesSheet list={map.nearbyNotes} height={getNearbySheetHeight(map.nearbyNotes?.pointCount ?? 0)}
         onClose={map.dismissNearbyNotes} onLoadMore={map.loadMoreNearbyNotes}
         onOpen={map.openNoteDetail} />
       </View>

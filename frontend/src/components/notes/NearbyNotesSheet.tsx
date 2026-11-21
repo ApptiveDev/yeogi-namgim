@@ -10,6 +10,7 @@ import { NOTE_TAP_DURATION } from '@/constants/home-map';
 import type { NearbyNoteList } from '@/hooks/use-home-map';
 import { useMotionPreference } from '@/hooks/use-motion-preference';
 import { ComposeIcon } from './ComposeIcon';
+import { SingleNotePreview } from './SingleNotePreview';
 
 const PAPER_THUMBS = [
   require('../../../assets/images/nearby-note-paper.svg'),
@@ -31,6 +32,8 @@ type SheetProps = {
 const CARD_HEIGHT = 76;
 const CARD_GAP = 10;
 const ANDROID_SHEET_MAX_WIDTH = 640;
+export const SINGLE_NOTE_SHEET_TOP_SPACE = 24;
+const EMPTY_MESSAGE = '쪽지가 삭제되었거나 공개 범위가 바뀌었을 수 있어요.';
 
 export function NearbyNotesSheet({ list, onClose, ...props }: SheetProps & { list: NearbyNoteList | null }) {
   const [readyKey, setReadyKey] = useState<number | null>(null);
@@ -63,6 +66,8 @@ function NearbyNotesModal({ list, height, onClose, onLoadMore, onOpen }: SheetPr
   const [contentOffset, setContentOffset] = useState({ x: 0, y: 0 });
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const isSinglePoint = list.pointCount === 1;
+  const singleNote = list.status === 'ready' && isSinglePoint ? list.notes[0] : undefined;
   // Material 3 uses a half-screen anchor for partial expansion. Size the content instead
   // so Android has one open position, as on iOS, and leaves the selected point above it.
   const snapPoints = useMemo(() => Platform.OS === 'android' ? undefined : [height], [height]);
@@ -95,7 +100,7 @@ function NearbyNotesModal({ list, height, onClose, onLoadMore, onOpen }: SheetPr
 
   return (
     <BottomSheet ref={sheet} snapPoints={snapPoints} enablePanDownToClose onDismiss={handleDismiss}
-      backgroundStyle={s.background} handleComponent={null}>
+      backgroundStyle={isSinglePoint ? s.transparentBackground : s.background} handleComponent={null}>
       <BottomSheetView style={[
         s.body,
         Platform.OS === 'android' && {
@@ -104,11 +109,15 @@ function NearbyNotesModal({ list, height, onClose, onLoadMore, onOpen }: SheetPr
         },
         Platform.OS === 'web' && { height },
       ]}>
-        <View style={s.contentArea} accessibilityViewIsModal onAccessibilityEscape={() => close()}>
-          <Pressable onPress={() => close()} style={s.handleButton} accessibilityRole="button" accessibilityLabel="쪽지 목록 닫기">
+        {isSinglePoint && <View pointerEvents="none" style={[s.background, s.singlePanel]} />}
+        {singleNote && <Image source={require('../../../assets/images/stickers/sparkle.png')} style={s.singleStar}
+          contentFit="contain" accessible={false} pointerEvents="none" />}
+        <View style={[s.contentArea, isSinglePoint && s.singleContent]} accessibilityViewIsModal onAccessibilityEscape={() => close()}>
+          <Pressable onPress={() => close()} style={s.handleButton} accessibilityRole="button"
+            accessibilityLabel={isSinglePoint ? '쪽지 미리보기 닫기' : '쪽지 목록 닫기'}>
             <View style={s.handle} />
           </Pressable>
-          <View style={s.header}>
+          {!isSinglePoint && <View style={s.header}>
             <View style={s.headingRow}>
               <Text style={s.heading} accessibilityRole="header">쪽지{list.status === 'ready' && <Text style={s.count}> {list.notes.length}개{list.hasNext ? ' 불러옴' : ''}</Text>}</Text>
               <Text style={s.location} numberOfLines={1}>내 위치 기준</Text>
@@ -118,14 +127,17 @@ function NearbyNotesModal({ list, height, onClose, onLoadMore, onOpen }: SheetPr
                 ? '목록을 다시 불러와 주세요' : list.notes.length ? '열람 가능한 쪽지 · 가까운 순'
                   : list.hasNext ? '더 보기를 눌러 다음 쪽지를 확인해 주세요' : '지금 열 수 있는 쪽지가 없어요'}
             </Text>
-          </View>
+          </View>}
           {list.status === 'loading' ? (
-            <View style={s.status}><LoadingSpinner color="#2350FF" accessibilityLabel="쪽지 목록 불러오는 중" /></View>
+            <View style={s.status}><LoadingSpinner color="#2350FF" accessibilityLabel={isSinglePoint ? '쪽지 미리보기 불러오는 중' : '쪽지 목록 불러오는 중'} /></View>
           ) : list.status === 'error' ? (
             <View style={s.status}>
               <Text style={s.statusText}>{list.error}</Text>
               <Pressable onPress={onLoadMore} style={s.retry} accessibilityRole="button"><Text style={s.retryText}>다시 시도</Text></Pressable>
             </View>
+          ) : isSinglePoint ? (
+            singleNote ? <SingleNotePreview note={singleNote} onOpen={() => close(singleNote.noteId)} />
+              : <View style={s.status}><Text style={s.statusText}>선택한 쪽지를 찾지 못했어요. 지도를 다시 확인해 주세요.</Text></View>
           ) : (
             <FlatList
               data={list.notes}
@@ -139,7 +151,7 @@ function NearbyNotesModal({ list, height, onClose, onLoadMore, onOpen }: SheetPr
               nestedScrollEnabled
               getItemLayout={(_, index) => ({ length: CARD_HEIGHT, offset: index * (CARD_HEIGHT + CARD_GAP), index })}
               ItemSeparatorComponent={Separator}
-              ListEmptyComponent={list.hasNext ? null : <Text style={s.statusText}>쪽지가 삭제되었거나 공개 범위가 바뀌었을 수 있어요.</Text>}
+              ListEmptyComponent={list.hasNext ? null : <Text style={s.statusText}>{EMPTY_MESSAGE}</Text>}
               ListFooterComponent={list.hasNext ? (
                 <View style={s.status}>
                   {list.error && <Text style={s.statusText}>{list.error}</Text>}
@@ -182,6 +194,10 @@ function Separator() { return <View style={s.separator} />; }
 
 const s = StyleSheet.create({
   background: { backgroundColor: '#F7F7F5' },
+  transparentBackground: { backgroundColor: 'transparent' },
+  singlePanel: { ...StyleSheet.absoluteFill, top: SINGLE_NOTE_SHEET_TOP_SPACE, borderTopLeftRadius: 30, borderTopRightRadius: 30 },
+  singleStar: { position: 'absolute', top: 0, right: 20, width: 96, height: 96, transform: [{ rotate: '14deg' }] },
+  singleContent: { marginTop: SINGLE_NOTE_SHEET_TOP_SPACE },
   body: { flex: 1 },
   contentArea: { flex: 1 },
   handleButton: { height: 30, alignItems: 'center', paddingTop: 10 },
