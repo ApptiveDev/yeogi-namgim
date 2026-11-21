@@ -134,9 +134,9 @@ PostgreSQL·PostGIS DB와 환경변수를 준비한 `backend/`에서 실행한�
 
 ## 6. 3차 세미나 후속 작업
 
-2026-11-17 `main`에는 고정 태그와 작성자 쪽지 삭제가 없다. 확정 정책과 구현 순서는 [3차 세미나 백엔드 계획](THIRD_SEMINAR_BACKEND_PLAN.md)을 따른다.
+고정 태그는 아직 구현 전이며 확정 정책과 구현 순서는 [3차 세미나 백엔드 계획](THIRD_SEMINAR_BACKEND_PLAN.md)을 따른다. 작성자 쪽지 삭제는 `DELETE /api/v1/notes/{noteId}`로 제공한다.
 
 - `POST /api/v1/notes`에 고정된 6개 중 하나인 `tag`를 추가한다. 기존 쪽지는 임의로 분류하지 않는다.
-- 작성자 전용 `DELETE /api/v1/notes/{noteId}`를 추가한다. 타인 쪽지와 존재하지 않는 쪽지는 모두 404로 처리한다.
-- 삭제 시 저장·읽음 관계를 연쇄 정리하고 지도·보관함·달력·친구 소식에서 사라지는지 통합 검증한다.
+- 작성자 전용 `DELETE /api/v1/notes/{noteId}`는 성공 시 삭제한 `noteId`와 `deleted: true`를 반환한다. 타인 쪽지와 존재하지 않는 쪽지는 모두 `404 RESOURCE_NOT_FOUND`로 처리한다.
+- 삭제 시 저장·읽음 관계는 외래 키로 연쇄 정리한다. 작성자 보관함과 모든 사용자의 관련 조회에서도 원본이 사라진다.
 - 상세의 그날/지도 이동 분류는 기존 `isMine/isSaved/visibility/createdAt`을 재사용하며 신규 백엔드 API를 만들지 않는다.

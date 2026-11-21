@@ -3,11 +3,13 @@ package com.yeoginamgim.note;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -188,6 +190,53 @@ class MemberNoteIntegrationTests {
 		mvc.perform(post("/api/v1/notes/{id}/open", noteId).header("Authorization", "Bearer " + tokens.accessToken()))
 			.andExpect(status().isOk());
 		open(tokens.accessToken(), noteId, "{\"latitude\":35}").andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void onlyAuthorDeletesNoteAndRelationshipsCascade() throws Exception {
+		UUID noteId = id(create(tokens.accessToken(), request("PUBLIC")).andExpect(status().isCreated()));
+		Member other = newMember();
+		TokenPair otherTokens = sessions.open(other.getId());
+		Instant now = Instant.now();
+		jdbc.update("INSERT INTO app.note_bookmarks (user_id, note_id, saved_at) VALUES (?, ?, ?)",
+			other.getId(), noteId, Timestamp.from(now));
+		jdbc.update("INSERT INTO app.note_discoveries (user_id, note_id, first_opened_at, last_opened_at) VALUES (?, ?, ?, ?)",
+			other.getId(), noteId, Timestamp.from(now), Timestamp.from(now));
+
+		mvc.perform(delete("/api/v1/notes/{noteId}", noteId)
+			.header("Authorization", "Bearer " + otherTokens.accessToken()))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"));
+		assertThat(notes.existsById(noteId)).isTrue();
+
+		mvc.perform(delete("/api/v1/notes/{noteId}", noteId)
+			.header("Authorization", "Bearer " + tokens.accessToken()))
+			.andExpect(status().isOk())
+			.andExpect(header().string("Cache-Control", "no-store"))
+			.andExpect(jsonPath("$.data.noteId").value(noteId.toString()))
+			.andExpect(jsonPath("$.data.deleted").value(true));
+
+		assertThat(notes.existsById(noteId)).isFalse();
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM app.note_bookmarks WHERE note_id = ?", Long.class, noteId))
+			.isZero();
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM app.note_discoveries WHERE note_id = ?", Long.class, noteId))
+			.isZero();
+		mine("0", "20").andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.notes.length()").value(0));
+	}
+
+	@Test
+	void deleteRejectsMissingInvalidAndUnknownAuthenticationWithoutLeakingExistence() throws Exception {
+		UUID noteId = id(create(tokens.accessToken(), request("PRIVATE")).andExpect(status().isCreated()));
+
+		mvc.perform(delete("/api/v1/notes/{noteId}", noteId)).andExpect(status().isUnauthorized());
+		mvc.perform(delete("/api/v1/notes/{noteId}", noteId)
+			.header("Authorization", "Bearer not-a-token")).andExpect(status().isUnauthorized());
+		mvc.perform(delete("/api/v1/notes/{noteId}", UUID.randomUUID())
+			.header("Authorization", "Bearer " + tokens.accessToken()))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"));
+		assertThat(notes.existsById(noteId)).isTrue();
 	}
 
 	@Test

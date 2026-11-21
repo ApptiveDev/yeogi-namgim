@@ -80,7 +80,7 @@
 - [ ] 고정 태그 6개 저장·작성 검증·공개 지도 복수 태그 필터
 - [ ] 친구 지도 클러스터의 `unreadCount` — 담당 A, [#150](https://github.com/ApptiveDev/yeogi-namgim/issues/150)
 - [ ] 지도 보관함 전체 위치·bounds 조회 계약
-- [ ] 작성자 쪽지 삭제: `DELETE /api/v1/notes/{noteId}`
+- [ ] 작성자 쪽지 삭제: `DELETE /api/v1/notes/{noteId}` — 구현 완료, PR [#153](https://github.com/ApptiveDev/yeogi-namgim/pull/153) 병합 대기
 - [x] 상세 이동 분류 정보: 상세 응답의 `isMine/isSaved/visibility/createdAt` 재사용
 - [ ] 친구 소식의 지도 이동용 좌표 — 담당 A, [#146](https://github.com/ApptiveDev/yeogi-namgim/issues/146), `GET /api/v1/friends/activities` 항목에 `latitude/longitude` 추가
 
