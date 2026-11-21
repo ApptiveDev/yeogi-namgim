@@ -5,6 +5,12 @@ type Coordinate = {
 
 const EARTH_RADIUS_METERS = 6_371_008.8;
 
+export function formatDistance(distanceMeters: number): string {
+  return distanceMeters < 1000
+    ? `${Math.min(999, Math.ceil(distanceMeters))}m`
+    : `${Math.round(distanceMeters / 100) / 10}km`;
+}
+
 export function getDistanceMeters(
   from: Coordinate,
   to: Coordinate,

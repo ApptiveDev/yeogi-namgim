@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { NOTE_TAP_DURATION } from '@/constants/home-map';
 import type { NearbyNoteList } from '@/hooks/use-home-map';
 import { useMotionPreference } from '@/hooks/use-motion-preference';
+import { formatDistance } from '@/utils/distance';
 import { ComposeIcon } from './ComposeIcon';
 import { SingleNotePreview } from './SingleNotePreview';
 
@@ -189,7 +190,7 @@ function NearbyNotesModal({ list, filter, height, onClose, onLoadMore, onOpen, o
                       {note.visibility === 'PRIVATE' ? <ComposeIcon name="lock" size={14} color="#8E8E93" />
                         : <Image source={note.visibility === 'FRIENDS' ? AUTHOR_ICONS.friends : AUTHOR_ICONS.public}
                           style={s.authorIcon} contentFit="contain" accessible={false} />}
-                      <Text style={s.author} numberOfLines={1}>{note.isMine ? '내 쪽지' : note.authorNickname || '누군가'}{note.distanceMeters === null ? '' : ` · ${Math.ceil(note.distanceMeters)}m`}</Text>
+                      <Text style={s.author} numberOfLines={1}>{note.isMine ? '내 쪽지' : note.authorNickname || '누군가'}{note.distanceMeters === null ? '' : ` · ${formatDistance(note.distanceMeters)}`}</Text>
                       {note.isRead === true && <Text style={[s.author, s.readLabel]} numberOfLines={1}>· 읽음</Text>}
                     </View>
                   </View>
