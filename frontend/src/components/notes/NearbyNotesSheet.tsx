@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, FlatList, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { MapFilter } from '@/api/types';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { NOTE_TAP_DURATION } from '@/constants/home-map';
 import type { NearbyNoteList } from '@/hooks/use-home-map';
@@ -23,6 +24,7 @@ const AUTHOR_ICONS = {
 };
 
 type SheetProps = {
+  filter: MapFilter;
   height: number;
   onClose: (key: number) => void;
   onLoadMore: () => void;
@@ -32,6 +34,7 @@ type SheetProps = {
 
 const CARD_HEIGHT = 76;
 const CARD_GAP = 10;
+const NEIGHBORHOOD_SEARCH_LIMIT = 20;
 const ANDROID_SHEET_MAX_WIDTH = 640;
 export const SINGLE_NOTE_SHEET_TOP_SPACE = 24;
 const EMPTY_MESSAGE = '쪽지가 삭제되었거나 공개 범위가 바뀌었을 수 있어요.';
@@ -58,17 +61,24 @@ export function NearbyNotesSheet({ list, onClose, ...props }: SheetProps & { lis
   return <NearbyNotesModal key={list.key} list={list} onClose={onClose} {...props} />;
 }
 
-function NearbyNotesModal({ list, height, onClose, onLoadMore, onOpen, onDetailBackdropChange }: SheetProps & { list: NearbyNoteList }) {
+function NearbyNotesModal({ list, filter, height, onClose, onLoadMore, onOpen, onDetailBackdropChange }: SheetProps & { list: NearbyNoteList }) {
   const sheet = useRef<BottomSheet>(null);
   const pendingNote = useRef<{ id: string; scrollY: number } | null>(null);
   const closing = useRef(false);
   const returnToList = useRef(false);
   const scrollY = useRef(0);
   const [contentOffset, setContentOffset] = useState({ x: 0, y: 0 });
+  const [initialNeighborhood, setInitialNeighborhood] = useState<string | null>();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isSinglePoint = list.pointCount === 1;
   const singleNote = list.status === 'ready' && isSinglePoint ? list.notes[0] : undefined;
+  if (filter === 'ALL' && !isSinglePoint && list.status === 'ready' && initialNeighborhood === undefined) {
+    const neighborhood = list.notes.slice(0, NEIGHBORHOOD_SEARCH_LIMIT)
+      .map((note) => note.neighborhood?.trim())
+      .find(Boolean);
+    setInitialNeighborhood(neighborhood ?? null);
+  }
   // Material 3 uses a half-screen anchor for partial expansion. Size the content instead
   // so Android has one open position, as on iOS, and leaves the selected point above it.
   const snapPoints = useMemo(() => Platform.OS === 'android' ? undefined : [height], [height]);
@@ -124,7 +134,9 @@ function NearbyNotesModal({ list, height, onClose, onLoadMore, onOpen, onDetailB
           {!isSinglePoint && <View style={s.header}>
             <View style={s.headingRow}>
               <Text style={s.heading} accessibilityRole="header">쪽지{list.status === 'ready' && <Text style={s.count}> {list.notes.length}개{list.hasNext ? ' 불러옴' : ''}</Text>}</Text>
-              <Text style={s.location} numberOfLines={1}>내 위치 기준</Text>
+              {filter === 'ALL' && initialNeighborhood && (
+                <Text style={s.location} numberOfLines={1}>{initialNeighborhood} 주변</Text>
+              )}
             </View>
             <Text style={s.description} accessibilityLiveRegion="polite">
               {list.status === 'loading' ? '열 수 있는 쪽지를 확인하고 있어요' : list.status === 'error'

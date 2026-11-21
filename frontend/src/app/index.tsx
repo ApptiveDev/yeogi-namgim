@@ -158,7 +158,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
         />
       )}
       <NoteLockedDialog selection={map.selectedMapPoint} onClose={map.clearMapSelection} />
-      <NearbyNotesSheet list={map.nearbyNotes} height={getNearbySheetHeight(map.nearbyNotes?.pointCount ?? 0)}
+      <NearbyNotesSheet list={map.nearbyNotes} filter={map.filter} height={getNearbySheetHeight(map.nearbyNotes?.pointCount ?? 0)}
         onClose={map.dismissNearbyNotes} onLoadMore={map.loadMoreNearbyNotes}
         onOpen={map.openNoteDetail} onDetailBackdropChange={setDetailBackdropKey} />
       </View>
