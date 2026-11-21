@@ -17,8 +17,8 @@ export function NoteLockedDialog({ selection: selectedPoint, onClose }: { select
       onRequestClose={() => { if (activeSelection) onClose(); }}>
       <Animated.View {...motion.interactionProps} style={[s.container, { opacity: motion.opacity }]}>
         <Pressable style={s.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="안내 닫기" />
-        <NoteSelectionHighlight key={selection.key} point={selection.point} isInside={false} screenPoint={selection.screenPoint} />
-        <Animated.View key={selection.key} style={[s.card, { transform: [{ translateY: height * 0.04 }, { scale: motion.scale }] }]}
+        <NoteSelectionHighlight key={`highlight-${selection.key}`} point={selection.point} isInside={false} screenPoint={selection.screenPoint} />
+        <Animated.View key={`card-${selection.key}`} style={[s.card, { transform: [{ translateY: height * 0.04 }, { scale: motion.scale }] }]}
           accessibilityViewIsModal onAccessibilityEscape={onClose}>
           <View style={s.badge}>
             <Image source={require('../../../assets/images/map-note-lock.svg')} style={s.lock} contentFit="contain" accessible={false} />
