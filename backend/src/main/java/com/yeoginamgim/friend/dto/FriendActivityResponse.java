@@ -6,5 +6,5 @@ import java.util.UUID;
 
 public record FriendActivityResponse(List<Activity> activities, int page, int size, boolean hasNext) {
 	public record Activity(UUID noteId, UUID friendId, String nickname,
-		String placeName, String neighborhood, Instant createdAt) { }
+		String placeName, String neighborhood, Instant createdAt, double latitude, double longitude) { }
 }

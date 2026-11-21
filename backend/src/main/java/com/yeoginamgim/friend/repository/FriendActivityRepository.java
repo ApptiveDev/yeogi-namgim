@@ -15,7 +15,9 @@ public class FriendActivityRepository {
 	public List<Activity> find(UUID userId, int limit, int offset) {
 		return jdbc.query("""
 			SELECT n.id AS note_id, u.id AS friend_id, u.nickname,
-			       n.place_name, n.neighborhood, n.created_at
+			       n.place_name, n.neighborhood, n.created_at,
+			       public.ST_Y(n.location::public.geometry) AS latitude,
+			       public.ST_X(n.location::public.geometry) AS longitude
 			FROM (
 			    SELECT user_high AS friend_id FROM app.friendships WHERE user_low = ?
 			    UNION ALL
@@ -29,6 +31,6 @@ public class FriendActivityRepository {
 			""", (rs, row) -> new Activity(rs.getObject("note_id", UUID.class),
 				rs.getObject("friend_id", UUID.class), rs.getString("nickname"),
 				rs.getString("place_name"), rs.getString("neighborhood"),
-				rs.getTimestamp("created_at").toInstant()), userId, userId, limit, offset);
+				rs.getTimestamp("created_at").toInstant(), rs.getDouble("latitude"), rs.getDouble("longitude")), userId, userId, limit, offset);
 	}
 }

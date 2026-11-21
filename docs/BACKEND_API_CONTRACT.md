@@ -182,7 +182,7 @@ interface NoteAccessService {
 | 상세 열람 | 열람 | 기존 `noteId/content/isMine/createdAt` 유지, 색상·장소·공개 범위·작성자 표시·저장·읽음 상태 확장 |
 | `GET /users/me/notes` | 쪽지 작성 | 내가 작성한 쪽지 조회, 보관함이 같은 작성자 조건을 재사용 |
 | 친구 초대·관계 | 친구 | 10분 유효 공유 코드·수락으로 상호 관계 생성, 만료·재사용·자기 초대·중복 관계 검증 |
-| `GET /friends/activities` | 친구 | 친구 공개 쪽지만, ID·장소·작성 시각·친구 이름 제공, 본문·미리보기 제외. 3차의 지도 이동용 정밀 좌표는 후속 |
+| `GET /friends/activities` | 친구 | 친구 공개 쪽지만, ID·쪽지 위도/경도·장소·작성 시각·친구 이름 제공, 본문·미리보기 제외. 좌표 추가는 #146에서 진행 |
 | `GET /users/me/archive/calendar` | 보관함 | 월별 작성 기록 날짜·저장 기록 날짜를 구분 |
 | `GET /users/me/archive/notes` | 보관함 | 날짜·1차/2차 필터에 맞는 카드, 작성 시각·미리보기·동네·작성자 구분·표시명·공개 범위 제공. 목록은 `cursor/size`로 이어서 조회하고 `nextCursor`를 반환 |
 | `GET /users/me/stats` | 계정·저장 | 작성 수·친구 수·저장 수 조립 |

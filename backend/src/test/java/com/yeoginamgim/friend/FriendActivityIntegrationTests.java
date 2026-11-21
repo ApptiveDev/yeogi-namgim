@@ -63,7 +63,7 @@ class FriendActivityIntegrationTests {
 	}
 
 	@Test
-	void includesOnlyCurrentFriendsFriendsNotesAndDoesNotExposeContentOrCoordinates() throws Exception {
+	void includesCoordinatesOnlyForCurrentFriendsFriendsNotesWithoutContent() throws Exception {
 		Note visible = note(friend, NoteVisibility.FRIENDS, time);
 		note(friend, NoteVisibility.PUBLIC, time);
 		note(friend, NoteVisibility.PRIVATE, time);
@@ -80,8 +80,8 @@ class FriendActivityIntegrationTests {
 			.andExpect(jsonPath("$.data.activities[0].placeName").value("서울숲"))
 			.andExpect(jsonPath("$.data.activities[0].content").doesNotExist())
 			.andExpect(jsonPath("$.data.activities[0].preview").doesNotExist())
-			.andExpect(jsonPath("$.data.activities[0].latitude").doesNotExist())
-			.andExpect(jsonPath("$.data.activities[0].longitude").doesNotExist())
+			.andExpect(jsonPath("$.data.activities[0].latitude").value(37.123456))
+			.andExpect(jsonPath("$.data.activities[0].longitude").value(127.654321))
 			.andExpect(jsonPath("$.data.activities[0].email").doesNotExist());
 		list(sessions.open(stranger.getId()).accessToken(), "0", "20")
 			.andExpect(status().isOk()).andExpect(jsonPath("$.data.activities.length()").value(0));
@@ -94,7 +94,9 @@ class FriendActivityIntegrationTests {
 		list(sessions.open(friend.getId()).accessToken(), "0", "20").andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.activities.length()").value(1))
 			.andExpect(jsonPath("$.data.activities[0].placeName").value(nullValue()))
-			.andExpect(jsonPath("$.data.activities[0].neighborhood").value(nullValue()));
+			.andExpect(jsonPath("$.data.activities[0].neighborhood").value(nullValue()))
+			.andExpect(jsonPath("$.data.activities[0].latitude").value(37))
+			.andExpect(jsonPath("$.data.activities[0].longitude").value(127));
 	}
 
 	@Test
@@ -136,6 +138,8 @@ class FriendActivityIntegrationTests {
 			.header("Authorization", "Bearer " + tokens.accessToken())
 			.contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":0,\"longitude\":0}"))
 			.andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("NOTE_LOCKED"));
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM app.note_discoveries WHERE user_id = ? AND note_id = ?",
+			Long.class, viewer.getId(), item.getId())).isZero();
 		assertThat(notes.findById(item.getId()).orElseThrow().getContent()).isEqualTo("secret body");
 	}
 
@@ -168,7 +172,7 @@ class FriendActivityIntegrationTests {
 		return members.saveAndFlush(new Member(UUID.randomUUID(), UUID.randomUUID() + "@example.test", "unused", "친구이름", time));
 	}
 	private Note note(Member author, NoteVisibility visibility, Instant createdAt) {
-		return notes.saveAndFlush(Note.createMember(UUID.randomUUID(), author.getId(), "secret body", 37, 127, createdAt,
+		return notes.saveAndFlush(Note.createMember(UUID.randomUUID(), author.getId(), "secret body", 37.123456, 127.654321, createdAt,
 			visibility, null, "서울숲", "성수동"));
 	}
 }
