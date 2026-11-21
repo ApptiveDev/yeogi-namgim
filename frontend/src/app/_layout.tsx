@@ -7,6 +7,7 @@ import { StartupScreen } from '@/components/StartupScreen';
 import { initializeSession } from '@/auth/member-session';
 import { ScreenColors, StorageColors } from '@/constants/colors';
 import { useAuthSession } from '@/hooks/use-auth-session';
+import { publishNoteDetailOpened } from '@/state/note-detail-transition';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -28,7 +29,13 @@ export default function RootLayout() {
         </Stack.Protected>
         <Stack.Protected guard={isLoggedIn}>
           <Stack.Screen name="index" />
-          <Stack.Screen name="note/[noteId]" options={{ presentation: 'transparentModal', animation: 'fade', statusBarStyle: 'light', contentStyle: { backgroundColor: 'transparent' } }} />
+          <Stack.Screen name="note/[noteId]"
+            options={{ presentation: 'transparentModal', animation: 'fade', statusBarStyle: 'light', contentStyle: { backgroundColor: 'transparent' } }}
+            listeners={({ navigation }) => ({
+              transitionEnd: ({ data }) => {
+                if (!data.closing && navigation.isFocused()) publishNoteDetailOpened();
+              },
+            })} />
           <Stack.Screen name="storage" />
           <Stack.Screen name="friends" options={{ animation: 'none', statusBarStyle: 'dark', contentStyle: { backgroundColor: StorageColors.background } }} />
           <Stack.Screen name="my" options={{ animation: 'none', statusBarStyle: 'dark', contentStyle: { backgroundColor: ScreenColors.background } }} />

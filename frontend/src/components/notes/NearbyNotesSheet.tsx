@@ -27,6 +27,7 @@ type SheetProps = {
   onClose: (key: number) => void;
   onLoadMore: () => void;
   onOpen: (key: number, noteId: string) => boolean;
+  onDetailBackdropChange: (key: number | null) => void;
 };
 
 const CARD_HEIGHT = 76;
@@ -57,7 +58,7 @@ export function NearbyNotesSheet({ list, onClose, ...props }: SheetProps & { lis
   return <NearbyNotesModal key={list.key} list={list} onClose={onClose} {...props} />;
 }
 
-function NearbyNotesModal({ list, height, onClose, onLoadMore, onOpen }: SheetProps & { list: NearbyNoteList }) {
+function NearbyNotesModal({ list, height, onClose, onLoadMore, onOpen, onDetailBackdropChange }: SheetProps & { list: NearbyNoteList }) {
   const sheet = useRef<BottomSheet>(null);
   const pendingNote = useRef<{ id: string; scrollY: number } | null>(null);
   const closing = useRef(false);
@@ -76,13 +77,15 @@ function NearbyNotesModal({ list, height, onClose, onLoadMore, onOpen }: SheetPr
     if (!returnToList.current) return;
     returnToList.current = false;
     closing.current = false;
+    onDetailBackdropChange(null);
     sheet.current?.present();
-  }, []));
+  }, [onDetailBackdropChange]));
 
   function close(noteId: string | null = null) {
     if (closing.current || !sheet.current) return;
     closing.current = true;
     pendingNote.current = noteId === null ? null : { id: noteId, scrollY: scrollY.current };
+    if (noteId !== null) onDetailBackdropChange(list.key);
     sheet.current.close();
   }
 
@@ -95,6 +98,7 @@ function NearbyNotesModal({ list, height, onClose, onLoadMore, onOpen }: SheetPr
       returnToList.current = true;
       return;
     }
+    if (note) onDetailBackdropChange(null);
     onClose(list.key);
   }
 

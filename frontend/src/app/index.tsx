@@ -1,7 +1,7 @@
 import { useFonts } from 'expo-font';
 import { router, Stack, useLocalSearchParams, usePathname } from 'expo-router';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CameraRef } from '@maplibre/maplibre-react-native';
 
@@ -15,7 +15,9 @@ import { NearbyNotesSheet, SINGLE_NOTE_SHEET_TOP_SPACE } from '@/components/note
 import { Snackbar } from '@/components/ui/snackbar';
 import { useHomeMap } from '@/hooks/use-home-map';
 import { useNoteCompose } from '@/hooks/use-note-compose';
+import { useVisibilityMotion } from '@/hooks/use-ui-motion';
 import { useUserLocation } from '@/hooks/use-user-location';
+import { subscribeNoteDetailOpened } from '@/state/note-detail-transition';
 import { styles } from '@/styles/home.styles';
 
 type StartupStatus = 'loading' | 'ready' | { error: string };
@@ -32,6 +34,7 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   const homeReady = startup === 'ready';
   const startupError = typeof startup === 'object' ? startup.error : null;
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
+  const [detailBackdropKey, setDetailBackdropKey] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const cameraRef = useRef<CameraRef>(null);
@@ -61,6 +64,11 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
     isFollowingUser, setIsFollowingUser, cameraRef, resumeFollowingAfterClose,
     notesRefreshKey, getNearbySheetHeight,
   });
+  const showDetailBackdrop = detailBackdropKey === map.nearbyNotes?.key && (Platform.OS !== 'web' || !isReadingNote);
+  const detailBackdrop = useVisibilityMotion(showDetailBackdrop ? detailBackdropKey : null,
+    { enter: 220, exit: isReadingNote ? 120 : 0 });
+
+  useEffect(() => subscribeNoteDetailOpened(() => setDetailBackdropKey(null)), []);
 
   if (startup === 'loading') {
     const error = locationStatus === 'error'
@@ -152,8 +160,12 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
       <NoteLockedDialog selection={map.selectedMapPoint} onClose={map.clearMapSelection} />
       <NearbyNotesSheet list={map.nearbyNotes} height={getNearbySheetHeight(map.nearbyNotes?.pointCount ?? 0)}
         onClose={map.dismissNearbyNotes} onLoadMore={map.loadMoreNearbyNotes}
-        onOpen={map.openNoteDetail} />
+        onOpen={map.openNoteDetail} onDetailBackdropChange={setDetailBackdropKey} />
       </View>
+      {detailBackdrop.content !== null && (
+        <Animated.View pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { zIndex: 21, backgroundColor: '#000000', opacity: detailBackdrop.opacity }]} />
+      )}
       </View>
       {!homeReady && (
         <StartupScreen
