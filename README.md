@@ -1,92 +1,180 @@
- # (프로젝트명)
-(개요, 프로젝트 소개)
+# 여기남김
 
- ## 📝 주요기능
+**여기남김**은 장소에 쪽지를 남기고, 지도에서 주변 쪽지를 발견하는 모바일 앱입니다. 쪽지를 찾아 가까이 가서 읽고, 기억하고 싶은 쪽지는 저장해 다시 볼 수 있습니다.
 
- ## 🔨 기술스택 
-<!-- 
-(백엔드, 프론트, 협업에 사용한 툴, 라이브러리, 프레임워크)
+## 주요 기능
 
-기술스택 배지 추가하는 방법 
-1. https://simpleicons.org/ 에서 기술스택명 검색
-2. 기술스택의 로고, 컬러 HEX 코드를 아래와 같이 입력
-  - https://img.shields.io/badge/<표시될 이름>-<컬러 HEX>?style=for-the-badge&logo=<로고명>
-3. 해당 URL로 마크다운 이미지 첨부
-  - ![이미지명](URL) 형식
--->
+**지도에서 발견 → 가까이서 읽기 → 쪽지 남기기 → 보관함에서 다시 보기**
 
-(백엔드, 프론트, 협업에 사용한 툴, 라이브러리, 프레임워크)
+### 🗺️ 발견하고 읽기
 
-![intellij](https://img.shields.io/badge/intellij_idea-000000?style=for-the-badge&logo=intellijidea&logoColor=white)
-![vscode](https://img.shields.io/badge/vscode-000000?style=for-the-badge&logo=vscode&logoColor=white)
-![androidstudio](https://img.shields.io/badge/android_studio-3DDC84?style=for-the-badge&logo=androidstudio&logoColor=white)  
+- **공개 지도·친구 지도**를 전환하며 쪽지 위치를 찾습니다. 가까운 쪽지는 개수가 적힌 물방울 마커로 묶어 보여줍니다.
+- 다른 사람의 미저장 쪽지는 **현재 위치에서 150m 이내**일 때 읽을 수 있습니다. 범위 밖에서는 잠금 상태로 표시합니다.
+- 친구 쪽지는 마커에서 **안 읽음·읽음·저장·잠금** 상태를 구분합니다. 공개 지도에서는 태그로 쪽지를 골라 볼 수 있습니다.
 
-![docker](https://img.shields.io/badge/docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![nginx](https://img.shields.io/badge/nginx-009639?style=for-the-badge&logo=nginx&logoColor=white)
-![redis](https://img.shields.io/badge/redis-FF4438?style=for-the-badge&logo=redis&logoColor=white)
-![github-action](https://img.shields.io/badge/github_actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+### ✍️ 남기기
 
-![react](https://img.shields.io/badge/react-61DAFB?style=for-the-badge&logo=react&logoColor=white)
-![jetpack-compose](https://img.shields.io/badge/jetpack_compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)
-![spring](https://img.shields.io/badge/spring-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
+- 장소에 쪽지를 남기고 공개 범위를 **전체 공개·친구 공개·나만 보기** 중에서 선택합니다.
+- **맛집·카페·추억·고민·감동·일상** 중 하나의 태그를 선택합니다.
 
-| 스택 | 설명 | 용도 |
-|-----|-----|-----|
-| 스택1 | 스택에 대한 설명 | 프로젝트 쓰임새 |
-| ... | ... | ... |
+### 📁 저장하고 다시 보기
 
- ## 🖼️ 스크린샷
+- 다른 사람의 쪽지는 책갈피로 **저장·저장 취소**할 수 있습니다. 내가 쓴 쪽지는 자동으로 보관함에 들어가며 삭제할 수 있습니다.
+- 지도 속 보관함에서는 **내가 쓴 쪽지·저장한 쪽지의 위치**를, 보관함 탭에서는 **달력과 날짜별 목록**을 봅니다.
+- 내가 쓴 쪽지와 저장한 쪽지는 거리에 관계없이 다시 읽을 수 있습니다.
 
- ## 🤝 개발협업
- ### 🌲 Branch 
+### 👥 친구와 MY
+
+- 초대 링크나 일회용 코드로 친구를 추가하고, 친구 공개 쪽지 소식에서 해당 위치의 친구 지도로 이동합니다.
+- MY에서 프로필·활동 기록을 확인하고 계정과 위치 권한을 관리합니다.
+
+## 시스템 아키텍처
+
+```mermaid
+flowchart LR
+    User["사용자"] --> App["모바일 앱<br/>Expo · React Native"]
+    App --> Location["기기 위치 서비스"]
+    App --> SecureStore["기기 보안 저장소<br/>회원 세션"]
+    App -->|"회원 토큰 · HTTP API"| Server["Spring Boot API"]
+    Server --> Auth["인증 · 회원"]
+    Server --> Notes["쪽지 · 지도 · 보관"]
+    Server --> Friends["친구"]
+    Auth --> DB[("PostgreSQL · PostGIS")]
+    Notes --> DB
+    Friends --> DB
+    Auth -->|"인증 메일"| Mail["SMTP 서버"]
+    Flyway["Flyway 마이그레이션"] --> DB
 ```
-main ------- backend/<이름>/(<이슈번호>-)<작업명>    (백엔드 작업)
-     \------ frontend/<이름>/(<이슈번호>-)<작업명>   (프론트 작업)
 
-ex) backend/wonseok/#10-add-animation
-ex) frontend/wonseok/fix-login-not-allowed   (이슈가 없으면)
+- 앱은 기기 위치로 현재 위치와 열람 반경을 표시하고, API에 쪽지·친구·회원 정보를 요청합니다.
+- 서버는 회원 인증, 공개 범위·친구 관계·거리 조건을 확인합니다. 위치 기반 조회와 거리 계산에는 PostGIS를 사용합니다.
+- 회원 세션은 모바일 기기의 보안 저장소에 보관하며, DB 구조는 Flyway 마이그레이션으로 관리합니다.
+
+## 사용자 시나리오
+
+### 1. 주변 쪽지를 발견하고 저장하기
+
+1. 로그인한 사용자가 지도에서 **공개 지도** 또는 **친구 지도**를 선택합니다.
+2. 지도를 탐색하다 쪽지 물방울을 누릅니다. 멀리 있는 쪽지는 잠겨 있고, 가까이 이동하면 열람할 수 있습니다.
+3. **150m 이내**에서 쪽지를 읽고, 다시 보고 싶은 쪽지는 책갈피로 저장합니다.
+4. 나중에 지도 속 보관함에서 위치를 찾거나, 보관함 탭의 달력에서 작성 날짜별로 다시 읽습니다.
+
+### 2. 장소에 쪽지를 남기고 친구와 공유하기
+
+1. 지도에서 쪽지 작성 화면을 열고 내용, 공개 범위, 태그를 선택합니다.
+2. 쪽지를 남기면 해당 위치에 표시되고, **내가 쓴 쪽지**로 보관함에 들어갑니다.
+3. **친구 공개**로 남긴 쪽지는 친구 지도와 친구 소식에서 찾을 수 있습니다. 친구는 쪽지 위치로 이동해 거리 조건에 따라 열람합니다.
+
+## 기술 스택
+
+| 영역 | 기술 |
+| --- | --- |
+| 모바일 앱 | Expo 57, React Native 0.86, Expo Router, TypeScript, MapLibre React Native |
+| API 서버 | Java 21, Spring Boot 4.1, Spring Web MVC, Spring Data JPA, Gradle |
+| 데이터베이스 | PostgreSQL 18, PostGIS, Flyway |
+| 개발·검증 | Docker Compose, JUnit, ESLint, TypeScript |
+
+## 로컬에서 실행하기
+
+### 준비물
+
+- Node.js와 npm, JDK 21, Docker Engine 및 Docker Compose
+- Android 실행: Android Studio, Android SDK, 에뮬레이터 또는 실제 기기
+- iOS 로컬 빌드: macOS와 Xcode
+
+### 1. 데이터베이스와 API 서버
+
+```bash
+cd backend
+cp .env.example .env
 ```
-브랜치 관리 전략은 `main`과 개인 브랜치만이 존재하는 간단한 Github Flow를 따릅니다.
-- `main` 브랜치는 항상 작동 가능한 안정된 상태여야 한다.
-  - 직접 커밋하지 않으며, Pull Request만으로 변경한다.
-- 개인 브랜치에서 작업을 진행한다.
-- 브랜치명은 작업 내용과 직군이 구체적으로 드러나도록 한다.
-  - 브랜치명에 `backend`, `frontend`를 구분한다.
-  - 띄어쓰기는 하이픈(`-`)으로 구분한다.
-  - 브랜치명은 전부 소문자를 사용한다.
 
-이 프로젝트는 `main`과 작업 브랜치로 운영하며, PR 대상도 `main`으로 합니다. 자세한 절차는 [협업 가이드](docs/CONTRIBUTING.md)를 따릅니다.
+`backend/.env`에서 `DB_PASSWORD`를 로컬 개발용 값으로 설정합니다. 회원 기능을 사용하려면 `AUTH_ENABLED=true`와 JWT·이메일 인증 관련 값을 추가로 설정해야 합니다. 필요한 변수와 SMTP 설정은 [백엔드 실행 가이드](backend/README.md)와 [이메일 인증 API 문서](docs/EMAIL_AUTH_API.md)를 참고하세요.
 
- ### 🍪 Pull Request
+```bash
+docker compose up -d --wait
+./gradlew bootRun
 ```
-main    ---●---●---●---------● abc (Squash Merge)
-                \           /
-개인브랜치          a---b---c   ('abc' 합쳐진 하나의 커밋으로 병합)
 
-PR 제목: [Backend/Frontend] <이슈번호> <작업명>
-ex) [Backend] #10 프로필 화면에서 로그인 불가하던 문제 해결
-ex) [Backend] 프로필 화면에서 로그인 불가하던 문제 해결     (이슈가 없으면)
+API 서버의 기본 주소는 `http://localhost:8080`입니다. 명령은 `backend/`에서 실행해야 서버가 `.env`를 읽습니다. Apple Silicon에서는 DB 이미지의 `linux/amd64` 실행 지원이 필요합니다.
+
+### 2. 모바일 앱
+
+별도 터미널에서 저장소 루트 기준으로 실행합니다.
+
+```bash
+cd frontend
+npm ci
+cp .env.local.example .env.local
+npm run android
 ```
-`main` 브랜치의 커밋은 Pull Request 단위로 쌓으며 이를 위해 **Squash Merge**를 원칙으로 합니다. **Squash Merge**는 브랜치가 병합될 때 커밋들이 PR 제목으로 합쳐지게 됩니다. 커밋은 개인마다 기준이 조금씩 다른 반면, PR/브랜치는 이슈 단위로 생성하므로 일관된 기준으로 커밋을 쌓을 수 있어 히스토리 추적을 용이하게 합니다.
-- 커밋 제목은 **PR 제목**으로 한다.
-    - Backend/Frontend를 구분한다.
-    - 작업 내용을 구체적으로 드러나게 적는다.
-- 커밋 내용은 **PR 내용**으로 한다.
-    - 브랜치에서의 변경점을 상세히 적는다.
-- Pull Request는 작은 작업 단위(200줄 이내 권장)로 한다.
 
- ## 🛠 설치방법
-(다른 개발자가 이 프로젝트를 테스트해볼 수 있도록 프론트, 백엔드 설치/실행 절차 안내)
+iOS에서는 마지막 명령 대신 `npm run ios`를 사용합니다. 예시 API 주소 `http://10.0.2.2:8080`은 **Android 에뮬레이터** 기준입니다. 실제 기기에서는 기기와 개발 PC를 같은 네트워크에 연결하고 `frontend/.env.local`의 `EXPO_PUBLIC_API_BASE_URL`을 개발 PC의 LAN IP로 바꿉니다. iOS 등 다른 실행 환경의 주소도 해당 환경에 맞게 설정하세요. 네이티브 지도 모듈을 사용하므로 개발 빌드 명령으로 실행합니다. 자세한 내용은 [프론트엔드 실행 가이드](frontend/README.md)에 있습니다.
 
-### 💻 Frontend
+## 검사 명령
 
-### 💻 Backend
+```bash
+cd backend
+./gradlew test
+```
 
- ## 🧑‍💻 팀원
-| <img width="100" src="https://github.com/cotidie.png"> | <img width="100" src="https://github.com/github.png"> | 
-|:----------------------:|:----------------------:|
-| [장원석](https://github.com/cotidie) | [팀원](https://github.com/cotidie) |
-| 💻 Android | 💻 역할 |
-| 15기 | 기수 |
+백엔드 테스트는 로컬 DB와 `backend/.env` 설정을 사용합니다.
 
- 
+```bash
+cd frontend
+npm run lint
+npx tsc --noEmit
+npm run test:auth
+npm run test:member
+npm run test:friends
+```
+
+## 저장소 구조
+
+```text
+backend/   Spring Boot API, Flyway 마이그레이션, 테스트
+frontend/  Expo 앱, 화면·컴포넌트, API 클라이언트
+docs/      기능별 API 계약과 협업 문서
+```
+
+## 팀원
+
+### 💡 기획
+
+| <img src="https://github.com/dabinnida.png?size=160" width="120" alt="백다빈 GitHub 프로필"> |
+| :---: |
+| [백다빈](https://github.com/dabinnida) |
+| 💡 기획 |
+| 25기 |
+
+### 💻 프론트엔드
+
+| <img src="https://github.com/wooya07.png?size=160" width="120" alt="김준우 GitHub 프로필"> | <img src="https://github.com/beomjjjun.png?size=160" width="120" alt="김범준 GitHub 프로필"> |
+| :---: | :---: |
+| [김준우](https://github.com/wooya07) | [김범준](https://github.com/beomjjjun) |
+| 💻 프론트엔드 | 💻 프론트엔드 |
+| 24기 | 24기 |
+
+### 🎨 디자인
+
+| 🎨 |
+| :---: |
+| 심지홍 |
+| 🎨 디자인 |
+| 24기 |
+
+### 💻 백엔드
+
+| <img src="https://github.com/chaemin0327.png?size=160" width="120" alt="김채민 GitHub 프로필"> | <img src="https://github.com/oesmln.png?size=160" width="120" alt="김민서 GitHub 프로필"> |
+| :---: | :---: |
+| [김채민](https://github.com/chaemin0327) | [김민서](https://github.com/oesmln) |
+| 💻 백엔드 | 💻 백엔드 |
+| 24기 | 24기 |
+
+## 문서와 협업
+
+- [프론트엔드 구현·실행 가이드](frontend/README.md) · [백엔드 구현·실행 가이드](backend/README.md)
+- [API 문서 목록](docs/API_CATALOG.md) · [최종 정책과 구현 점검](docs/FINAL_POLICY_AND_AUDIT.md)
+- [협업 가이드](docs/CONTRIBUTING.md) · [보안 정책](SECURITY.md)
+
+기능별 계약 문서에는 구현된 기능과 후속 계획이 함께 기록되어 있습니다. API 사용 전에는 해당 문서와 현재 코드를 함께 확인해 주세요.
