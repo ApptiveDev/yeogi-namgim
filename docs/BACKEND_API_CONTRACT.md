@@ -76,6 +76,7 @@
 | `noteId` / `authorUserId` | UUID / 회원 작성자 UUID | 쪽지 작성 |
 | `content` | 공백만 입력 불가, 최대 500자 | 쪽지 작성, 열람·미리보기 노출은 열람 권한 판정 적용 |
 | `visibility` | `PUBLIC`, `FRIENDS`, `PRIVATE` | 쪽지 작성 |
+| `tag` | 3차 고정 태그 6개 중 하나. 신규 회원 작성에는 필수, 기존 기록은 null | 쪽지 작성·공개 지도 태그 필터, [#159](https://github.com/ApptiveDev/yeogi-namgim/issues/159) |
 | `color` | 선택, HEX 색상 또는 1~32자 식별자, 최종 팔레트는 디자인 확인 후 확정 | 쪽지 작성 |
 | `latitude` / `longitude` | 위도 -90~90 / 경도 -180~180 | 쪽지 작성 시 저장, 열람 시 거리 판정 |
 | `placeName` / `neighborhood` | 상세 장소명 / 카드 하단 동네 정보 | 쪽지 작성, 기존 프론트 역지오코딩 결과 전달·누락 허용 |

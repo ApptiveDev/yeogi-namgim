@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Pattern;
 import com.yeoginamgim.note.domain.NoteVisibility;
+import com.yeoginamgim.note.domain.NoteTag;
 
 public record NoteCreateRequest(
 	@NotBlank
@@ -27,9 +28,10 @@ public record NoteCreateRequest(
 	@Pattern(regexp = "(?:#[0-9A-Fa-f]{6}|[A-Za-z][A-Za-z0-9_-]{0,31})")
 	String color,
 	@Size(max = 200) String placeName,
-	@Size(max = 100) String neighborhood
+	@Size(max = 100) String neighborhood,
+	NoteTag tag
 ) {
 	public NoteCreateRequest(String content, Double latitude, Double longitude) {
-		this(content, latitude, longitude, null, null, null, null);
+		this(content, latitude, longitude, null, null, null, null, null);
 	}
 }

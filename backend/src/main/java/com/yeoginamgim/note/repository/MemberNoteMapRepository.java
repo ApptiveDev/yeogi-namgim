@@ -30,7 +30,7 @@ public class MemberNoteMapRepository {
 	public MemberNoteMapRepository(JdbcTemplate jdbc) { this.jdbc = new NamedParameterJdbcTemplate(jdbc); }
 
 	public List<MemberMapCandidate> find(UUID userId, NoteMapBoundsRequest query) {
-		String filter = filter(query.filter());
+		String filter = filter(query.filter()) + tagFilter(query.tags());
 		String order = query.filter() == com.yeoginamgim.note.domain.NoteMapFilter.MINE || query.location() == null
 			? "n.created_at DESC, n.id DESC" : "distance_meters ASC, n.id DESC";
 		Map<String, Object> params = parameters(userId, query);
@@ -77,7 +77,7 @@ public class MemberNoteMapRepository {
 						(n.latitude - :minLatitude) / NULLIF(:maxLatitude - :minLatitude, 0)
 						* :gridSize), 0)))::integer AS cell_y
 				FROM app.notes n WHERE
-			""" + visibleInBounds() + " AND (" + filter(query.filter()) + ")" + """
+		""" + visibleInBounds() + " AND (" + filter(query.filter()) + tagFilter(query.tags()) + ")" + """
 			)
 			SELECT cell_x, cell_y, COUNT(*) AS note_count,
 				COUNT(*) FILTER (WHERE unread) AS unread_count,
@@ -105,6 +105,10 @@ public class MemberNoteMapRepository {
 		};
 	}
 
+	private static String tagFilter(Set<com.yeoginamgim.note.domain.NoteTag> tags) {
+		return tags.isEmpty() ? "" : " AND n.tag IN (:tags)";
+	}
+
 	private static String visibleInBounds() {
 		return "n.author_user_id IS NOT NULL AND " + VISIBLE + " AND " + """
 			n.location::public.geometry && public.ST_MakeEnvelope(:minLongitude, :minLatitude, :maxLongitude, :maxLatitude, 4326)
@@ -120,6 +124,7 @@ public class MemberNoteMapRepository {
 		params.put("minLongitude", query.minLongitude());
 		params.put("maxLatitude", query.maxLatitude());
 		params.put("maxLongitude", query.maxLongitude());
+		if (!query.tags().isEmpty()) params.put("tags", query.tags().stream().map(Enum::name).toList());
 		if (query.location() != null) {
 			params.put("latitude", query.latitude());
 			params.put("longitude", query.longitude());

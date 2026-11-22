@@ -72,6 +72,27 @@ class MemberMapIntegrationTests extends MemberMapTestSupport {
 	}
 
 	@Test
+	void publicTagFilterUsesAnySelectedTagAndLeavesLegacyNotesUnfiltered() throws Exception {
+		var cafe = note(stranger, NoteVisibility.PUBLIC, 20, "카페");
+		var memory = note(friend, NoteVisibility.PUBLIC, 30, "추억");
+		var other = note(stranger, NoteVisibility.PUBLIC, 40, "고민");
+		var legacy = note(stranger, NoteVisibility.PUBLIC, 50, "기존");
+		var hidden = note(friend, NoteVisibility.FRIENDS, 10, "친구전용");
+		jdbc.update("UPDATE app.notes SET tag = 'CAFE' WHERE id = ?", cafe.getId());
+		jdbc.update("UPDATE app.notes SET tag = 'MEMORY' WHERE id = ?", memory.getId());
+		jdbc.update("UPDATE app.notes SET tag = 'WORRY' WHERE id = ?", other.getId());
+		jdbc.update("UPDATE app.notes SET tag = 'CAFE' WHERE id = ?", hidden.getId());
+		assertThat(ids(data(map("PUBLIC", false, Map.of("tags", "CAFE,MEMORY"))
+			.andExpect(status().isOk())).get("notes")))
+			.containsExactlyInAnyOrder(cafe.getId().toString(), memory.getId().toString());
+		assertThat(ids(data(map("PUBLIC", false).andExpect(status().isOk())).get("notes")))
+			.containsExactlyInAnyOrder(cafe.getId().toString(), memory.getId().toString(),
+				other.getId().toString(), legacy.getId().toString());
+		map("FRIENDS", false, Map.of("tags", "CAFE")).andExpect(status().isBadRequest());
+		map("PUBLIC", false, Map.of("tags", "INVALID")).andExpect(status().isBadRequest());
+	}
+
+	@Test
 	void detailReturnsOnlyPolicyAllowedAuthorDisplay() throws Exception {
 		var friendOnly = note(friend, NoteVisibility.FRIENDS, 80, "친구전용");
 		var friendPublic = note(friend, NoteVisibility.PUBLIC, 70, "친구의익명공개");

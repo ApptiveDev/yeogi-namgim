@@ -86,7 +86,8 @@ class NoteControllerTests {
 					{
 					  "content": "여기 남긴 쪽지",
 					  "latitude": 35.1796,
-					  "longitude": 129.0756
+					  "longitude": 129.0756,
+					  "tag": "CAFE"
 					}
 					"""))
 			.andExpect(status().isCreated())

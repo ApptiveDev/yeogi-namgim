@@ -92,6 +92,7 @@ class MemberNoteIntegrationTests {
 			assertThat(saved.getAuthorUserId()).isEqualTo(member.getId());
 			assertThat(saved.getGuestAuthorId()).isNull();
 			assertThat(saved.getVisibility()).isEqualTo(NoteVisibility.valueOf(visibility));
+			assertThat(saved.getTag().name()).isEqualTo("CAFE");
 			assertThat(saved.getContent()).isEqualTo("현재 위치의 기록");
 			assertThat(saved.getColor()).isEqualTo("#FFCC3D");
 			assertThat(saved.getPlaceName()).isEqualTo("부산대학교 정문");
@@ -125,7 +126,7 @@ class MemberNoteIntegrationTests {
 			create(tokens.accessToken(), input).andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
 		}
-		for (String missing : List.of("visibility", "latitude", "longitude")) {
+		for (String missing : List.of("visibility", "latitude", "longitude", "tag")) {
 			var input = request("PUBLIC");
 			input.remove(missing);
 			create(tokens.accessToken(), input).andExpect(status().isBadRequest());
@@ -358,7 +359,7 @@ class MemberNoteIntegrationTests {
 	private Map<String, Object> request(String visibility) {
 		var input = new HashMap<String, Object>(guestRequest());
 		input.putAll(Map.of("content", "  현재 위치의 기록  ", "visibility", visibility, "color", "#FFCC3D",
-			"placeName", " 부산대학교 정문 ", "neighborhood", " 장전동 "));
+			"placeName", " 부산대학교 정문 ", "neighborhood", " 장전동 ", "tag", "CAFE"));
 		return input;
 	}
 	private ResultActions create(String token, Map<String, ?> input) throws Exception {
