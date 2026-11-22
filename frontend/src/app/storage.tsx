@@ -1,5 +1,5 @@
 import { useFonts } from 'expo-font';
-import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View, type ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,11 +26,6 @@ const STORAGE_FONTS = {
   [FontFamilies.notoSansKrBold]: require('../../assets/fonts/NotoSansKR-Bold.otf'),
   [FontFamilies.interSemiBold]: require('../../assets/fonts/Inter-SemiBold.otf'),
 };
-const SCREEN_OPTIONS = {
-  animation: 'none',
-  statusBarStyle: 'dark',
-  contentStyle: { backgroundColor: C.background },
-} as const;
 const EMPTY_NOTES: readonly StorageNote[] = [];
 const EMPTY_DATES: ReadonlySet<string> = new Set();
 const EMPTY_DAY = {
@@ -89,7 +84,6 @@ export default function StorageScreen() {
 
   return (
     <View style={s.screen}>
-      <Stack.Screen options={SCREEN_OPTIONS} />
       <FlatList
         data={isFriends || notesLoading ? EMPTY_NOTES : archive.notes}
         keyExtractor={noteKey}

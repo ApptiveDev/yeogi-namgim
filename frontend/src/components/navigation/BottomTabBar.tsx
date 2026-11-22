@@ -1,6 +1,6 @@
 import { useFonts } from 'expo-font';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,15 +11,25 @@ const LABEL_FONTS = {
   [LABEL_FONT_FAMILY]: require('../../../assets/fonts/NotoSansKR-Bold.otf'),
 };
 
+type Tab = 'storage' | 'friends' | 'my';
+
 type Props = {
   onAddPress: () => void;
-  selectedTab?: 'home' | 'storage' | 'friends' | 'my';
+  selectedTab?: 'home' | Tab;
 };
 
 export default function BottomTabBar({ onAddPress, selectedTab = 'home' }: Props) {
   const insets = useSafeAreaInsets();
   const [labelFontLoaded] = useFonts(LABEL_FONTS);
   const labelFontFamily = labelFontLoaded ? LABEL_FONT_FAMILY : undefined;
+
+  function switchTab(tab: Tab) {
+    if (selectedTab === tab) return;
+    const href = `/${tab}` as const;
+    if (Platform.OS !== 'android') router.navigate(href);
+    else if (selectedTab === 'home') router.push(href);
+    else router.replace(href);
+  }
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
@@ -37,7 +47,7 @@ export default function BottomTabBar({ onAddPress, selectedTab = 'home' }: Props
           label="보관함"
           labelFontFamily={labelFontFamily}
           selected={selectedTab === 'storage'}
-          onPress={() => { if (selectedTab !== 'storage') router.navigate('/storage'); }}
+          onPress={() => switchTab('storage')}
         />
 
         <View style={styles.addSlot}>
@@ -56,7 +66,7 @@ export default function BottomTabBar({ onAddPress, selectedTab = 'home' }: Props
           label="친구"
           labelFontFamily={labelFontFamily}
           selected={selectedTab === 'friends'}
-          onPress={() => { if (selectedTab !== 'friends') router.navigate('/friends'); }}
+          onPress={() => switchTab('friends')}
         />
 
         <BottomTabItem
@@ -64,7 +74,7 @@ export default function BottomTabBar({ onAddPress, selectedTab = 'home' }: Props
           label="마이"
           labelFontFamily={labelFontFamily}
           selected={selectedTab === 'my'}
-          onPress={() => { if (selectedTab !== 'my') router.navigate('/my'); }}
+          onPress={() => switchTab('my')}
         />
       </View>
     </View>

@@ -100,7 +100,8 @@ function HomeContent({ onRetry }: { onRetry: () => void }) {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ statusBarStyle: isComposeOpen ? 'light' : 'dark' }} />
-      <View style={styles.container} pointerEvents={homeReady && !isReadingNote && !isComposeOpening ? 'auto' : 'none'} accessibilityElementsHidden={!homeReady || isReadingNote} importantForAccessibility={homeReady && !isReadingNote ? 'auto' : 'no-hide-descendants'}>
+      {/* Keep the map's native parent stable while pointer events change. */}
+      <View collapsable={false} style={styles.container} pointerEvents={homeReady && !isReadingNote && !isComposeOpening ? 'auto' : 'none'} accessibilityElementsHidden={!homeReady || isReadingNote} importantForAccessibility={homeReady && !isReadingNote ? 'auto' : 'no-hide-descendants'}>
       {userCoordinates && <HomeMap
         map={map}
         initialCenter={[userCoordinates.longitude, userCoordinates.latitude]}

@@ -18,7 +18,8 @@ class NoteOpenServiceTests {
 	private final com.yeoginamgim.note.access.NoteAccessService access = mock(com.yeoginamgim.note.access.NoteAccessService.class);
 	private final com.yeoginamgim.note.discovery.DatabaseNoteDiscoveryService discoveries = mock(com.yeoginamgim.note.discovery.DatabaseNoteDiscoveryService.class);
 	private final NoteOpenService noteOpenService = new NoteOpenService(noteRepository, actors, new FixedWindowRateLimiter(), access, discoveries,
-		mock(com.yeoginamgim.bookmark.service.BookmarkQueryService.class));
+		mock(com.yeoginamgim.bookmark.service.BookmarkQueryService.class),
+		mock(com.yeoginamgim.user.repository.MemberRepository.class));
 
 	@Test
 	void opensNearbyNoteIncludingOwnNote() {
@@ -30,6 +31,8 @@ class NoteOpenServiceTests {
 		var response = noteOpenService.open("member-token", note.getId(), new NoteOpenRequest(35.0, 129.0));
 		assertThat(response.content()).isEqualTo("내용");
 		assertThat(response.isMine()).isTrue();
+		assertThat(response.authorCategory()).isEqualTo(com.yeoginamgim.note.dto.NoteAuthorCategory.MINE);
+		assertThat(response.authorNickname()).isNull();
 	}
 
 }

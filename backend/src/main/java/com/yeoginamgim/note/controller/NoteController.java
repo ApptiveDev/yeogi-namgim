@@ -8,6 +8,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +21,7 @@ import com.yeoginamgim.common.api.ApiResponse;
 import com.yeoginamgim.common.auth.BearerTokenExtractor;
 import com.yeoginamgim.note.dto.NoteCreateRequest;
 import com.yeoginamgim.note.dto.NoteCreateResponse;
+import com.yeoginamgim.note.dto.NoteDeleteResponse;
 import com.yeoginamgim.note.dto.NoteMapBoundsRequest;
 import com.yeoginamgim.note.dto.NoteMapClusterRequest;
 import com.yeoginamgim.note.dto.MemberMapClusterResponse;
@@ -86,5 +88,15 @@ public class NoteController {
 		String token = bearerTokenExtractor.extract(authorizationHeader);
 		return ResponseEntity.ok().cacheControl(CacheControl.noStore())
 			.body(ApiResponse.success(noteOpenService.open(token, noteId, request)));
+	}
+
+	@DeleteMapping("/{noteId}")
+	public ResponseEntity<ApiResponse<NoteDeleteResponse>> delete(
+		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
+		@PathVariable UUID noteId
+	) {
+		String token = bearerTokenExtractor.extract(authorizationHeader);
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+			.body(ApiResponse.success(noteService.delete(token, noteId)));
 	}
 }

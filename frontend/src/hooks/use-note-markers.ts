@@ -9,7 +9,6 @@ import { getAuthState, getInitialAuthState, getMemberSessionKey, subscribeAuth }
 import { MAP_CLUSTER_ZOOM_THRESHOLD, MAP_QUERY_DEBOUNCE_MS, MAP_QUERY_PADDING_RATIO } from '@/constants/home-map';
 import { containsMapBounds, expandMapBounds } from '@/utils/map-bounds';
 
-const EMPTY_CLUSTERS: MapClusterMarker[] = [];
 type Request = MapViewport & { owner: number; filter: MapFilter; refreshKey: number; retryKey: number };
 type Cache = Request & { clusters: MapClusterMarker[] };
 type Failure = Request & { message: string };
@@ -131,7 +130,7 @@ export function useNoteMarkers(viewport: MapViewport | null, refreshKey = 0, mov
     && viewport && Math.abs(failure.zoom - viewport.zoom) < MAP_CLUSTER_ZOOM_THRESHOLD
     && containsMapBounds(failure.bounds, viewport.bounds) ? failure.message : null;
   return {
-    clusters: retained?.clusters ?? EMPTY_CLUSTERS,
+    clusters: retained?.clusters ?? null,
     error,
     initialLoading: enabled && focused && appActive && !retained && !error,
     retry: () => setRetryKey((value) => value + 1),

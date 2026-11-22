@@ -72,6 +72,23 @@ class MemberMapIntegrationTests extends MemberMapTestSupport {
 	}
 
 	@Test
+	void detailReturnsOnlyPolicyAllowedAuthorDisplay() throws Exception {
+		var friendOnly = note(friend, NoteVisibility.FRIENDS, 80, "친구전용");
+		var friendPublic = note(friend, NoteVisibility.PUBLIC, 70, "친구의익명공개");
+		var mine = note(me, NoteVisibility.PRIVATE, 350, "내쪽지");
+
+		open(friendOnly.getId(), "{\"latitude\":35,\"longitude\":129}").andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.authorCategory").value("FRIEND"))
+			.andExpect(jsonPath("$.data.authorNickname").value(friend.getNickname()));
+		open(friendPublic.getId(), "{\"latitude\":35,\"longitude\":129}").andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.authorCategory").value("ANONYMOUS"))
+			.andExpect(jsonPath("$.data.authorNickname").isEmpty());
+		open(mine.getId(), "{}").andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.authorCategory").value("MINE"))
+			.andExpect(jsonPath("$.data.authorNickname").isEmpty());
+	}
+
+	@Test
 	void mineIncludesEveryVisibilityAndOpensWithoutLocation() throws Exception {
 		for (NoteVisibility visibility : NoteVisibility.values()) note(me, visibility, 350, "내쪽지");
 		note(stranger, NoteVisibility.PUBLIC, 0, "타인");

@@ -107,7 +107,7 @@
 
 `POST /api/v1/notes/{noteId}/open`에 회원 토큰과 `{}`를 전달한다. 내 쪽지는 위치 없이, 또는 멀리 떨어진 위치에서도 열람할 수 있다. 본문 생략도 허용한다. 좌표를 보낼 때는 두 필드를 함께 보내며 범위를 검증한다.
 
-기존 `noteId/content/isMine/createdAt`에 `visibility/color/placeName/neighborhood`를 추가한 `data`를 반환한다. 익명 작성자 UUID는 포함하지 않는다.
+기존 `noteId/content/isMine/createdAt`에 `visibility/color/placeName/neighborhood/isSaved/isRead/authorCategory/authorNickname`을 추가한 `data`를 반환한다. `authorCategory`는 `MINE/FRIEND/ANONYMOUS`이며, 현재 친구가 작성한 `FRIENDS` 쪽지에만 `authorNickname`을 제공한다. `PUBLIC` 쪽지는 작성자가 현재 친구여도 `ANONYMOUS`와 `authorNickname: null`을 반환한다. 작성자 UUID·이메일은 포함하지 않는다.
 
 - 작성·조회 담당: `NoteService`, `Note`, `NoteRepository`, 작성·목록 DTO.
 - 열람 담당: 분리한 `NoteOpenService`에서 타인 권한, 친구·저장 거리 예외, 읽음 기록을 확장한다. 회원 본인 열람은 이미 제공한다.
@@ -134,9 +134,9 @@ PostgreSQL·PostGIS DB와 환경변수를 준비한 `backend/`에서 실행한�
 
 ## 6. 3차 세미나 후속 작업
 
-2026-11-17 `main`에는 고정 태그와 작성자 쪽지 삭제가 없다. 확정 정책과 구현 순서는 [3차 세미나 백엔드 계획](THIRD_SEMINAR_BACKEND_PLAN.md)을 따른다.
+고정 태그는 아직 구현 전이며 확정 정책과 구현 순서는 [3차 세미나 백엔드 계획](THIRD_SEMINAR_BACKEND_PLAN.md)을 따른다. 작성자 쪽지 삭제는 `DELETE /api/v1/notes/{noteId}`로 제공한다.
 
 - `POST /api/v1/notes`에 고정된 6개 중 하나인 `tag`를 추가한다. 기존 쪽지는 임의로 분류하지 않는다.
-- 작성자 전용 `DELETE /api/v1/notes/{noteId}`를 추가한다. 타인 쪽지와 존재하지 않는 쪽지는 모두 404로 처리한다.
-- 삭제 시 저장·읽음 관계를 연쇄 정리하고 지도·보관함·달력·친구 소식에서 사라지는지 통합 검증한다.
+- 작성자 전용 `DELETE /api/v1/notes/{noteId}`는 성공 시 삭제한 `noteId`와 `deleted: true`를 반환한다. 타인 쪽지와 존재하지 않는 쪽지는 모두 `404 RESOURCE_NOT_FOUND`로 처리한다.
+- 삭제 시 저장·읽음 관계는 외래 키로 연쇄 정리한다. 작성자 보관함과 모든 사용자의 관련 조회에서도 원본이 사라진다.
 - 상세의 그날/지도 이동 분류는 기존 `isMine/isSaved/visibility/createdAt`을 재사용하며 신규 백엔드 API를 만들지 않는다.
