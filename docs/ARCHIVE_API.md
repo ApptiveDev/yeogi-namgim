@@ -30,3 +30,24 @@
 달력 탭의 전체·내가 쓴·저장한 필터, 날짜 점, 날짜 선택·해제, 날짜별 목록은 현재 달력·목록 API로 지원한다. 내가 쓴 쪽지는 저장 행 없이 `WRITTEN`, 저장한 남의 쪽지는 `SAVED`로 반환하며 본인·현재 접근 가능한 저장 쪽지는 거리와 관계없이 연다.
 
 지도 탭의 보관함 모드는 별도다. 현재 `GET /api/v1/notes?filter=MINE|SAVED`는 요청한 화면 bounds 안에서만 조회하므로, 모든 쪽지를 한 화면에 맞추기 위한 전체 bounds와 위치 페이지 계약은 [3차 세미나 백엔드 계획](THIRD_SEMINAR_BACKEND_PLAN.md)의 후속 작업으로 개발한다.
+
+## 지도 탭 보관함 전체 위치 — 이슈 #160
+
+`GET /api/v1/users/me/archive/map?type=WRITTEN&size=100`은 회원 Access Token이 필요하다. `type`은 필수이며 `WRITTEN` 또는 `SAVED`다. `size`는 기본 100, 허용 1~500이고 `page` 대신 불투명 `cursor`를 사용한다. 인증 실패는 401, 잘못된 유형·크기·커서·`page`는 `400 INVALID_REQUEST`다. 응답에는 `Cache-Control: no-store`가 붙는다.
+
+```json
+{
+  "totalCount": 2,
+  "bounds": {"minLatitude": 35.0, "minLongitude": 128.0, "maxLatitude": 36.0, "maxLongitude": 129.0},
+  "notes": [{"noteId": "11111111-1111-4111-8111-111111111111", "latitude": 35.0, "longitude": 129.0}],
+  "size": 100,
+  "hasNext": true,
+  "nextCursor": "<opaque>"
+}
+```
+
+위 예시는 공통 성공 응답의 `data`다. `totalCount`와 `bounds`는 페이지 제한 전에 현재 회원의 전체 대상에서 계산한다. 첫 페이지에 화면 밖의 쪽지가 있어도 전체 좌표 범위를 받는다. 비어 있으면 `totalCount=0`, `bounds=null`, `notes=[]`, `hasNext=false`, `nextCursor=null`이다. 응답 위치에는 본문·작성자·개별 공개 범위가 없다. `notes`는 `createdAt DESC, noteId DESC`로 정렬하며 `hasNext=true`이면 같은 유형으로 `nextCursor`를 다시 보낸다. 커서는 회원과 유형에 묶여 있고 다른 회원·유형으로 재사용할 수 없다. 다음 페이지 사이에 관계나 쪽지 상태가 바뀌면 전체 개수와 범위를 다시 계산하고 더는 볼 수 없는 쪽지는 제외한다.
+
+`WRITTEN`은 작성자의 PUBLIC·FRIENDS·PRIVATE 전체를 포함한다. `SAVED`는 실제 저장 관계가 있고 현재 PUBLIC 또는 친구 관계에 따른 FRIENDS 접근 권한이 있는 타인 쪽지만 포함한다. 친구 해제·공개 범위 변경·쪽지 삭제는 다음 조회부터 반영한다. 기존 비회원 기록과 타인의 PRIVATE는 포함하지 않는다. 이 조회는 읽음 기록을 생성하지 않으며, 본인과 현재 볼 수 있는 저장 쪽지의 상세 열람은 기존 거리 예외를 사용한다.
+
+프론트는 선택한 유형의 첫 응답 `bounds`로 화면을 맞추고 `hasNext`인 동안 위치 페이지를 이어 받아 마커를 채운다. 지도 보관함 모드 UI와 화면 전환은 별도 프론트 작업이다. #160 PR이 `main`에 병합되기 전에는 완료 기능으로 표시하지 않는다.

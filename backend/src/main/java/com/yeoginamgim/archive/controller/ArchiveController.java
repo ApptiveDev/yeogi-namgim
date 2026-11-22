@@ -12,9 +12,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.yeoginamgim.archive.dto.ArchiveCalendarResponse;
+import com.yeoginamgim.archive.dto.ArchiveMapRequest;
+import com.yeoginamgim.archive.dto.ArchiveMapResponse;
 import com.yeoginamgim.archive.dto.ArchiveNotesRequest;
 import com.yeoginamgim.archive.dto.ArchiveNotesResponse;
 import com.yeoginamgim.archive.service.ArchiveService;
+import com.yeoginamgim.archive.service.ArchiveMapService;
 import com.yeoginamgim.common.api.ApiResponse;
 import com.yeoginamgim.common.auth.CurrentUserProvider;
 import com.yeoginamgim.note.service.InvalidNoteRequestException;
@@ -28,10 +31,12 @@ import jakarta.validation.constraints.Pattern;
 public class ArchiveController {
 	private final CurrentUserProvider currentUser;
 	private final ArchiveService archive;
+	private final ArchiveMapService maps;
 
-	public ArchiveController(CurrentUserProvider currentUser, ArchiveService archive) {
+	public ArchiveController(CurrentUserProvider currentUser, ArchiveService archive, ArchiveMapService maps) {
 		this.currentUser = currentUser;
 		this.archive = archive;
+		this.maps = maps;
 	}
 
 	@GetMapping("/calendar")
@@ -47,5 +52,13 @@ public class ArchiveController {
 		if (page != null) throw new InvalidNoteRequestException("보관함 목록은 page 대신 cursor를 사용합니다.");
 		return ResponseEntity.ok().cacheControl(CacheControl.noStore())
 			.body(ApiResponse.success(archive.find(currentUser.requireUserId(), request)));
+	}
+
+	@GetMapping("/map")
+	public ResponseEntity<ApiResponse<ArchiveMapResponse>> map(@Valid @ModelAttribute ArchiveMapRequest request,
+		@RequestParam(required = false) String page) {
+		if (page != null) throw new InvalidNoteRequestException("지도 보관함은 page 대신 cursor를 사용합니다.");
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+			.body(ApiResponse.success(maps.find(currentUser.requireUserId(), request)));
 	}
 }
