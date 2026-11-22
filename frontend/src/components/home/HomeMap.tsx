@@ -24,7 +24,7 @@ type Props = {
 
 export function HomeMap({ map, initialCenter, cameraRef, onComposeCameraIdle }: Props) {
   const {
-    mapRef, setIsMapReady, userPoint, userCircle, mapClusters,
+    mapRef, setIsMapReady, userPoint, userCircle, mapClusters, viewportBounds, reduceMotion,
     handleRegionWillChange, handleRegionDidChange, updateMapBounds,
   } = map;
   // Start at the resolved location, so an earlier default viewport cannot dismiss the cover.
@@ -119,6 +119,8 @@ export function HomeMap({ map, initialCenter, cameraRef, onComposeCameraIdle }: 
 
         <NoteMapLayer
           clusters={mapClusters}
+          viewportBounds={viewportBounds}
+          reduceMotion={reduceMotion}
           userPoint={userPoint}
           afterId={userPoint ? 'user-location-marker' : userCircle ? 'user-radius-outline' : BASE_MAP_TOP_LAYER}
           onPointPress={(point, loadClusters) => { void map.handleNotePointPress(point, loadClusters); }}

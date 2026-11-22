@@ -45,11 +45,30 @@ class MemberMapIntegrationTests extends MemberMapTestSupport {
 	void friendFilterContainsOnlyFriendsVisibilityAndShowsAuthorName() throws Exception {
 		var included = note(friend, NoteVisibility.FRIENDS, 120, "친구전용");
 		note(friend, NoteVisibility.PUBLIC, 40, "친구의전체공개는제외");
-		note(me, NoteVisibility.FRIENDS, 60, "내가친구에게쓴쪽지는내필터에서");
+		var mine = note(me, NoteVisibility.FRIENDS, 60, "내친구공개");
+		note(me, NoteVisibility.PRIVATE, 30, "내비공개");
 		note(stranger, NoteVisibility.FRIENDS, 80, "관계없음");
 		var data = data(map("FRIENDS", true).andExpect(status().isOk())
-			.andExpect(jsonPath("$.data.openableNotes[0].authorNickname").value(friend.getNickname())));
-		assertThat(ids(data.get("notes"))).containsExactly(included.getId().toString());
+			.andExpect(jsonPath("$.data.openableNotes[1].authorNickname").value(friend.getNickname())));
+		assertThat(ids(data.get("notes"))).containsExactly(mine.getId().toString(), included.getId().toString());
+		assertThat(data.get("notes").get(0).get("isMine").asBoolean()).isTrue();
+	}
+
+
+	@Test
+	void publicMapContainsOnlyPublicNotesIncludingMineAndKeepsAuthorsAnonymous() throws Exception {
+		var mine = note(me, NoteVisibility.PUBLIC, 20, "내공개");
+		var friendPublic = note(friend, NoteVisibility.PUBLIC, 40, "친구전체공개");
+		var other = note(stranger, NoteVisibility.PUBLIC, 60, "타인전체공개");
+		for (var author : java.util.List.of(me, friend, stranger)) {
+			note(author, NoteVisibility.FRIENDS, 10, "친구공개제외");
+			note(author, NoteVisibility.PRIVATE, 10, "비공개제외");
+		}
+		var result = data(map("PUBLIC", true).andExpect(status().isOk()));
+		assertThat(ids(result.get("notes"))).containsExactly(
+			mine.getId().toString(), friendPublic.getId().toString(), other.getId().toString());
+		assertThat(result.get("notes").get(0).get("isMine").asBoolean()).isTrue();
+		for (var card : result.get("openableNotes")) assertThat(card.get("authorNickname").isNull()).isTrue();
 	}
 
 	@Test

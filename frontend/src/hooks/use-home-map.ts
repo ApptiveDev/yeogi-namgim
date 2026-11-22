@@ -356,7 +356,7 @@ export function useHomeMap({
       setFilter(next);
     },
     mapRef, setIsMapReady, isMapReady, isMapRendered, setIsMapRendered, setMapError, startupError: mapError,
-    userPoint, userCircle, mapClusters, handleNotePointPress,
+    userPoint, userCircle, mapClusters, viewportBounds: viewport?.bounds ?? null, reduceMotion, handleNotePointPress,
     notesError, notesInitialLoading, retryNotes, clearMapSelection, dismissMapSelection,
     selectedMapPoint: !isComposeOpen && selection?.owner === owner ? selection.value : null,
     nearbyNotes,

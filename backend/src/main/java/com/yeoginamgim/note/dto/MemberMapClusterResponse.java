@@ -7,5 +7,5 @@ public record MemberMapClusterResponse(List<Cluster> clusters, long totalCount, 
 	public MemberMapClusterResponse { clusters = List.copyOf(clusters); }
 
 	public record Cluster(String clusterId, double latitude, double longitude, long count, UUID noteId,
-		double minLatitude, double minLongitude, double maxLatitude, double maxLongitude) {}
+		double minLatitude, double minLongitude, double maxLatitude, double maxLongitude, long unreadCount) {}
 }

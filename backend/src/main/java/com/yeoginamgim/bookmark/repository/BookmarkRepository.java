@@ -88,6 +88,10 @@ public class BookmarkRepository {
 		String sql = """
 			WITH visible AS (
 				SELECT n.id, n.latitude, n.longitude,
+					n.author_user_id <> :userId AND NOT EXISTS (
+						SELECT 1 FROM app.note_discoveries d
+						WHERE d.user_id = :userId AND d.note_id = n.id
+					) AS unread,
 					LEAST(:gridSize - 1, GREATEST(0, COALESCE(FLOOR(
 						(n.longitude - :minLongitude) / NULLIF(:maxLongitude - :minLongitude, 0)
 						* :gridSize), 0)))::integer AS cell_x,
@@ -100,6 +104,7 @@ public class BookmarkRepository {
 				AND n.longitude BETWEEN :minLongitude AND :maxLongitude
 			)
 			SELECT cell_x, cell_y, COUNT(*) AS note_count,
+				COUNT(*) FILTER (WHERE unread) AS unread_count,
 				AVG(latitude) AS latitude, AVG(longitude) AS longitude,
 				CASE WHEN COUNT(*) = 1 THEN MIN(id::text) ELSE NULL END AS note_id,
 				MIN(latitude) AS min_latitude, MIN(longitude) AS min_longitude,
@@ -111,7 +116,7 @@ public class BookmarkRepository {
 			rs.getDouble("longitude"), rs.getLong("note_count"),
 			rs.getString("note_id") == null ? null : UUID.fromString(rs.getString("note_id")),
 			rs.getDouble("min_latitude"), rs.getDouble("min_longitude"),
-			rs.getDouble("max_latitude"), rs.getDouble("max_longitude")));
+			rs.getDouble("max_latitude"), rs.getDouble("max_longitude"), rs.getLong("unread_count")));
 	}
 
 	private SavedNoteReference reference(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
