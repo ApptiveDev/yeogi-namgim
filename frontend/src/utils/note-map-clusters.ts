@@ -1,7 +1,61 @@
 import type { GeoJSONSourceProps, GeoJSONSourceRef } from '@maplibre/maplibre-react-native';
 import type { Feature, FeatureCollection, Point } from 'geojson';
 
-import type { MapClusterMarker } from '@/api/types';
+import type { MapBounds, MapClusterMarker } from '@/api/types';
+import { splitMapBounds } from './map-bounds';
+
+type Clusters = readonly MapClusterMarker[] | null;
+type Fade = { from: number; to: 0 | 1 };
+
+export type NoteMapFade = {
+  latest: Clusters;
+  shown: Clusters;
+  opacity: number;
+  fade: Fade | null;
+};
+
+function positionKeys(clusters: Clusters, ranges: readonly MapBounds[] | null) {
+  return (clusters ?? [])
+    .filter(({ latitude, longitude }) => !ranges || ranges.some((range) =>
+      latitude >= range.minLatitude && latitude <= range.maxLatitude
+      && longitude >= range.minLongitude && longitude <= range.maxLongitude))
+    .map(({ latitude, longitude }) => `${latitude},${longitude}`);
+}
+
+export function updateNoteMapFade(
+  state: NoteMapFade, latest: Clusters, reduceMotion: boolean, viewportBounds: MapBounds | null = null,
+): NoteMapFade {
+  if (reduceMotion || latest === null) return { latest, shown: latest, opacity: 1, fade: null };
+
+  const { shown, opacity, fade } = state;
+  const ranges = viewportBounds ? splitMapBounds(viewportBounds) : null;
+  const before = positionKeys(shown, ranges);
+  const after = positionKeys(latest, ranges);
+  if (before.length === after.length) {
+    before.sort();
+    if (after.sort().every((key, index) => key === before[index])) {
+      return { ...state, latest, shown: latest, fade: fade?.to === 0 ? { from: opacity, to: 1 } : fade };
+    }
+  }
+
+  if (!shown?.length || opacity === 0) {
+    return latest.length
+      ? { latest, shown: latest, opacity: 0, fade: { from: 0, to: 1 } }
+      : { latest, shown: latest, opacity: 1, fade: null };
+  }
+
+  return { ...state, latest, fade: fade?.to === 0 ? fade : { from: opacity, to: 0 } };
+}
+
+export function advanceNoteMapFade(state: NoteMapFade, fade: Fade, progress: number): NoteMapFade {
+  if (state.fade !== fade) return state;
+  if (progress < 1) return { ...state, opacity: fade.from + (fade.to - fade.from) * progress };
+  const { latest } = state;
+  if (fade.to === 0 && latest?.length) {
+    return { latest, shown: latest, opacity: 0, fade: { from: 0, to: 1 } };
+  }
+  return { latest, shown: latest, opacity: 1, fade: null };
+}
 
 export type NoteMapPoint = {
   id: string;
