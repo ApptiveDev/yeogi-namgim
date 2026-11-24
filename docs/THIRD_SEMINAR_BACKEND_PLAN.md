@@ -96,6 +96,8 @@
 GET /api/v1/users/me/archive/map?type=WRITTEN|SAVED&cursor=...&size=100
 ```
 
+[#160](https://github.com/ApptiveDev/yeogi-namgim/issues/160)에서 위 권장 경로를 선택했다. 첫 응답부터 전체 `totalCount`와 좌표 `bounds`를 계산하고, 위치는 커서로 이어서 제공한다. 자세한 요청·응답은 [보관함 API](ARCHIVE_API.md#지도-탭-보관함-전체-위치--이슈-160)에 적었다. PR 병합 전에는 `main`의 완료 기능으로 표시하지 않는다.
+
 첫 응답에 `totalCount`, 전체 `min/max latitude/longitude`, 최소 위치 필드를 포함하고 마커는 커서로 이어서 조회한다. `WRITTEN`은 모든 공개 범위의 내 쪽지, `SAVED`는 현재 접근 가능한 저장 쪽지만 포함한다. 두 유형 모두 상세 열람에서 거리 예외를 적용한다.
 
 ## 5. 보관함 달력과 목록
