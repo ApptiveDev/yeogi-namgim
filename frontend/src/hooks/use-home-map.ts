@@ -13,13 +13,17 @@ import { CAMERA_RETURN_DURATION, DEFAULT_MAP_VIEW, NEARBY_CAMERA_RETURN_DURATION
 import { useMotionPreference } from '@/hooks/use-motion-preference';
 import { useNoteMarkers } from '@/hooks/use-note-markers';
 import { subscribeBookmarkChanges } from '@/state/note-bookmarks';
+import { subscribeNoteReads } from '@/state/note-reads';
 import { createLocationCircle } from '@/utils/location-circle';
+
+const SINGLE_NOTE_PAGE_LIMIT = 2;
 
 export type NoteMapSelection = {
   key: number; point: NoteMapPoint; isInside: boolean; distanceMeters: number | null; screenPoint?: [number, number];
 };
 export type NearbyNoteList = {
   key: number; status: 'loading' | 'ready' | 'error';
+  pointCount: number;
   notes: MapNotePreview[]; error: string | null;
   hasNext: boolean; loadingMore: boolean;
 };
@@ -39,7 +43,8 @@ function updateNearbyNote(request: NearbyRequest, note: MapNotePreview) {
     && (note.distanceMeters === null || note.distanceMeters > NOTE_READ_RADIUS_METERS))) {
     request.notes.delete(note.noteId);
   } else {
-    request.notes.set(note.noteId, isSaved === undefined ? note : { ...note, isSaved });
+    const isRead = request.notes.get(note.noteId)?.isRead === true ? true : note.isRead;
+    request.notes.set(note.noteId, { ...note, isSaved: isSaved ?? note.isSaved, isRead });
   }
 }
 
@@ -55,12 +60,12 @@ type Options = {
   cameraRef: RefObject<CameraRef | null>;
   resumeFollowingAfterClose: RefObject<boolean>;
   notesRefreshKey: number;
-  nearbySheetHeight: number;
+  getNearbySheetHeight: (pointCount: number) => number;
 };
 
 export function useHomeMap({
   userCoordinates, isComposeOpen, isFollowingUser, setIsFollowingUser,
-  cameraRef, resumeFollowingAfterClose: resumeFollowingAfterCloseRef, notesRefreshKey, nearbySheetHeight,
+  cameraRef, resumeFollowingAfterClose: resumeFollowingAfterCloseRef, notesRefreshKey, getNearbySheetHeight,
 }: Options) {
   const mapRef = useRef<MapRef>(null);
   const boundsGeneration = useRef(0);
@@ -174,18 +179,28 @@ export function useHomeMap({
         hasNext: request.hasNext || request.notes.size > request.visibleCount } : previous);
   }), []);
 
+  useEffect(() => subscribeNoteReads(({ owner, noteId }) => {
+    const request = nearbyRequest.current;
+    if (!request || owner !== request.owner || owner !== getMemberSessionKey()) return;
+    const note = request.notes.get(noteId);
+    if (!note || note.isRead === true) return;
+    request.notes.set(noteId, { ...note, isRead: true });
+    setNearby((previous) => previous?.key === request.key
+      ? { ...previous, notes: nearbyPreviews(request) } : previous);
+  }), []);
+
   const showListCamera = (request: NearbyRequest) => {
     if (listAnchor.current || !cameraRef.current) return;
     const center = request.point.center;
     listAnchor.current = center;
     listCameraTransition.current = true;
-    cameraRef.current.easeTo({ center, padding: { top: 0, bottom: nearbySheetHeight, left: 0, right: 0 },
+    cameraRef.current.easeTo({ center, padding: { top: 0, bottom: getNearbySheetHeight(request.point.count), left: 0, right: 0 },
       duration: reduceMotion ? 0 : CAMERA_RETURN_DURATION });
   };
 
   const showNearbyList = (request: NearbyRequest, error: string | null) => {
     const notes = nearbyPreviews(request);
-    setNearby({ key: request.key, owner: request.owner, status: 'ready', notes,
+    setNearby({ key: request.key, owner: request.owner, pointCount: request.point.count, status: 'ready', notes,
       hasNext: request.hasNext || request.notes.size > request.visibleCount, loadingMore: false, error });
     if (notes.length) {
       const distanceMeters = notes.reduce<number | null>((nearest, note) => note.distanceMeters === null
@@ -203,33 +218,41 @@ export function useHomeMap({
     const active = () => nearbyRequest.current === request && request.owner === getMemberSessionKey()
       && AppState.currentState !== 'background' && AppState.currentState !== 'inactive';
     const previousCount = Math.min(request.notes.size, request.visibleCount);
+    const isSinglePoint = request.point.count === 1;
+    const singleNoteId = request.point.clusters[0]?.noteId;
     const manualPaging = request.filter === 'MINE' || request.filter === 'SAVED';
     request.targetCount ??= previousCount + (manualPaging ? MAP_NOTES_LIST_PAGE_SIZE : MAP_NOTES_PAGE_SIZE);
     request.visibleCount = manualPaging ? request.targetCount : Infinity;
-    setNearby({ key: request.key, owner: request.owner, status: previousCount ? 'ready' : 'loading', notes: nearbyPreviews(request),
+    setNearby({ key: request.key, owner: request.owner, pointCount: request.point.count,
+      status: previousCount ? 'ready' : 'loading', notes: nearbyPreviews(request),
       hasNext: request.hasNext || request.notes.size > request.visibleCount, loadingMore: previousCount > 0, error: null });
     try {
       while (request.hasNext && request.notes.size < request.targetCount) {
         if (!active()) return;
         const page = await runMemberRequest((token) => getNoteMarkers(request.bounds[request.range], token, request.page, request.location, request.filter));
         if (!active()) return;
-        request.hasNotes ||= page.notes.length > 0;
         for (const marker of page.notes) {
+          if (isSinglePoint && marker.noteId !== singleNoteId) continue;
+          request.hasNotes = true;
           request.allLocked &&= marker.accessStatus === 'LOCKED';
           request.locationRequired ||= marker.accessStatus === 'LOCATION_REQUIRED';
           if (marker.accessStatus === 'LOCKED' && marker.distanceMeters !== null) {
             request.nearestLocked = Math.min(request.nearestLocked ?? Infinity, marker.distanceMeters);
           }
         }
-        for (const note of page.openableNotes ?? []) updateNearbyNote(request, note);
+        for (const note of page.openableNotes ?? []) {
+          if (!isSinglePoint || note.noteId === singleNoteId) updateNearbyNote(request, note);
+        }
         if (page.hasNext) request.page = page.page + 1;
         else { request.range += 1; request.page = 0; }
-        request.hasNext = request.range < request.bounds.length;
+        request.hasNext = request.range < request.bounds.length
+          && !(isSinglePoint && (request.hasNotes || page.page + 1 >= SINGLE_NOTE_PAGE_LIMIT));
         // Do not fetch another page just to replace a card removed during this request.
-        if (request.bookmarkChanges !== bookmarkChanges) break;
+        if (!isSinglePoint && request.bookmarkChanges !== bookmarkChanges) break;
       }
 
       if (!active()) return;
+      if (isSinglePoint && !request.hasNotes) retryNotes();
       if (!request.hasNext && !request.notes.size && request.hasNotes && request.allLocked && request.nearestLocked !== null) {
         const screenPoint = await mapRef.current?.project(request.point.center);
         if (!active()) return;
@@ -251,7 +274,7 @@ export function useHomeMap({
       } else {
         const message = error instanceof Error ? error.message : '쪽지 목록을 불러오지 못했어요.';
         if (request.notes.size) showNearbyList(request, message);
-        else setNearby({ key: request.key, owner: request.owner, status: 'error', notes: [],
+        else setNearby({ key: request.key, owner: request.owner, pointCount: request.point.count, status: 'error', notes: [],
           hasNext: request.hasNext, loadingMore: false, error: message });
       }
     } finally {

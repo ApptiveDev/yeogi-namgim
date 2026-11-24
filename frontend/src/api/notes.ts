@@ -72,13 +72,14 @@ export async function getNoteMarkers(bounds: MapBounds, token: string, page = 0,
       !note || !openableIds.has(note.noteId)
       || typeof note.preview !== 'string' || typeof note.isMine !== 'boolean'
       || (note.isSaved !== null && typeof note.isSaved !== 'boolean')
+      || (note.isRead != null && typeof note.isRead !== 'boolean')
       || (note.distanceMeters !== null && (!Number.isFinite(note.distanceMeters) || note.distanceMeters < 0))
       || !['PUBLIC', 'FRIENDS', 'PRIVATE'].includes(note.visibility)
       || (note.authorNickname !== null && typeof note.authorNickname !== 'string'))) {
       throw new Error('쪽지 미리보기 응답이 올바르지 않습니다.');
     }
-    openableNotes = data.openableNotes.map(({ noteId, preview, distanceMeters, isMine, isSaved, color, visibility, placeName, neighborhood, createdAt, authorNickname }) =>
-      ({ noteId, preview, distanceMeters, isMine, isSaved, color, visibility, placeName, neighborhood, createdAt, authorNickname }));
+    openableNotes = data.openableNotes.map(({ noteId, preview, distanceMeters, isMine, isSaved, isRead, color, visibility, placeName, neighborhood, createdAt, authorNickname }) =>
+      ({ noteId, preview, distanceMeters, isMine, isSaved, isRead: isRead ?? null, color, visibility, placeName, neighborhood, createdAt, authorNickname }));
   }
 
   return {

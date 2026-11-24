@@ -4,6 +4,7 @@ import { Animated, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions
 import { NOTE_READ_RADIUS_METERS } from '@/constants/home-map';
 import type { NoteMapSelection } from '@/hooks/use-home-map';
 import { usePopupMotion } from '@/hooks/use-ui-motion';
+import { formatDistance } from '@/utils/distance';
 import { NoteSelectionHighlight } from './NoteSelectionHighlight';
 
 export function NoteLockedDialog({ selection: selectedPoint, onClose }: { selection: NoteMapSelection | null; onClose: () => void }) {
@@ -17,8 +18,8 @@ export function NoteLockedDialog({ selection: selectedPoint, onClose }: { select
       onRequestClose={() => { if (activeSelection) onClose(); }}>
       <Animated.View {...motion.interactionProps} style={[s.container, { opacity: motion.opacity }]}>
         <Pressable style={s.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="안내 닫기" />
-        <NoteSelectionHighlight key={selection.key} point={selection.point} isInside={false} screenPoint={selection.screenPoint} />
-        <Animated.View key={selection.key} style={[s.card, { transform: [{ translateY: height * 0.04 }, { scale: motion.scale }] }]}
+        <NoteSelectionHighlight key={`highlight-${selection.key}`} point={selection.point} isInside={false} screenPoint={selection.screenPoint} />
+        <Animated.View key={`card-${selection.key}`} style={[s.card, { transform: [{ translateY: height * 0.04 }, { scale: motion.scale }] }]}
           accessibilityViewIsModal onAccessibilityEscape={onClose}>
           <View style={s.badge}>
             <Image source={require('../../../assets/images/map-note-lock.svg')} style={s.lock} contentFit="contain" accessible={false} />
@@ -26,7 +27,7 @@ export function NoteLockedDialog({ selection: selectedPoint, onClose }: { select
           <Text style={s.title} accessibilityRole="header">가까이 가야 볼 수 있어요</Text>
           <Text style={s.message}>
             반경 {NOTE_READ_RADIUS_METERS}m 안에서 쪽지를 볼 수 있어요{'\n'}
-            {selection.point.count === 1 ? '이 쪽지' : '가장 가까운 쪽지'}까지 약 {Math.ceil(selection.distanceMeters)}m
+            {selection.point.count === 1 ? '이 쪽지' : '가장 가까운 쪽지'}까지 약 {formatDistance(selection.distanceMeters)}
           </Text>
           <Pressable onPress={onClose} accessibilityRole="button" style={({ pressed }) => [s.confirm, pressed && s.pressed]}>
             <Text style={s.confirmText}>확인</Text>
