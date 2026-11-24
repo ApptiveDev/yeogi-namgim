@@ -7,7 +7,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
 import java.time.Instant;
+import java.util.Set;
 import com.yeoginamgim.note.domain.NoteMapFilter;
+import com.yeoginamgim.note.domain.NoteTag;
 import com.yeoginamgim.note.access.LocationInput;
 
 public record NoteMapBoundsRequest(
@@ -36,16 +38,18 @@ public record NoteMapBoundsRequest(
 	@DecimalMin("-90.0") @DecimalMax("90.0") Double latitude,
 	@DecimalMin("-180.0") @DecimalMax("180.0") Double longitude,
 	@DecimalMin("0.0") @DecimalMax("1.7976931348623157E308") Double accuracyMeters,
-	Instant measuredAt
+	Instant measuredAt,
+	Set<NoteTag> tags
 ) {
 	public NoteMapBoundsRequest {
 		if (filter == null) filter = NoteMapFilter.ALL;
 		if (page == null) page = 0;
 		if (size == null) size = 100;
+		tags = tags == null ? Set.of() : Set.copyOf(tags);
 	}
 
 	public NoteMapBoundsRequest(Double minLatitude, Double minLongitude, Double maxLatitude, Double maxLongitude) {
-		this(minLatitude, minLongitude, maxLatitude, maxLongitude, null, null, null, null, null, null, null);
+		this(minLatitude, minLongitude, maxLatitude, maxLongitude, null, null, null, null, null, null, null, null);
 	}
 
 	@AssertTrue(message = "coordinates must be supplied together; measurement metadata requires coordinates")
@@ -66,4 +70,7 @@ public record NoteMapBoundsRequest(
 			|| maxLongitude == null
 			|| (minLatitude <= maxLatitude && minLongitude <= maxLongitude);
 	}
+
+	@AssertTrue(message = "tags may only be used with the PUBLIC filter")
+	public boolean isTagsValid() { return tags.isEmpty() || filter == NoteMapFilter.PUBLIC; }
 }

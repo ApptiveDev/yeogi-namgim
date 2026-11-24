@@ -26,6 +26,7 @@
   "latitude": 35.2314,
   "longitude": 129.0846,
   "visibility": "PRIVATE",
+  "tag": "CAFE",
   "color": "#FFCC3D",
   "placeName": "부산대학교 정문",
   "neighborhood": "장전동"
@@ -37,6 +38,7 @@
 | `content` | 필수, 공백만 입력 불가, 최대 500자, 앞뒤 공백 제거 |
 | `latitude` / `longitude` | 필수, 위도 -90~90 / 경도 -180~180 |
 | `visibility` | 회원 필수, `PUBLIC` / `FRIENDS` / `PRIVATE`, 기본 공개로 대체하지 않음 |
+| `tag` | 신규 회원 쪽지 필수, `RESTAURANT` / `CAFE` / `MEMORY` / `WORRY` / `TOUCHED` / `DAILY` 중 하나. 누락·알 수 없는 코드는 400 |
 | `color` | 선택, `#RRGGBB` 또는 영문자로 시작하는 1~32자 색상 식별자(영문·숫자·밑줄·하이픈). 누락 시 null |
 | `placeName` | 선택, 최대 200자, 상세 장소·주소 표시 문자열 |
 | `neighborhood` | 선택, 최대 100자, 동네 표시 문자열 |
@@ -55,6 +57,8 @@
 ```
 
 비회원 작성은 종료했다. 기존 비회원 토큰을 보내면 `401 UNAUTHORIZED`를 반환한다.
+
+태그는 새 Flyway 마이그레이션 V15에서 nullable 컬럼으로 추가한다. 기존 회원·비회원 쪽지는 태그 없이 유지하고 임의 값을 채우지 않는다. 화면 문구와 이모지는 프론트가 코드에 매핑한다. 관련 작업은 [#159](https://github.com/ApptiveDev/yeogi-namgim/issues/159)이며 병합 전까지는 `main`의 완료 기능으로 표시하지 않는다.
 
 ## 2. 기존 지도·주소 조회와 연결
 

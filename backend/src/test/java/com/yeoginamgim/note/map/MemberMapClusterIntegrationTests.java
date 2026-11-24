@@ -17,6 +17,23 @@ import com.yeoginamgim.note.domain.NoteVisibility;
 
 class MemberMapClusterIntegrationTests extends MemberMapTestSupport {
 	@Test
+	void publicClustersApplyTheSameMultiTagFilterAsMarkers() throws Exception {
+		var cafe = note(stranger, NoteVisibility.PUBLIC, 0, "카페");
+		var memory = note(friend, NoteVisibility.PUBLIC, 0, "추억");
+		var legacy = note(stranger, NoteVisibility.PUBLIC, 0, "기존");
+		var hidden = note(friend, NoteVisibility.FRIENDS, 0, "비공개");
+		jdbc.update("UPDATE app.notes SET tag = 'CAFE' WHERE id = ?", cafe.getId());
+		jdbc.update("UPDATE app.notes SET tag = 'MEMORY' WHERE id = ?", memory.getId());
+		jdbc.update("UPDATE app.notes SET tag = 'CAFE' WHERE id = ?", hidden.getId());
+		clusters("PUBLIC", Map.of("tags", "CAFE,MEMORY"))
+			.andExpect(status().isOk()).andExpect(jsonPath("$.data.totalCount").value(2));
+		clusters("PUBLIC", Map.of()).andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.totalCount").value(3));
+		clusters("FRIENDS", Map.of("tags", "CAFE")).andExpect(status().isBadRequest());
+		clusters("PUBLIC", Map.of("tags", "WRONG")).andExpect(status().isBadRequest());
+	}
+
+	@Test
 	void moreThanTenThousandNotesAreCountedWithoutTruncation() throws Exception {
 		jdbc.update("""
 			WITH inserted AS (

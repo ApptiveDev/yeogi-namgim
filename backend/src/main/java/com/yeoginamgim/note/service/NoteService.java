@@ -34,9 +34,12 @@ public class NoteService {
 		if (request.visibility() == null) {
 			throw new InvalidNoteRequestException("회원 쪽지는 visibility가 필요합니다.");
 		}
+		if (request.tag() == null) {
+			throw new InvalidNoteRequestException("회원 쪽지는 tag가 필요합니다.");
+		}
 		Note note = Note.createMember(UUID.randomUUID(), actor.id(), request.content().strip(),
 			request.latitude(), request.longitude(), createdAt, request.visibility(),
-			request.color(), optionalLabel(request.placeName()), optionalLabel(request.neighborhood()));
+			request.color(), optionalLabel(request.placeName()), optionalLabel(request.neighborhood()), request.tag());
 		noteRepository.save(note);
 
 		return new NoteCreateResponse(note.getId(), createdAt);

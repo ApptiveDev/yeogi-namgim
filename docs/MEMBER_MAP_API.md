@@ -187,6 +187,7 @@ Authorization: Bearer <accessToken>
 - 현재 `ALL`은 내 쪽지·타인의 `PUBLIC`·현재 친구의 `FRIENDS`를 함께 반환한다. 공개 지도 전용 `PUBLIC` 필터를 새로 추가하고 기존 `ALL`은 호환을 위해 유지한다.
 - `FRIENDS`는 현재 친구와 내가 작성한 `FRIENDS`를 반환한다. 친구의 `PUBLIC`과 모든 `PRIVATE`는 제외한다.
 - 공개 지도에만 고정 태그 복수 필터를 추가한다. 같은 조건을 개별 지도와 클러스터에 적용한다.
+- [#159](https://github.com/ApptiveDev/yeogi-namgim/issues/159)의 `tags`는 `filter=PUBLIC`에서만 사용하는 선택 쿼리다. 예: `GET /api/v1/notes?minLatitude=34.99&minLongitude=128.99&maxLatitude=35.01&maxLongitude=129.01&filter=PUBLIC&tags=CAFE,MEMORY`, 클러스터는 같은 조건에 `GET /api/v1/notes/clusters`를 사용한다. 반복 `tags` 또는 쉼표 구분 코드 중 하나라도 일치하면 포함한다. 미지정 시 태그가 없는 기존 공개 쪽지도 포함한다. `FRIENDS/ALL/MINE/SAVED`에 태그를 붙이거나 알 수 없는 코드를 보내면 `400 INVALID_REQUEST`다. 회원 Access Token이 필요하며 응답은 기존 형식과 `Cache-Control: no-store`를 유지한다. 프론트는 두 지도 요청 모두 같은 태그 집합을 보내야 한다.
 - 클러스터 응답에 현재 회원 기준 `unreadCount`를 DB에서 함께 집계한다. 내 쪽지는 제외하며 읽음 기록을 새로 생성하지 않는다.
 - 지도 보관함의 모든 작성·저장 쪽지를 한 화면에 맞추려면 현재 화면 bounds 기반 `MINE/SAVED` 조회 외에 전체 bounds/위치 계약이 필요하다.
 

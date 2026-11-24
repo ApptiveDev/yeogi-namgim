@@ -26,6 +26,10 @@ public class Note {
 	@Column(nullable = false, length = 16)
 	private NoteVisibility visibility = NoteVisibility.PUBLIC;
 
+	@Enumerated(EnumType.STRING)
+	@Column(length = 16)
+	private NoteTag tag;
+
 	@Column(length = 32)
 	private String color;
 
@@ -84,17 +88,26 @@ public class Note {
 	public static Note createMember(UUID id, UUID authorUserId, String content,
 		double latitude, double longitude, Instant createdAt, NoteVisibility visibility,
 		String color, String placeName, String neighborhood) {
+		return createMember(id, authorUserId, content, latitude, longitude, createdAt, visibility,
+			color, placeName, neighborhood, null);
+	}
+
+	public static Note createMember(UUID id, UUID authorUserId, String content,
+		double latitude, double longitude, Instant createdAt, NoteVisibility visibility,
+		String color, String placeName, String neighborhood, NoteTag tag) {
 		Note note = new Note(id, null, content, latitude, longitude, createdAt);
 		note.authorUserId = java.util.Objects.requireNonNull(authorUserId);
 		note.visibility = java.util.Objects.requireNonNull(visibility);
 		note.color = color;
 		note.placeName = placeName;
 		note.neighborhood = neighborhood;
+		note.tag = tag;
 		return note;
 	}
 
 	public UUID getAuthorUserId() { return authorUserId; }
 	public NoteVisibility getVisibility() { return visibility; }
+	public NoteTag getTag() { return tag; }
 	public String getColor() { return color; }
 	public String getPlaceName() { return placeName; }
 	public String getNeighborhood() { return neighborhood; }

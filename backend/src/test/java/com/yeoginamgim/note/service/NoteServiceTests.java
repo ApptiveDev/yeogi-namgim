@@ -24,7 +24,8 @@ class NoteServiceTests {
 	void createsNoteForIdentifiedMemberWithServerTime() {
 		UUID userId = UUID.randomUUID();
 		when(actors.identify("member-token")).thenReturn(new NoteActorProvider.Actor(userId));
-		NoteCreateRequest request = new NoteCreateRequest("  여기 남긴 쪽지  ", 35.1796, 129.0756, com.yeoginamgim.note.domain.NoteVisibility.PUBLIC, null, null, null);
+		NoteCreateRequest request = new NoteCreateRequest("  여기 남긴 쪽지  ", 35.1796, 129.0756, com.yeoginamgim.note.domain.NoteVisibility.PUBLIC, null, null, null,
+			com.yeoginamgim.note.domain.NoteTag.CAFE);
 
 		NoteCreateResponse response = noteService.create("member-token", request);
 
@@ -35,6 +36,7 @@ class NoteServiceTests {
 		assertThat(savedNote.getContent()).isEqualTo("여기 남긴 쪽지");
 		assertThat(savedNote.getLatitude()).isEqualTo(35.1796);
 		assertThat(savedNote.getLongitude()).isEqualTo(129.0756);
+		assertThat(savedNote.getTag()).isEqualTo(com.yeoginamgim.note.domain.NoteTag.CAFE);
 		assertThat(savedNote.getCreatedAt()).isNotNull();
 		assertThat(response.noteId()).isEqualTo(savedNote.getId());
 		assertThat(response.createdAt()).isEqualTo(savedNote.getCreatedAt());
